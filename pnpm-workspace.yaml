@@ -3,8 +3,13 @@ packages:
 
 # Install scripts allowed to run: esbuild and unrs-resolver fetch native
 # binaries (workerd runs the relay locally), simple-git-hooks installs the git hooks declared in package.json.
+# The Angular CLI's optional native helpers stay off: their prebuilt binaries are enough, and the CLI
+# falls back to plain JavaScript without them.
 allowBuilds:
+  '@parcel/watcher': false
   esbuild: true
+  lmdb: false
+  msgpackr-extract: false
   simple-git-hooks: true
   unrs-resolver: true
   workerd: true

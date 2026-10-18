@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "node"]
+    "types": ["node"],
+    "experimentalDecorators": true
   },
-  "include": ["src", "test", "vite.config.ts"]
+  "include": ["src", "test"]
 }

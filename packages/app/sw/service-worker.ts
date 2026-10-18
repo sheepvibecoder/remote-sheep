@@ -2,7 +2,8 @@
 // that session when it is tapped. It owns no state and caches nothing.
 //
 // Kept outside `src/` and self-contained on purpose: it runs in a worker (its own tsconfig,
-// no DOM) and Vite emits it as the classic script `sw.js`, which cannot import shared chunks.
+// no DOM) and `build.mjs` bundles it alone into the classic script `sw.js`, which cannot import
+// shared chunks.
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 

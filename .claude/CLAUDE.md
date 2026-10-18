@@ -2,7 +2,7 @@
 
 Drive the coding agents running in Herdr from your phone, by chat and voice. A pnpm monorepo:
 `packages/protocol` (wire contract), `packages/agent` (Node process next to Herdr),
-`packages/app` (phone PWA, Vite, no framework), `packages/relay` (Cloudflare Worker relay).
+`packages/app` (phone PWA, Angular), `packages/relay` (Cloudflare Worker relay).
 
 ## Read before changing code
 

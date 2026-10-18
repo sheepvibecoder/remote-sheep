@@ -4,7 +4,6 @@
 // in L2_application; this layer only touches the DOM, so a redesign replaces it
 // alone. The connection arrives from the composition root as a port.
 
-import './styles.css';
 import './appearance';
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';

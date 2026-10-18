@@ -236,7 +236,7 @@ packages/
     src/L2_application/   the core: session monitor and hub, who watches what, what changed
     src/L3_periphery/     adapters: herdr, claude transcripts, LAN link, secure channel, files, CLI
     src/main.ts           composition root
-  app/        the phone app (Vite, no framework)
+  app/        the phone app (Angular)
     src/L1_domain/        ports and pure rules
     src/L2_application/   app store: state and rules, no DOM
     src/L3_periphery/     WebSocket connection to the agent

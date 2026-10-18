@@ -7,7 +7,7 @@ relay, are hexagonal and split their `src/` into four layers.
 packages/
   protocol/   shared kernel — wire types, frame codec, validators. Pure; any layer may import it.
   agent/      runs on the PC next to Herdr (Node).
-  app/        the phone app (browser, Vite, no framework).
+  app/        the phone app (browser, Angular).
   relay/      the relay (Cloudflare Worker + Durable Object); forwards sealed frames, reads none.
 ```
 
@@ -23,8 +23,9 @@ packages/
 The relay follows the same layers: `RelayRoom` (the rules of one agent's room) is L2, the Worker and
 the Durable Object with their Cloudflare adapters are L3, and its `src/main.ts` is its composition root.
 
-The composition roots — `src/main.ts` in each package and `src/config.ts` in the agent — are the
-only files that import every layer. They build the adapters and hand them to the core and the view.
+The composition roots — `src/main.ts` in each package, `src/config.ts` in the agent and
+`src/app.config.ts` (the Angular providers) in the app — are the only files that import every
+layer. They build the adapters and hand them to the core and the view.
 
 ### What is forbidden, and what enforces it
 
@@ -65,7 +66,8 @@ Rules ESLint cannot see are checked by the read-only `hexagonal-guard` subagent
 - A new multiplexer (tmux, zellij) or agent (Codex): an adapter implementing `Multiplexer` or
   `TranscriptSource`.
 - A new rule about sessions: L1 if it is pure, L2 if it needs ports.
-- A new screen or control: `LR_render`, with its state and rules in the app `Store`.
+- A new screen or control: an Angular component in `LR_render`, with its state and rules in the app
+  `Store`. Angular stays out of L1 and L2; ESLint refuses `@angular/*` and `rxjs` there.
 
 ## Testing
 

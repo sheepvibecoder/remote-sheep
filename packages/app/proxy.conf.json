@@ -1,0 +1,3 @@
+{
+  "/ws": { "target": "ws://localhost:3999", "ws": true }
+}

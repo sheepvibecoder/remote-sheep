@@ -4,6 +4,7 @@
 
 import eslint from '@eslint/js';
 import prettier from 'eslint-config-prettier';
+import angular from 'angular-eslint';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 import { importX } from 'eslint-plugin-import-x';
 import globals from 'globals';
@@ -14,7 +15,7 @@ const LAYERED_PACKAGES = ['agent', 'app', 'relay'];
 /** Each layer imports only the ones below it; composition roots import everything. */
 function layerZones(pkg) {
   const src = `./packages/${pkg}/src`;
-  const roots = [`${src}/main.ts`, `${src}/config.ts`];
+  const roots = [`${src}/main.ts`, `${src}/config.ts`, `${src}/app.config.ts`];
   const layer = (name) => `${src}/${name}`;
   return [
     ...['L2_application', 'L3_periphery', 'LR_render', ...roots].map((from) => ({
@@ -52,6 +53,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/node_modules/**',
       '**/.wrangler/**',
+      '**/.angular/**',
       '.atl/**',
       '.codegraph/**',
     ],
@@ -63,7 +65,12 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.mjs', '*.ts', 'packages/agent/build.mjs'],
+          allowDefaultProject: [
+            '*.mjs',
+            '*.ts',
+            'packages/agent/build.mjs',
+            'packages/app/build.mjs',
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -106,7 +113,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/agent/**/*.{ts,mjs}', '*.{ts,mjs}', 'scripts/**/*.mjs'],
+    files: [
+      'packages/agent/**/*.{ts,mjs}',
+      'packages/app/build.mjs',
+      '*.{ts,mjs}',
+      'scripts/**/*.mjs',
+    ],
     languageOptions: { globals: globals.node },
   },
   {
@@ -117,6 +129,27 @@ export default tseslint.config(
       'no-restricted-imports': ['error', { patterns: [{ group: ['node:*', 'ws'] }] }],
       'no-restricted-globals': ['error', 'Buffer', 'process', 'require'],
     },
+  },
+  {
+    files: ['packages/app/src/**/*.ts'],
+    extends: [angular.configs.tsRecommended],
+    processor: angular.processInlineTemplates,
+    rules: {
+      // An Angular component is a decorated class, often with nothing but a constructor.
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+      '@angular-eslint/component-selector': [
+        'error',
+        { type: 'element', prefix: 'app', style: 'kebab-case' },
+      ],
+      '@angular-eslint/directive-selector': [
+        'error',
+        { type: 'attribute', prefix: 'app', style: 'camelCase' },
+      ],
+    },
+  },
+  {
+    files: ['packages/app/src/**/*.html'],
+    extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
   },
   {
     // The service worker runs in a worker scope: no DOM, no Node.
@@ -147,6 +180,10 @@ export default tseslint.config(
             {
               group: ['node:*', 'ws', 'fs', 'path', 'os', 'crypto', 'child_process'],
               message: 'L1 and L2 are plain TypeScript; reach the outside world through a port.',
+            },
+            {
+              group: ['@angular/*', 'rxjs', 'rxjs/*'],
+              message: 'L1 and L2 stay framework-free (ADR 0007); Angular lives in L3 and LR.',
             },
           ],
         },

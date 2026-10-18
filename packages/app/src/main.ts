@@ -1,5 +1,7 @@
 // Composition root: the only file that knows which adapters the app talks through.
 
+import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app.config';
 import { agentFromSearch, sessionFromSearch } from './L1_domain/session-link';
 import { HttpUpdateSource } from './L3_periphery/http-update-source';
 import { IndexedDbPairingStore } from './L3_periphery/indexed-db-pairing-store';
@@ -8,7 +10,7 @@ import {
   type PushEnvironment,
 } from './L3_periphery/service-worker-push-subscriptions';
 import { agentUrl, WebSocketAgentConnection } from './L3_periphery/websocket-agent-connection';
-import { startApp } from './LR_render/app.view';
+import { AppComponent } from './LR_render/app.component';
 
 // The pairing secret must not stay in the address bar, where it lands in history.
 // A tapped notification names its session in the query; that goes too once read.
@@ -35,13 +37,19 @@ const pushEnvironment: PushEnvironment = {
     'Notification' in window ? { request: () => Notification.requestPermission() } : null,
 };
 
-startApp({
-  connect: (credentials, handlers) =>
-    new WebSocketAgentConnection(agentUrl(location, credentials.agentKey), credentials, handlers),
-  pairings: new IndexedDbPairingStore(indexedDB),
-  fragment,
-  session,
-  agent,
-  push: new ServiceWorkerPushSubscriptions(pushEnvironment),
-  updates: new HttpUpdateSource((url, init) => fetch(url, init)),
+bootstrapApplication(
+  AppComponent,
+  appConfig({
+    connect: (credentials, handlers) =>
+      new WebSocketAgentConnection(agentUrl(location, credentials.agentKey), credentials, handlers),
+    pairings: new IndexedDbPairingStore(indexedDB),
+    fragment,
+    session,
+    agent,
+    push: new ServiceWorkerPushSubscriptions(pushEnvironment),
+    updates: new HttpUpdateSource((url, init) => fetch(url, init)),
+  }),
+).catch((error: unknown) => {
+  // Nothing else will show it on a phone; the view's error handlers are not up yet.
+  alert('The app failed to start\n\n' + String(error));
 });
