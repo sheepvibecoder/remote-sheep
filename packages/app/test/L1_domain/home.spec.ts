@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@remote-sheep/protocol';
-import { groupSpaces, initials, matches } from '../../src/L1_domain/home';
+import { groupSpaces, initials, matches, ringOf } from '../../src/L1_domain/home';
 
 function session(
   title: string,
@@ -69,5 +69,18 @@ describe('groupSpaces', () => {
     expect(groupSpaces([session('a', 'remote-sheep', 'idle', 'wF')], [])).toEqual([
       { id: 'wF', label: 'remote-sheep', count: 1, status: 'idle' },
     ]);
+  });
+});
+
+describe('ringOf', () => {
+  it('rings a session by what it asks of the person', () => {
+    expect(ringOf('blocked')).toBe('needs');
+    expect(ringOf('working')).toBe('work');
+    expect(ringOf('done')).toBe('done');
+    expect(ringOf('idle')).toBe('idle');
+  });
+
+  it('rings a status Herdr cannot tell as idle, never as one that asks for a look', () => {
+    expect(ringOf('unknown')).toBe('idle');
   });
 });

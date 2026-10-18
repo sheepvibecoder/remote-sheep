@@ -12,6 +12,22 @@ export interface Space {
   status: AgentStatus;
 }
 
+/** The ring around an avatar: what the session asks of the person, readable at a glance. */
+export type Ring = 'needs' | 'work' | 'done' | 'idle';
+
+const RINGS: Record<AgentStatus, Ring> = {
+  blocked: 'needs',
+  working: 'work',
+  done: 'done',
+  idle: 'idle',
+  // A status Herdr cannot tell must not call for attention it may not need.
+  unknown: 'idle',
+};
+
+export function ringOf(status: AgentStatus): Ring {
+  return RINGS[status];
+}
+
 /** The letters on a row's avatar. */
 export function initials(title: string): string {
   const words = title.split(/\s+/).filter(Boolean);

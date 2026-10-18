@@ -5,9 +5,15 @@
 // alone. The connection arrives from the composition root as a port.
 
 import './appearance';
-import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
+import type {
+  AgentStatus,
+  ChatMessage,
+  Request,
+  ResultOf,
+  UploadResult,
+} from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
-import { initials } from '../L1_domain/home';
+import { initials, ringOf } from '../L1_domain/home';
 import { composeOrder } from '../L1_domain/order';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
@@ -67,6 +73,8 @@ const gateScan = $('gate-scan');
 const profileOpen = $('profile-open');
 const toast = $('toast');
 const dot = $('dot');
+// An <svg>, which `$` would refuse as not an HTMLElement.
+const brand = must(document.querySelector<SVGSVGElement>('svg#brand'), 'svg#brand');
 const nameEl = $('name');
 const sub = $('sub');
 const back = $('back');
@@ -287,8 +295,8 @@ $('toggle-term').addEventListener('click', () => {
   say(state.showTerm ? 'raw terminal' : 'chat');
 });
 
-// Every view shows the version, so a stale page is told apart at a glance.
-const VERSION_LABEL = '  ·  v' + __VERSION__;
+// Every view shows the version at the bottom, so a stale page is told apart at a glance.
+$('version').textContent = 'RemoteSheep v' + __VERSION__;
 
 function renderHeader(): void {
   const { view, sessions } = state;
@@ -296,9 +304,16 @@ function renderHeader(): void {
   const status = view === 'chat' ? current?.status || '' : '';
   dot.className = 'dot ' + (state.link === 'open' ? status : 'unknown');
   const title = must(nameEl.firstChild, '#name title');
+  // The list is the home: it carries the app's name, and says which computer it shows below.
+  brand.classList.toggle('hidden', view !== 'list');
+  dot.classList.toggle('hidden', view === 'list');
+  nameEl.classList.toggle('home', view === 'list');
   if (view === 'list') {
-    title.textContent = (store.activeProfileName() ?? 'remote-sheep') + ' ';
-    sub.textContent = sessions.length ? sessions.length + ' running' : 'none';
+    title.textContent = 'RemoteSheep ';
+    const profile = store.activeProfileName();
+    sub.textContent =
+      (profile ? profile + '  ·  ' : '') +
+      (sessions.length ? sessions.length + ' running' : 'none');
   } else if (view === 'devices') {
     title.textContent = 'Devices ';
     sub.textContent = state.devices.length + ' linked';
@@ -312,7 +327,6 @@ function renderHeader(): void {
     const profile = store.activeProfileName();
     if (profile) sub.textContent += (sub.textContent ? '  ·  ' : '') + profile;
   }
-  sub.textContent += VERSION_LABEL;
 }
 
 // ---- home ----
@@ -369,7 +383,7 @@ function renderSheet(): void {
     const row = document.createElement('button');
     row.className = 'card';
     const avatar = document.createElement('span');
-    avatar.className = 'av';
+    avatar.className = 'av idle';
     avatar.textContent = initials(space.label);
     const who = document.createElement('span');
     who.className = 'who';
@@ -403,7 +417,9 @@ async function startIn(space: string, label: string, shell: boolean): Promise<vo
 interface Row {
   key: string;
   avatar: string;
-  status: string;
+  status: AgentStatus;
+  /** A console, drawn as a terminal rather than as an agent. */
+  shell: boolean;
   title: string;
   meta: string;
   /** Settles not looked at yet; 0 shows no badge. */
@@ -416,6 +432,7 @@ function rows(): Row[] {
       key: space.id,
       avatar: initials(space.label),
       status: space.status,
+      shell: false,
       title: space.label,
       meta: String(space.count) + (space.count === 1 ? ' session' : ' sessions'),
       unread: 0,
@@ -425,6 +442,7 @@ function rows(): Row[] {
     key: session.target,
     avatar: session.kind === 'shell' ? '$' : initials(session.title),
     status: session.status,
+    shell: session.kind === 'shell',
     title: session.title,
     meta: (session.kind === 'shell' ? 'console' : session.status) + '  ·  ' + session.project,
     unread: store.unread(session.target),
@@ -460,7 +478,6 @@ function renderList(): void {
       card.className = 'card';
       const avatar = document.createElement('span');
       avatar.className = 'av';
-      avatar.append(document.createElement('b'), document.createElement('i'));
       const who = document.createElement('span');
       who.className = 'who';
       const title = document.createElement('span');
@@ -477,9 +494,9 @@ function renderList(): void {
     }
     card.dataset['key'] = row.key;
     card.dataset['kind'] = state.home;
-    card.classList.toggle('shell', state.home === 'consoles');
-    must(card.querySelector('.av b'), 'row avatar').textContent = row.avatar;
-    must(card.querySelector('.av i'), 'row status').className = 'dot ' + row.status;
+    const avatar = must(card.querySelector<HTMLElement>('.av'), 'row avatar');
+    avatar.className = 'av ' + ringOf(row.status) + (row.shell ? ' sh' : '');
+    avatar.textContent = row.avatar;
     must(card.querySelector('.t'), 'row title').textContent = row.title;
     must(card.querySelector('.s'), 'row meta').textContent = row.meta;
     const badge = must(card.querySelector<HTMLElement>('.badge'), 'row badge');

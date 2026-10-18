@@ -1,0 +1,98 @@
+/* The design tokens of the approved mockup: warm paper, ink, and one accent the person picks.
+ * `data-theme` on <html> switches light and dark; `data-palette` switches the accent, with
+ * Watermelon when it is absent. Green and amber are no accent: they mean done and working. */
+
+:root {
+  color-scheme: light;
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --sunk: #f2f0e9;
+  --line: #e7e4da;
+  --text: #1f1d1b;
+  --text-2: #6b6862;
+  --text-3: #a19d94;
+
+  --accent: #e5446d;
+  --accent-soft: #fde9ee;
+  --on-accent: #ffffff;
+
+  --needs: #e5446d;
+  --work: #f2a52b;
+  --done: #2fa36b;
+  --idle: #d9d5ca;
+
+  --code-bg: #1f1d1b;
+  --term-bg: #1a1917;
+  --term: #e7e4da;
+  --serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace;
+
+  /* The names the current screens use, until each one is rebuilt on the tokens above. */
+  --panel: var(--bg);
+  --muted: var(--text-2);
+  --soft: var(--accent-soft);
+  --on-soft: var(--accent);
+  --thread: var(--bg);
+  --press: var(--sunk);
+  --mine: var(--accent-soft);
+  --on-mine: var(--text);
+  --working: var(--work);
+  --blocked: var(--needs);
+}
+:root[data-palette='coral'] {
+  --accent: #e8613f;
+  --accent-soft: #fcebe5;
+  --needs: #e8613f;
+}
+:root[data-palette='raspberry'] {
+  --accent: #c92a62;
+  --accent-soft: #fae6ee;
+  --needs: #c92a62;
+}
+:root[data-palette='violet'] {
+  --accent: #7357e8;
+  --accent-soft: #eeeafd;
+}
+:root[data-palette='ocean'] {
+  --accent: #2b78d6;
+  --accent-soft: #e6f0fb;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #262624;
+  --surface: #30302d;
+  --sunk: #1f1f1d;
+  --line: #3d3c38;
+  --text: #f4f2ec;
+  --text-2: #b7b3a9;
+  --text-3: #85827a;
+  --accent: #ff6b8e;
+  --accent-soft: #4a2a33;
+  --on-accent: #1f1d1b;
+  --needs: #ff6b8e;
+  --work: #f6b54a;
+  --done: #4cc388;
+  --idle: #4e4c46;
+  --code-bg: #1a1a18;
+  --term-bg: #1a1a18;
+}
+:root[data-theme='dark'][data-palette='coral'] {
+  --accent: #f47e5e;
+  --accent-soft: #4a3028;
+  --needs: #f47e5e;
+}
+:root[data-theme='dark'][data-palette='raspberry'] {
+  --accent: #ec5c8e;
+  --accent-soft: #4a2433;
+  --needs: #ec5c8e;
+}
+:root[data-theme='dark'][data-palette='violet'] {
+  --accent: #a08cff;
+  --accent-soft: #332c4d;
+}
+:root[data-theme='dark'][data-palette='ocean'] {
+  --accent: #6aaef5;
+  --accent-soft: #23344a;
+}

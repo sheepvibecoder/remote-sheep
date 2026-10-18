@@ -35,7 +35,13 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/LR_render/styles.css"],
+            "styles": [
+              "@fontsource-variable/inter/index.css",
+              "@fontsource-variable/source-serif-4/index.css",
+              "@fontsource-variable/jetbrains-mono/index.css",
+              "src/LR_render/tokens.css",
+              "src/LR_render/styles.css"
+            ],
             "define": {
               "__VERSION__": "'dev'"
             }

@@ -8,7 +8,7 @@ function applyTheme(name: string): void {
   document.documentElement.dataset['theme'] = name;
   localStorage.setItem('theme', name);
   const meta = document.querySelector<HTMLMetaElement>('meta[name=theme-color]');
-  if (meta) meta.content = name === 'dark' ? '#0b0d10' : '#ffffff';
+  if (meta) meta.content = name === 'dark' ? '#262624' : '#faf9f5';
   $('toggle-theme').textContent = name === 'dark' ? 'Light theme' : 'Dark theme';
 }
 
