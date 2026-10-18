@@ -10,6 +10,13 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 - A Ctrl+C key in the terminal keys, to stop what runs in a console (`pnpm dev`).
 
+### Changed
+
+- The first step of the redesign: warm paper colours with a Watermelon accent, in light and dark;
+  the Inter, Source Serif 4 and JetBrains Mono fonts, served by the agent itself; the status of a
+  session shown as a ring around its avatar; **RemoteSheep** and the sheep logo at the top of the
+  list, the version at the bottom of every view, and the sheep as the app icon.
+
 ## [0.6.1] — 2026-10-16
 
 ### Changed
