@@ -139,7 +139,7 @@ export class WebSocketAgentConnection implements AgentConnection {
       // Fresh ephemeral keys on every connection: forward secrecy per connection.
       const handshake = startHandshake(this.credentials.phone, this.invite !== null);
       this.phase = { step: 'welcome', handshake };
-      socket.send(encodeHello(handshake.hello));
+      socket.send(sendable(encodeHello(handshake.hello)));
       this.stopKeepalive();
       this.keepalive = setInterval(() => socket.send(RELAY_PING), this.keepaliveMs);
     });
@@ -252,7 +252,7 @@ export class WebSocketAgentConnection implements AgentConnection {
   private send(message: ClientMessage): void {
     const phase = this.phase;
     if (!phase || phase.step === 'welcome') throw new Error('no secure session yet');
-    this.socket?.send(phase.session.seal(encodeClientMessage(message)));
+    this.socket?.send(sendable(phase.session.seal(encodeClientMessage(message))));
   }
 }
 
@@ -260,6 +260,17 @@ export class WebSocketAgentConnection implements AgentConnection {
  * The socket lives on the host that served this page: the agent on the LAN, or
  * the relay, which needs the agent's room. The LAN agent ignores the room.
  */
+/**
+ * `WebSocket.send` takes only views over a plain ArrayBuffer, and TypeScript types the protocol's
+ * bytes as possibly shared. The protocol always allocates plain buffers, so this copies only if
+ * that ever stops being true.
+ */
+function sendable(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return bytes.buffer instanceof ArrayBuffer
+    ? (bytes as Uint8Array<ArrayBuffer>)
+    : new Uint8Array(bytes);
+}
+
 export function agentUrl(page: { protocol: string; host: string }, agentKey: Uint8Array): string {
   const scheme = page.protocol === 'https:' ? 'wss:' : 'ws:';
   return scheme + '//' + page.host + '/ws?agent=' + publicKeyId(agentKey);
