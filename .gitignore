@@ -1,0 +1,32 @@
+# Dependencies and build output
+node_modules/
+dist/
+out-tsc/
+.angular/
+coverage/
+*.log
+
+# Secrets. Keys, paired devices and uploads live in ~/.remote-sheep, never here;
+# these lines guard against a copy landing in the tree by accident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+token.txt
+uploads/
+*.bak
+
+# Local work notes and tooling state: personal, never published.
+odd/
+.codegraph/
+.atl/
+.playwright-mcp/
+.wrangler/
+.claude/settings.local.json
+
+# OS clutter
+.DS_Store
+Thumbs.db
