@@ -9,6 +9,9 @@ pnpm install   # also installs the git hooks
 pnpm check     # what CI runs; must pass
 ```
 
+The leak check needs the owner's private denylist at `~/.config/sheep-guard/denylist.txt` (or
+`LEAK_DENYLIST_FILE`). It never goes in the repository.
+
 ## The rules
 
 1. **One purpose per pull request.**

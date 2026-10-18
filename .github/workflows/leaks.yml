@@ -1,0 +1,58 @@
+# Scans what a pull request changes for secrets and private data (ADR 0004), and checks that every
+# commit in it uses a GitHub noreply email (ADR 0003). Only the changed files are read, so the job
+# stays fast whatever the size of the repository. The denylist comes from the LEAK_DENYLIST secret.
+
+name: Leaks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  leaks:
+    name: leaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Commit emails
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: |
+          bad=$(git log --format='%ae%n%ce' "$RANGE" | sort -u | grep -Ev '^[0-9]+\+[A-Za-z0-9-]+@users\.noreply\.github\.com$|^noreply@github\.com$' || true)
+          if [ -n "$bad" ]; then
+            echo "Commits in this pull request use an email that is not a GitHub noreply address."
+            exit 1
+          fi
+
+      - name: Changed files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: git diff --name-only --diff-filter=ACMR -z "$BASE...HEAD" > "$RUNNER_TEMP/changed"
+
+      - name: secretlint
+        run: xargs -0 -r pnpm exec secretlint < "$RUNNER_TEMP/changed"
+
+      - name: denylist
+        env:
+          LEAK_DENYLIST: ${{ secrets.LEAK_DENYLIST }}
+        run: xargs -0 -r node scripts/check-denylist.mjs < "$RUNNER_TEMP/changed"

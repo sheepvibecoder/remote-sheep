@@ -37,6 +37,8 @@ Drive the coding agents running in Herdr from your phone, by chat and voice. A p
 
 - `hexagonal-guard` (read-only): review a change for the architecture rules ESLint cannot see.
   Run it for any change to `L1_domain`, `L2_application`, a port, or a new adapter.
+- `leak-guard` (read-only): review a change for private data the hooks cannot see (names, local
+  paths, internal URLs, media). Run it before every pull request.
 
 ## Planning notes
 

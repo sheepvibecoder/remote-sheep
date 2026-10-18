@@ -106,7 +106,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/agent/**/*.{ts,mjs}', '*.{ts,mjs}'],
+    files: ['packages/agent/**/*.{ts,mjs}', '*.{ts,mjs}', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
   {
