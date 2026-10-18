@@ -43,6 +43,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "node scripts/check-identity.mjs && pnpm exec lint-staged --max-arg-length=4000",
-    "commit-msg": "pnpm exec commitlint --edit \"$1\" && node scripts/check-denylist.mjs --message \"$1\""
+    "commit-msg": "pnpm exec commitlint --edit \"$1\" && node scripts/check-denylist.mjs --message \"$1\"",
+    "pre-push": "node scripts/check-push.mjs"
   }
 }

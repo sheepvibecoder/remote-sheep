@@ -24,6 +24,8 @@ The leak check needs the owner's private denylist at `~/.config/sheep-guard/deny
 
 - ✉️ Commits use your GitHub `noreply` email
 - 🔍 Each commit is scanned for secrets and private data
+- 🛡️ `main`, `develop` and `testing` only change through pull requests, and pushed commits are
+  dated in UTC (`TZ=UTC git commit`)
 - 🏛️ Each pull request gets an architecture and a leak review
 
 ## Flow
