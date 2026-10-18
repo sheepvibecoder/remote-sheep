@@ -1,0 +1,16 @@
+{
+  "name": "@remote-sheep/protocol",
+  "version": "0.6.1",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0"
+  }
+}

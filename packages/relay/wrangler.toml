@@ -1,0 +1,29 @@
+# The relay for remote-sheep. Deploy it to YOUR Cloudflare account:
+#
+#   pnpm --filter @remote-sheep/app build        # the phone app this Worker serves
+#   pnpm --filter @remote-sheep/relay deploy     # wrangler deploy
+#   wrangler secret put ACCESS_CODES             # comma-separated codes, one per person
+#
+# There is deliberately no account id, route or domain here: wrangler uses the account you are
+# logged into, and a custom domain is added in the Cloudflare dashboard (or a `routes` entry of
+# your own). ACCESS_CODES is a secret, never a value in this file.
+
+name = "remote-sheep-relay"
+main = "src/main.ts"
+compatibility_date = "2026-10-01"
+
+# The phone app. The Worker runs first for every path and hands the app's files to ASSETS:
+# listing only the socket paths here made Cloudflare fail every WebSocket upgrade with a 500.
+# Loading the app therefore counts a few Worker requests, far inside the free plan.
+[assets]
+directory = "../app/dist"
+binding = "ASSETS"
+run_worker_first = true
+
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "RelayDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayDurableObject"]

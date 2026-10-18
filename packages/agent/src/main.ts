@@ -1,0 +1,233 @@
+// Composition root: the only file that knows which adapters plug into the core.
+
+import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { encodeBase64Url, publicKeyId } from '@remote-sheep/protocol';
+import pkg from '../package.json' with { type: 'json' };
+import { PairingService } from './L2_application/pairing-service';
+import { PushNotifier } from './L2_application/push-notifier';
+import { SessionHub } from './L2_application/session-hub';
+import { SecureChannel } from './L3_periphery/channel/secure-channel';
+import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
+import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
+import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
+import { loadAgentKeyPair } from './L3_periphery/files/file-agent-identity';
+import { FileDeviceRegistry } from './L3_periphery/files/file-device-registry';
+import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
+import { FileUploadStore } from './L3_periphery/files/file-upload-store';
+import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
+import { LanTransport } from './L3_periphery/lan/lan-transport';
+import { WebPushSender } from './L3_periphery/push/web-push-sender';
+import { relayPushWarning } from './L3_periphery/relay/relay-settings';
+import {
+  loadRelaySettingsFile,
+  maskCode,
+  removeRelaySettingsFile,
+  saveRelaySettingsFile,
+} from './L3_periphery/relay/relay-settings-file';
+import { RelayTransport } from './L3_periphery/relay/relay-transport';
+import { pairingUrl, renderQr } from './L3_periphery/terminal/pairing-qr';
+import { config } from './config';
+
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .flatMap((i) => (i?.family === 'IPv4' && !i.internal ? [i.address] : []));
+}
+
+const clock = { now: () => Date.now() };
+const random = { bytes: (length: number) => new Uint8Array(randomBytes(length)) };
+
+async function createPushNotifier(
+  registry: FileDeviceRegistry,
+  subject: string,
+  agentId: string,
+  log: (message: string) => void,
+) {
+  const vapid = await loadVapidKeys(config.vapidFile);
+  return new PushNotifier({
+    registry,
+    sender: new WebPushSender({ vapid, subject }),
+    clock,
+    publicKey: encodeBase64Url(vapid.publicKey),
+    agentId,
+    log,
+  });
+}
+
+async function serve(registry: FileDeviceRegistry) {
+  const keys = await loadAgentKeyPair(config.agentKeyFile);
+  const pairing = new PairingService({ registry, clock, random });
+  const tls =
+    existsSync(config.certFile) && existsSync(config.keyFile)
+      ? { cert: readFileSync(config.certFile), key: readFileSync(config.keyFile) }
+      : undefined;
+  const log = (message: string) => console.error(message);
+
+  // Push needs the relay: its https origin is the VAPID subject and the page that can
+  // register a service worker. Without one there is no notifier and phones are told why.
+  const pushWarning = relayPushWarning(config.relay);
+  if (pushWarning) log(pushWarning);
+  const push = config.relay
+    ? await createPushNotifier(registry, config.relay.url, publicKeyId(keys.publicKey), log)
+    : undefined;
+
+  const hub = new SessionHub({
+    multiplexer: new HerdrMultiplexer(herdrRunner(config.herdr)),
+    transcripts: new ClaudeTranscripts({
+      sessionsDir: config.claudeSessionsDir,
+      projectsDir: config.claudeProjectsDir,
+      tailBytes: config.tailBytes,
+      maxMessages: config.maxMessages,
+    }),
+    uploads: new FileUploadStore(config.uploadsDir, config.maxUploadBytes),
+    devices: pairing,
+    listIntervalMs: config.listIntervalMs,
+    terminalIntervalMs: config.terminalIntervalMs,
+    debounceMs: config.debounceMs,
+    shells: config.shells,
+    notifier: push,
+    push,
+    log,
+  });
+
+  const channel = new SecureChannel({
+    keys,
+    pairing,
+    version: pkg.version,
+    events: hub,
+    checkIntervalMs: config.pairingCheckIntervalMs,
+    log,
+  });
+  const transport = new LanTransport({
+    port: config.port,
+    appDir: join(dirname(fileURLToPath(import.meta.url)), 'app'),
+    tls,
+  });
+  await transport.start((link) => channel.accept(link));
+
+  // The relay serves the app too, so its address leads the QR code; the LAN stays listed.
+  const relay = config.relay
+    ? new RelayTransport({
+        url: config.relay.url,
+        code: config.relay.code,
+        room: publicKeyId(keys.publicKey),
+        log,
+        onState: (state) => log('relay ' + state + ' (' + config.relay?.url + ')'),
+      })
+    : null;
+  await relay?.start((link) => channel.accept(link));
+
+  const scheme = tls ? 'https' : 'http';
+  const origins = [
+    ...(config.relay ? [config.relay.url] : []),
+    ...(lanAddresses().length ? lanAddresses() : ['localhost']).map(
+      (address) => scheme + '://' + address + ':' + config.port,
+    ),
+  ];
+  const interactive = process.stdin.isTTY;
+
+  const printInvite = async () => {
+    const invite = pairing.createInvite();
+    const pair = { agentKey: keys.publicKey, secret: invite.secret, expiresAt: invite.expiresAt };
+    const urls = origins.map((origin) => pairingUrl(origin, pair));
+    console.log('');
+    console.log(await renderQr(urls[0] ?? ''));
+    console.log('Scan this QR code with the phone to pair it. It pairs one phone and expires at');
+    console.log(formatTime(invite.expiresAt) + '. If the phone cannot reach this address, open:');
+    for (const url of urls) console.log('  ' + url);
+    if (interactive) console.log('Press Enter for a new QR code (the previous one stops working).');
+  };
+
+  console.log(
+    'remote-sheep ' + pkg.version + ' is listening on port ' + config.port + ' over ' + scheme,
+  );
+  if (!tls) {
+    console.log('Serving over plain http: frames are end-to-end encrypted, but someone on this');
+    console.log('network could alter the page itself. Put cert.pem and key.pem in ' + config.home);
+    console.log('to serve over https.');
+  }
+  console.log(
+    config.shells
+      ? 'Consoles are on: paired phones can open a shell here and run any command.'
+      : 'Consoles are off; start with REMOTE_SHEEP_SHELLS=1 to open shells from the phone.',
+  );
+  console.log('Paired phones: `remote-sheep devices`; unpair one: `remote-sheep revoke <id>`.');
+  console.log('Stop with Ctrl+C.');
+  await printInvite();
+
+  if (interactive) {
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', () => {
+      printInvite().catch((err: unknown) => {
+        log('could not print a QR code: ' + String(err));
+      });
+    });
+  }
+
+  const shutdown = async () => {
+    hub.stop();
+    await relay?.stop();
+    await transport.stop();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
+}
+
+async function main() {
+  const command = parseArguments(process.argv.slice(2));
+  const registry = new FileDeviceRegistry(config.devicesFile);
+  switch (command.kind) {
+    case 'help':
+      console.log(USAGE);
+      return;
+    case 'error':
+      console.error('remote-sheep: ' + command.message + '\n\n' + USAGE);
+      process.exitCode = 2;
+      return;
+    case 'devices':
+      console.log(formatDevices(await registry.list(), clock.now()));
+      return;
+    case 'revoke':
+      if (await registry.remove(command.id)) {
+        console.log('Revoked ' + command.id + '. A running agent disconnects it within 5 seconds.');
+      } else {
+        console.error('No paired phone has the id ' + command.id + '; see `remote-sheep devices`.');
+        process.exitCode = 1;
+      }
+      return;
+    case 'relay-set': {
+      const saved = await saveRelaySettingsFile(config.relayFile, command.url, command.code);
+      console.log('Relay saved: ' + saved.url + '. From now on the agent connects through it.');
+      return;
+    }
+    case 'relay-show': {
+      const saved = loadRelaySettingsFile(config.relayFile);
+      console.log(
+        saved
+          ? 'Relay: ' + saved.url + ' (code ' + maskCode(saved.code) + ')'
+          : 'No relay set; the agent serves the local network only.',
+      );
+      return;
+    }
+    case 'relay-off':
+      console.log(
+        (await removeRelaySettingsFile(config.relayFile))
+          ? 'Relay forgotten. The agent serves the local network only.'
+          : 'No relay was set.',
+      );
+      return;
+    case 'serve':
+      await serve(registry);
+      return;
+  }
+}
+
+main().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
+});

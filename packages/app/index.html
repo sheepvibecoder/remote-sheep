@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google" content="notranslate" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>remote-sheep</title>
+  </head>
+  <body>
+    <div id="gate">
+      <p id="gate-text"></p>
+      <button id="gate-scan" class="hidden">Scan QR code</button>
+      <div id="gate-profiles"></div>
+    </div>
+
+    <header id="head" class="hidden">
+      <button id="back" class="icon hidden" title="back">&larr;</button>
+      <span class="dot" id="dot"></span>
+      <span class="name" id="name">Sessions <span class="sub" id="sub"></span></span>
+      <button id="toggle-term" class="icon hidden" title="raw terminal">$</button>
+      <button id="profile-open" class="icon hidden" title="switch profile">&#8644;</button>
+      <button id="menu-open" class="icon" title="menu">&#8942;</button>
+      <div id="menu" class="hidden">
+        <button id="computers-open">Profiles</button>
+        <button id="devices-open">Linked devices</button>
+        <button id="brief" title="ask for a short reply">Short replies</button>
+        <button id="toggle-speak" title="read replies aloud">Read aloud</button>
+        <button id="toggle-size" title="text size">Text size</button>
+        <button id="toggle-theme" title="theme">Dark theme</button>
+        <button id="check-update" title="check for updates">Check for updates</button>
+      </div>
+    </header>
+
+    <div id="home" class="hidden">
+      <input id="search" type="search" placeholder="Search" autocomplete="off" />
+      <div class="pills">
+        <button id="tab-sessions" class="pill">Sessions</button>
+        <button id="tab-consoles" class="pill hidden">Consoles</button>
+        <button id="tab-spaces" class="pill">Spaces</button>
+        <button id="space-leave" class="pill on hidden" title="show every session"></button>
+      </div>
+      <p id="home-error" class="hidden"></p>
+    </div>
+    <div id="list"></div>
+    <button id="new-session" class="round hidden" title="new session">+</button>
+    <div id="sheet" class="hidden">
+      <div class="sheet-box">
+        <h3 id="sheet-title">New session in&hellip;</h3>
+        <div id="sheet-list"></div>
+      </div>
+    </div>
+    <div id="chat"></div>
+    <div id="term"></div>
+    <div id="devices"></div>
+    <div id="computers"></div>
+
+    <footer id="foot" class="hidden">
+      <div class="keys hidden" id="keys">
+        <button data-key="enter">Enter</button>
+        <button data-key="esc">Esc</button>
+        <button data-key="ctrl+c">Ctrl+C</button>
+        <button data-key="1">1</button>
+        <button data-key="2">2</button>
+        <button data-key="up">&uarr;</button>
+        <button data-key="down">&darr;</button>
+      </div>
+      <div id="attached" class="hidden">
+        <img id="attached-preview" alt="attached photo" />
+        <span id="attached-name"></span>
+        <button id="attached-drop" title="remove">&times;</button>
+      </div>
+      <input id="photo-input" type="file" accept="image/*" hidden />
+      <input id="camera-input" type="file" accept="image/*" capture="environment" hidden />
+
+      <div class="bar">
+        <div class="field">
+          <textarea id="text" rows="1" placeholder="Message" autocapitalize="sentences"></textarea>
+          <button id="photo" class="icon" title="attach a photo from the gallery">&#128206;</button>
+          <button id="camera" class="icon" title="take a photo">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+              />
+            </svg>
+          </button>
+        </div>
+        <button id="mic" class="round" title="dictate">
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.3-3a5.3 5.3 0 0 1-10.6 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-1.7z"
+            />
+          </svg>
+        </button>
+        <button id="send" class="round hidden" title="send">&#10148;</button>
+      </div>
+      <div id="flash"></div>
+    </footer>
+
+    <div id="toast" class="hidden"></div>
+
+    <div id="scanner" class="hidden">
+      <video id="scanner-video" playsinline muted></video>
+      <p>Point the camera at the QR code your computer shows.</p>
+      <button id="scanner-cancel">Cancel</button>
+    </div>
+
+    <div id="editor" class="hidden">
+      <div id="editor-stage"><canvas id="editor-canvas"></canvas></div>
+      <div id="editor-colors">
+        <button class="swatch" data-color="#ff2d2d"></button>
+        <button class="swatch" data-color="#ffd500"></button>
+        <button class="swatch" data-color="#19e36a"></button>
+        <button class="swatch" data-color="#2d9bff"></button>
+        <button class="swatch" data-color="#ffffff"></button>
+        <button class="swatch" data-color="#111111"></button>
+      </div>
+      <div id="editor-bar">
+        <button id="editor-cancel">Cancel</button>
+        <button id="editor-undo">Undo</button>
+        <button id="editor-clear">Clear</button>
+        <button id="editor-done">Use photo</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

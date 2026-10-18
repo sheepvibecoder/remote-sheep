@@ -1,0 +1,5 @@
+# Changes to CI, ownership and the lint/format/hook configuration need the owner's review.
+* @sheepvibecoder
+/.github/ @sheepvibecoder
+/eslint.config.mjs @sheepvibecoder
+/tsconfig.base.json @sheepvibecoder

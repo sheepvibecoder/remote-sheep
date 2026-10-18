@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+
+# Install scripts allowed to run: esbuild and unrs-resolver fetch native
+# binaries (workerd runs the relay locally), simple-git-hooks installs the git hooks declared in package.json.
+allowBuilds:
+  esbuild: true
+  simple-git-hooks: true
+  unrs-resolver: true
+  workerd: true

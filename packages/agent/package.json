@@ -1,0 +1,31 @@
+{
+  "name": "remote-sheep",
+  "version": "0.6.1",
+  "license": "UNLICENSED",
+  "private": true,
+  "description": "Drive the coding agents running in Herdr from your phone, by chat and voice",
+  "type": "module",
+  "bin": {
+    "remote-sheep": "dist/remote-sheep.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@remote-sheep/protocol": "workspace:*",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.28.0"
+  }
+}
