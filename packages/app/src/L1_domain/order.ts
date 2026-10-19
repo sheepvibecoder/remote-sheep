@@ -11,14 +11,6 @@ export interface ReplyStyle {
   suffix: string;
 }
 
-/** Orders sent with one tap, above the message box. Spanish, like the sessions they reach. */
-export const QUICK_REPLIES: readonly string[] = [
-  'Continúa',
-  'Corre los tests',
-  'Haz commit',
-  'Explícame el cambio',
-];
-
 /** Whether a style leaves the order as typed, so there is nothing to show for it. */
 export function asksNothing(style: ReplyStyle): boolean {
   return style.suffix === '';

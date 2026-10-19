@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUICK_REPLIES, asksNothing, composeOrder, quickOrder } from '../../src/L1_domain/order';
+import { asksNothing, composeOrder, quickOrder } from '../../src/L1_domain/order';
 import { DEFAULT_REPLY_STYLES, replyStyle as pick } from '../../src/L1_domain/reply-styles';
 
 const replyStyle = (id: string) => pick(DEFAULT_REPLY_STYLES, id);
@@ -31,14 +31,5 @@ describe('replyStyle', () => {
       spoken: 'Haz commit',
       order: 'Haz commit (responde en una sola linea)',
     });
-  });
-
-  it('offers the quick replies of the mockup', () => {
-    expect(QUICK_REPLIES).toEqual([
-      'Continúa',
-      'Corre los tests',
-      'Haz commit',
-      'Explícame el cambio',
-    ]);
   });
 });

@@ -15,13 +15,7 @@ import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
 import { initials } from '../L1_domain/home';
-import {
-  QUICK_REPLIES,
-  asksNothing,
-  composeOrder,
-  quickOrder,
-  type Order,
-} from '../L1_domain/order';
+import { asksNothing, composeOrder, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
@@ -188,8 +182,15 @@ function onChange(change: Change): void {
     case 'chat':
       onChat();
       return;
+    case 'quick':
+      drawQuick();
+      // Places shift when one is removed, so an edit in progress must not outlive the change.
+      clearQuickForm();
+      renderQuickSettings();
+      return;
     case 'styles':
       drawStyles();
+      clearStyleForm();
       renderStyleSettings();
       return;
     case 'terminal':
@@ -969,13 +970,20 @@ send.addEventListener('click', () => void sendOrder());
 
 const quick = $('quick');
 const toggleQuick = $('toggle-quick');
-for (const reply of QUICK_REPLIES) {
-  const chip = document.createElement('button');
-  chip.textContent = reply;
-  // What is being typed, and a photo waiting, stay in the box.
-  chip.addEventListener('click', () => void deliver(quickOrder(reply, state.replyStyle)));
-  quick.append(chip);
+// The chips are drawn again whenever the person changes the list in Settings.
+function drawQuick(): void {
+  quick.replaceChildren(
+    ...state.quickList.map((reply) => {
+      const chip = document.createElement('button');
+      chip.textContent = reply;
+      // What is being typed, and a photo waiting, stay in the box.
+      chip.addEventListener('click', () => void deliver(quickOrder(reply, state.replyStyle)));
+      return chip;
+    }),
+  );
+  renderStyles();
 }
+drawQuick();
 toggleQuick.addEventListener('click', () => store.setQuickReplies(!state.quickReplies));
 
 async function sendOrder(): Promise<void> {
@@ -1191,3 +1199,49 @@ $('style-reset').addEventListener('click', () => {
   store.resetStyles();
 });
 renderStyleSettings();
+
+// ---- settings: the quick replies the person writes ----
+
+const quickSettings = $('quick-list');
+const quickWords = $('quick-words', HTMLInputElement);
+const quickSave = $('quick-save');
+let editingQuick: number | null = null;
+
+function renderQuickSettings(): void {
+  quickSettings.replaceChildren(
+    ...state.quickList.map((reply, place) => {
+      const row = document.createElement('div');
+      row.className = 'style-row';
+      const name = document.createElement('span');
+      name.textContent = reply;
+      const edit = document.createElement('button');
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => {
+        editingQuick = place;
+        quickWords.value = reply;
+        quickSave.textContent = 'Save';
+      });
+      const remove = document.createElement('button');
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', () => store.removeQuick(place));
+      row.append(name, edit, remove);
+      return row;
+    }),
+  );
+}
+
+function clearQuickForm(): void {
+  editingQuick = null;
+  quickWords.value = '';
+  quickSave.textContent = 'Add reply';
+}
+
+quickSave.addEventListener('click', () => {
+  if (store.saveQuick(editingQuick, quickWords.value)) clearQuickForm();
+  else say('That reply is empty, already there, or the list is full.', true);
+});
+$('quick-reset').addEventListener('click', () => {
+  clearQuickForm();
+  store.resetQuick();
+});
+renderQuickSettings();

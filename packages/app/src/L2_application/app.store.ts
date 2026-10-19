@@ -28,6 +28,12 @@ import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
 import type { ReplyStyle } from '../L1_domain/order';
 import {
+  DEFAULT_QUICK_REPLIES,
+  readQuickReplies,
+  withQuickReply,
+  withoutQuickReply,
+} from '../L1_domain/quick-replies';
+import {
   DEFAULT_REPLY_STYLES,
   readStyles,
   replyStyle,
@@ -99,6 +105,8 @@ export interface AppState {
   styles: ReplyStyle[];
   /** Whether the one-tap orders show above the message box, kept per computer. */
   quickReplies: boolean;
+  /** The one-tap orders, the person's own included. */
+  quickList: string[];
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -124,6 +132,7 @@ export type Change =
   | 'view'
   | 'chat'
   | 'styles'
+  | 'quick'
   | 'terminal'
   | 'devices'
   | 'profiles'
@@ -200,6 +209,7 @@ export class Store {
       styles,
       replyStyle: replyStyle(styles, preferences.getItem('replyStyle')),
       quickReplies: preferences.getItem('quickReplies') !== '0',
+      quickList: readQuickReplies(preferences.getItem('quickList')),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -516,6 +526,28 @@ export class Store {
     this.emit('styles');
   }
 
+  /** Adds a quick reply (no place) or edits one; false when it is empty, repeated or one too many. */
+  saveQuick(place: number | null, words: string): boolean {
+    const list = withQuickReply(this.state.quickList, place, words);
+    if (!list) return false;
+    this.keepQuick(list);
+    return true;
+  }
+
+  removeQuick(place: number): void {
+    this.keepQuick(withoutQuickReply(this.state.quickList, place));
+  }
+
+  resetQuick(): void {
+    this.keepQuick([...DEFAULT_QUICK_REPLIES]);
+  }
+
+  private keepQuick(list: string[]): void {
+    this.state.quickList = list;
+    this.preferences.setItem('quickList', JSON.stringify(list));
+    this.emit('quick');
+  }
+
   setQuickReplies(on: boolean): void {
     this.state.quickReplies = on;
     this.preferences.setItem('quickReplies', on ? '1' : '0');
@@ -579,7 +611,13 @@ export class Store {
   /** The one-tap orders, in the chat of a coding agent: a console takes commands, not replies. */
   showsQuickReplies(): boolean {
     const { quickReplies, view, showTerm } = this.state;
-    return quickReplies && view === 'chat' && !showTerm && !this.isShell();
+    return (
+      quickReplies &&
+      this.state.quickList.length > 0 &&
+      view === 'chat' &&
+      !showTerm &&
+      !this.isShell()
+    );
   }
 
   /** The rows of the Sessions or the Consoles tab: one kind each, so they never look alike. */

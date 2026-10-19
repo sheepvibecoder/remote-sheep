@@ -1,0 +1,48 @@
+// The one-tap orders above the message box, written by the person. Spanish by default, like the
+// sessions they reach. A short list: more chips than a row can show would only get in the way.
+
+export const MAX_QUICK_REPLIES = 8;
+
+/** The replies a phone starts with. */
+export const DEFAULT_QUICK_REPLIES: readonly string[] = [
+  'Continúa',
+  'Corre los tests',
+  'Haz commit',
+  'Explícame el cambio',
+];
+
+/**
+ * The list with a reply added (no place) or edited (its place), or null when the words are empty,
+ * already a chip, the place is unknown, or the list is full.
+ */
+export function withQuickReply(
+  replies: readonly string[],
+  place: number | null,
+  words: string,
+): string[] | null {
+  const reply = words.trim();
+  if (!reply) return null;
+  if (replies.some((other, i) => other === reply && i !== place)) return null;
+  if (place === null) return replies.length < MAX_QUICK_REPLIES ? [...replies, reply] : null;
+  if (place < 0 || place >= replies.length) return null;
+  return replies.map((other, i) => (i === place ? reply : other));
+}
+
+/** The list without the reply at this place; a place that is not there changes nothing. */
+export function withoutQuickReply(replies: readonly string[], place: number): string[] {
+  return replies.filter((_, i) => i !== place);
+}
+
+/** The stored list, cut to the maximum; the defaults when nothing usable was stored. */
+export function readQuickReplies(stored: string | null): string[] {
+  let parsed: unknown;
+  try {
+    parsed = stored === null ? null : JSON.parse(stored);
+  } catch {
+    parsed = null;
+  }
+  if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) {
+    return [...DEFAULT_QUICK_REPLIES];
+  }
+  return parsed.slice(0, MAX_QUICK_REPLIES);
+}

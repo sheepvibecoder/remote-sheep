@@ -223,6 +223,47 @@ describe('Store', () => {
     expect(store.state.styles.map((s) => s.id)).toContain('simple');
   });
 
+  it('lets the person write, edit and remove quick replies, which survive a reload', () => {
+    const { store, storage } = setup();
+    expect(store.state.quickList).toHaveLength(4);
+    const seen: string[] = [];
+    store.subscribe((change) => seen.push(change));
+    expect(store.saveQuick(null, 'Haz push')).toBe(true);
+    expect(store.saveQuick(0, 'Sigue')).toBe(true);
+    expect(seen).toEqual(['quick', 'quick']);
+    expect(new Store(storage, new FakePush()).state.quickList).toEqual([
+      'Sigue',
+      'Corre los tests',
+      'Haz commit',
+      'Explícame el cambio',
+      'Haz push',
+    ]);
+    seen.length = 0;
+    store.removeQuick(4);
+    store.resetQuick();
+    expect(seen).toEqual(['quick', 'quick']);
+    expect(new Store(storage, new FakePush()).state.quickList).toEqual([
+      'Continúa',
+      'Corre los tests',
+      'Haz commit',
+      'Explícame el cambio',
+    ]);
+    seen.length = 0;
+    expect(store.saveQuick(null, 'Continúa')).toBe(false);
+    expect(seen).toEqual([]);
+    store.removeQuick(0);
+    expect(store.state.quickList[0]).toBe('Corre los tests');
+  });
+
+  it('offers no chips when every quick reply was removed', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'idle')] });
+    store.openChat('p1');
+    expect(store.showsQuickReplies()).toBe(true);
+    for (let i = 0; i < 4; i++) store.removeQuick(0);
+    expect(store.showsQuickReplies()).toBe(false);
+  });
+
   describe('updates', () => {
     const source = (answer: string | Error) => ({
       latestVersion: () =>
