@@ -10,6 +10,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 - **Auto** next to **Light** and **Dark** in the theme setting: the app follows the device's light
   or dark mode and switches when it does. A phone that never picked stays on Light.
+- **Typeface** in **Settings**: **Normal** (the app's usual fonts), **Serif** or **Mono** for the
+  chat, the lists and Settings. The terminal and code stay monospace.
 - A **+ Claude** button on each space starts Claude Code there in one tap, without the **+**
   sheet; the kind picked in the sheet stays as it was.
 - **↑** and **↓** next to each quick reply in **Settings** move it one place up or down; the chips
@@ -19,6 +21,9 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Changed
 
+- **Text size** in **Settings** shows its four sizes at once, **Small**, **Normal**, **Large** and
+  **Extra large**, instead of the **A+** button that cycled through them. A phone keeps the size it
+  had.
 - The remaining screens follow the mockup: a space is a folder that says what runs in it
   (**2 sessions · 1 console**, or **Nothing running**), and its consoles no longer count as
   sessions; a console's avatar is a **>\_** prompt; the **New session** sheet has a serif title,

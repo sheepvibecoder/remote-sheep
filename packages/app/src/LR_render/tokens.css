@@ -46,6 +46,16 @@
   --working: var(--work);
   --blocked: var(--needs);
 }
+
+/* Settings > Typeface draws all the reading text in one family. Code and the terminal name --mono
+   themselves, so they stay monospace whatever is picked. */
+:root[data-typeface='serif'] {
+  --sans: var(--serif);
+}
+:root[data-typeface='mono'] {
+  --sans: var(--mono);
+  --serif: var(--mono);
+}
 :root[data-palette='coral'] {
   --accent: #e8613f;
   --accent-soft: #fcebe5;

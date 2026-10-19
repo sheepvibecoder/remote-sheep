@@ -45,7 +45,7 @@ workspace: it starts that in a new tab and opens it. Codex has no chat yet, so i
 times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. The **gear** at the top of the list opens **Settings**, grouped in cards: **Computers**
 (the paired computers, a tap switches, and **Add a computer**), **Reply styles**, **Quick replies**,
-**Voice** (the reading speed), **General** (consoles, text size, the accent colour with five to choose
+**Voice** (the reading speed), **General** (consoles, the text size, **Small**, **Normal**, **Large** or **Extra large**, the typeface, **Normal**, **Serif** or **Mono**, which the terminal ignores, the accent colour with five to choose
 from, the theme, **Auto**, **Light** or **Dark**, where Auto follows the device and switches with it, and linked
 devices) and **About** (**Check for updates**). The style a chat sends with
 carries a **Default** badge. The computer's name under the app name, with a

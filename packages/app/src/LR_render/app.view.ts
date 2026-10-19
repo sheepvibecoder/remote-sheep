@@ -4,7 +4,14 @@
 // in L2_application; this layer only touches the DOM, so a redesign replaces it
 // alone. The connection arrives from the composition root as a port.
 
-import { drawPalette, drawTheme, startPalette, startTheme } from './appearance';
+import {
+  drawPalette,
+  drawTheme,
+  drawTypography,
+  startPalette,
+  startTheme,
+  startTypography,
+} from './appearance';
 import {
   createComponent,
   type ApplicationRef,
@@ -226,6 +233,7 @@ function onChange(change: Change): void {
     case 'appearance':
       drawPalette(state.palette);
       drawTheme(state.theme, state.dark);
+      drawTypography(state.textSize, state.typeface);
       drawSpeed(state.speechRate);
       return;
   }
@@ -1254,7 +1262,8 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
     dependencies.agent,
     Date.now(),
   );
-  // The accent, the reading speed and the theme belong to the phone, under the plain keys it always used.
+  // The accent, the reading speed, the theme, the text size and the typeface belong to the phone,
+  // under the plain keys it always used.
   store = new Store(
     profilePreferences(localStorage, profile),
     dependencies.push,
@@ -1281,6 +1290,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   document.title = pageTitle(store.unreadTotal());
   startPalette(store);
   startTheme(store);
+  startTypography(store);
   startSpeeds(store);
   drawStyles();
   drawQuick();

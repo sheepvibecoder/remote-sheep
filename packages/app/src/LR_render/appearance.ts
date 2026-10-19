@@ -1,12 +1,17 @@
-// Theme, accent and text size, remembered per phone. The theme and the accent live in the store;
-// the size is still kept here.
+// Theme, accent, text size and typeface, remembered per phone. The store decides and saves them;
+// this file only paints them and builds their controls.
 
 import { DEFAULT_PALETTE, PALETTES } from '../L1_domain/palette';
 import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
 import type { Store } from '../L2_application/app.store';
-import { $, must } from './dom';
-
-const SIZES = ['15px', '17px', '20px', '23px'];
+import { TEXT_SIZE_KEY, TEXT_SIZES, textSize, textSizePx } from '../L1_domain/text-size';
+import {
+  TYPEFACE_KEY,
+  TYPEFACES,
+  typefaceChoice,
+  type TypefaceChoice,
+} from '../L1_domain/typeface';
+import { $ } from './dom';
 
 const deviceDark = matchMedia('(prefers-color-scheme: dark)');
 
@@ -50,19 +55,54 @@ export function startTheme(store: Store): void {
   drawTheme(store.state.theme, store.state.dark);
 }
 
-let sizeStep = Number(localStorage.getItem('size') || 1) % SIZES.length;
-
-function applySize(): void {
-  document.documentElement.style.setProperty('--chat', must(SIZES[sizeStep], 'text size'));
-  localStorage.setItem('size', String(sizeStep));
-  $('size-value').textContent = 'A' + '+'.repeat(sizeStep);
+function paintTextSize(step: number): void {
+  document.documentElement.style.setProperty('--chat', textSizePx(step));
 }
 
-$('toggle-size').addEventListener('click', () => {
-  sizeStep = (sizeStep + 1) % SIZES.length;
-  applySize();
-});
-applySize();
+function paintTypeface(typeface: TypefaceChoice): void {
+  if (typeface === 'normal') delete document.documentElement.dataset['typeface'];
+  else document.documentElement.dataset['typeface'] = typeface;
+}
+
+// Like the theme: painted as the bundle loads so the first render is already in the right size
+// and family. Only read here: the store saves.
+paintTextSize(textSize(localStorage.getItem(TEXT_SIZE_KEY)));
+paintTypeface(typefaceChoice(localStorage.getItem(TYPEFACE_KEY)));
+
+/** Paints the text size and typeface the store holds and marks the picked options. */
+export function drawTypography(step: number, typeface: TypefaceChoice): void {
+  paintTextSize(step);
+  paintTypeface(typeface);
+  for (const option of $('sizes').children) {
+    option.classList.toggle('on', (option as HTMLElement).dataset['size'] === String(step));
+  }
+  for (const option of $('typefaces').children) {
+    option.classList.toggle('on', (option as HTMLElement).dataset['typeface'] === typeface);
+  }
+}
+
+/** Builds the text size and typeface options, each handing its pick to the store, and paints. */
+export function startTypography(store: Store): void {
+  for (const size of TEXT_SIZES) {
+    const option = document.createElement('button');
+    option.dataset['size'] = String(size.step);
+    option.textContent = size.label;
+    option.addEventListener('click', () => {
+      store.setTextSize(size.step);
+    });
+    $('sizes').append(option);
+  }
+  for (const typeface of TYPEFACES) {
+    const option = document.createElement('button');
+    option.dataset['typeface'] = typeface.id;
+    option.textContent = typeface.label;
+    option.addEventListener('click', () => {
+      store.setTypeface(typeface.id);
+    });
+    $('typefaces').append(option);
+  }
+  drawTypography(store.state.textSize, store.state.typeface);
+}
 
 /** Paints the accent the store holds and marks its swatch. */
 export function drawPalette(id: string): void {

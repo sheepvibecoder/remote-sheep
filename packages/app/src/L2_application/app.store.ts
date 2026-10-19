@@ -34,6 +34,13 @@ import { isNewer } from '../L1_domain/version';
 import { PALETTES, paletteId } from '../L1_domain/palette';
 import { speechRate } from '../L1_domain/speech-rate';
 import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
+import { TEXT_SIZE_KEY, TEXT_SIZES, textSize } from '../L1_domain/text-size';
+import {
+  TYPEFACE_KEY,
+  TYPEFACES,
+  typefaceChoice,
+  type TypefaceChoice,
+} from '../L1_domain/typeface';
 import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
@@ -133,6 +140,10 @@ export interface AppState {
   theme: ThemeChoice;
   /** Whether the page is drawn dark: the picked theme, or the device's on Auto. */
   dark: boolean;
+  /** The step of the chat text size picked in Settings, kept for the whole phone. */
+  textSize: number;
+  /** The family the reading text is drawn in, kept for the whole phone. */
+  typeface: TypefaceChoice;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -232,7 +243,7 @@ export class Store {
     private readonly now: () => number = () => Date.now(),
     /**
      * What belongs to the phone rather than to one computer (the accent, the reading speed,
-     * the theme):
+     * the theme, the text size and typeface):
      * kept under the plain keys every phone already has, so no choice is lost to the profiles.
      */
     private readonly phone: Preferences = preferences,
@@ -273,6 +284,8 @@ export class Store {
       speechRate: speechRate(phone.getItem('rate')),
       theme,
       dark: isDark(theme, false),
+      textSize: textSize(phone.getItem(TEXT_SIZE_KEY)),
+      typeface: typefaceChoice(phone.getItem(TYPEFACE_KEY)),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -766,6 +779,23 @@ export class Store {
 
   private drawTheme(): void {
     this.state.dark = isDark(this.state.theme, this.deviceDark);
+    this.emit('appearance');
+  }
+
+  /** Picks a text size by its step; one that is not on offer changes nothing. */
+  setTextSize(step: number): void {
+    if (!TEXT_SIZES.some((size) => size.step === step)) return;
+    this.state.textSize = step;
+    this.phone.setItem(TEXT_SIZE_KEY, String(step));
+    this.emit('appearance');
+  }
+
+  /** Picks a typeface; one that is not on offer changes nothing. */
+  setTypeface(id: string): void {
+    const typeface = TYPEFACES.find((candidate) => candidate.id === id);
+    if (!typeface) return;
+    this.state.typeface = typeface.id;
+    this.phone.setItem(TYPEFACE_KEY, typeface.id);
     this.emit('appearance');
   }
 

@@ -1283,6 +1283,76 @@ describe('Store', () => {
     expect(store.state.theme).toBe('light');
     expect(phone.getItem('theme')).toBe('sepia');
   });
+
+  it('starts on the text size the phone stored, under the old key', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('size', '3');
+    expect(new Store(new MemoryStorage(), new FakePush(), Date.now, phone).state.textSize).toBe(3);
+  });
+
+  it('saves a picked text size for the whole phone, so a new store starts on it', () => {
+    const profile = new MemoryStorage();
+    const phone = new MemoryStorage();
+    const store = new Store(profile, new FakePush(), Date.now, phone);
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setTextSize(0);
+    expect(store.state.textSize).toBe(0);
+    expect(changes).toEqual(['appearance']);
+    expect(phone.getItem('size')).toBe('0');
+    expect(profile.values.size).toBe(0);
+    expect(new Store(profile, new FakePush(), Date.now, phone).state.textSize).toBe(0);
+  });
+
+  it('starts on Normal when no text size or an unknown one is stored, and ignores an unknown pick', () => {
+    expect(new Store(new MemoryStorage(), new FakePush()).state.textSize).toBe(1);
+    const phone = new MemoryStorage();
+    phone.setItem('size', '9');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    expect(store.state.textSize).toBe(1);
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setTextSize(9);
+    expect(store.state.textSize).toBe(1);
+    expect(phone.getItem('size')).toBe('9');
+    expect(changes).toEqual([]);
+  });
+
+  it('starts on the typeface the phone stored', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('typeface', 'mono');
+    expect(new Store(new MemoryStorage(), new FakePush(), Date.now, phone).state.typeface).toBe(
+      'mono',
+    );
+  });
+
+  it('saves a picked typeface for the whole phone, so a new store starts on it', () => {
+    const profile = new MemoryStorage();
+    const phone = new MemoryStorage();
+    const store = new Store(profile, new FakePush(), Date.now, phone);
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setTypeface('serif');
+    expect(store.state.typeface).toBe('serif');
+    expect(changes).toEqual(['appearance']);
+    expect(phone.getItem('typeface')).toBe('serif');
+    expect(profile.values.size).toBe(0);
+    expect(new Store(profile, new FakePush(), Date.now, phone).state.typeface).toBe('serif');
+  });
+
+  it('starts on Normal when no typeface or an unknown one is stored, and ignores an unknown pick', () => {
+    expect(new Store(new MemoryStorage(), new FakePush()).state.typeface).toBe('normal');
+    const phone = new MemoryStorage();
+    phone.setItem('typeface', 'comic');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    expect(store.state.typeface).toBe('normal');
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setTypeface('comic');
+    expect(store.state.typeface).toBe('normal');
+    expect(phone.getItem('typeface')).toBe('comic');
+    expect(changes).toEqual([]);
+  });
 });
 
 describe('Store split view', () => {
