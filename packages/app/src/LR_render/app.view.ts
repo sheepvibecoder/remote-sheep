@@ -93,6 +93,8 @@ const nameEl = $('name');
 const sub = $('sub');
 const back = $('back');
 const text = $('text', HTMLTextAreaElement);
+/** The session whose draft the box holds; one box serves every chat. */
+let shownDraft: string | null = null;
 const send = $('send', HTMLButtonElement);
 const keys = $('keys');
 const choices = $('choices');
@@ -270,6 +272,10 @@ function applyView(): void {
   const pane = store.typesIntoPane();
   document.body.classList.toggle('pane', pane);
   text.placeholder = pane ? 'Type into the pane' : 'Message';
+  if (state.target !== shownDraft) {
+    text.value = store.draft(state.target);
+    shownDraft = state.target;
+  }
   onText();
   renderKeys();
   syncHistory(view);
@@ -986,7 +992,10 @@ function onText(): void {
   mic.classList.toggle('hidden', ready);
 }
 
-text.addEventListener('input', onText);
+text.addEventListener('input', () => {
+  store.setDraft(state.target, text.value);
+  onText();
+});
 
 // ---- photo from the phone ----
 // The file is written on the PC and the order names its path, so the session
@@ -1096,9 +1105,10 @@ toggleQuick.addEventListener('click', () => store.setQuickReplies(!state.quickRe
 async function sendOrder(): Promise<void> {
   const order = store.orderFor(text.value, photo?.path ?? null);
   if (!order) return;
+  const target = state.target;
   const sent = await deliver(order);
   if (!sent) return;
-  text.value = '';
+  if (store.orderSent(target)) text.value = '';
   if (order.usesPhoto) photo = null;
   showAttached();
 }

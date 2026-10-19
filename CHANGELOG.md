@@ -24,6 +24,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 - A Codex session opened from the list showed an empty chat with "no session index for pid 1": it
   now opens on its terminal, like one started from the **+** sheet, with a note that its chat view
   is not available yet and no chat/terminal switch.
+- Text typed in one chat stayed in the box after switching to another (Alt+↓ or a click on the
+  list), and Enter sent it there. Each chat now keeps its own unsent text.
 
 ## [0.8.0] — 2026-10-19
 

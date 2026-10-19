@@ -123,6 +123,36 @@ describe('Store', () => {
     expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'p1', terminal: false });
   });
 
+  it('keeps what was typed with the chat it was typed in, so a switch never carries it over', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1'), session('p2', 'blocked')] });
+    store.openChat('p1');
+    store.setDraft('p1', 'borra la carpeta build');
+    store.openChat('p2');
+    expect(store.draft('p2')).toBe('');
+    store.setDraft('p2', 'sí');
+    store.openChat('p1');
+    expect(store.draft('p1')).toBe('borra la carpeta build');
+    expect(store.draft('p2')).toBe('sí');
+    store.setDraft('p1', '');
+    expect(store.draft('p1')).toBe('');
+  });
+
+  it('drops the draft of the chat an order went to, and keeps the one open meanwhile', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1'), session('p2', 'blocked')] });
+    store.openChat('p1');
+    store.setDraft('p1', 'corre los tests');
+    expect(store.orderSent('p1')).toBe(true);
+    expect(store.draft('p1')).toBe('');
+    store.setDraft('p1', 'y el lint');
+    store.openChat('p2');
+    store.setDraft('p2', 'sí');
+    expect(store.orderSent('p1')).toBe(false);
+    expect(store.draft('p1')).toBe('');
+    expect(store.draft('p2')).toBe('sí');
+  });
+
   it('opens a shell straight on its terminal, which it cannot leave for a chat', () => {
     const { store } = setup();
     const shell: Session = { ...session('w1:s1'), kind: 'shell', status: 'unknown' };

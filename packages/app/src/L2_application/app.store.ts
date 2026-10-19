@@ -190,6 +190,11 @@ export class Store {
   private readonly unreadCounts: Map<string, number>;
   /** When the phone saw each session's status change: the time a row shows and sorts by. */
   private readonly changeTimes: Map<string, number>;
+  /**
+   * What was typed and not sent yet, per session. One box serves every chat, so without this a
+   * switch carried the text over and Enter sent it to the wrong session.
+   */
+  private readonly drafts = new Map<string, string>();
 
   constructor(
     private readonly preferences: Preferences,
@@ -309,6 +314,24 @@ export class Store {
     if (this.currentSession() && !this.hasChat()) state.showTerm = true;
     this.clearThread();
     this.emit('view');
+  }
+
+  setDraft(target: string, text: string): void {
+    if (text) this.drafts.set(target, text);
+    else this.drafts.delete(target);
+  }
+
+  draft(target: string): string {
+    return this.drafts.get(target) ?? '';
+  }
+
+  /**
+   * An order reached `target`: its draft is spent. True when that chat is still the open one, so
+   * the box empties; a chat opened while the order travelled keeps what it holds.
+   */
+  orderSent(target: string): boolean {
+    this.drafts.delete(target);
+    return target === this.state.target;
   }
 
   back(): void {
