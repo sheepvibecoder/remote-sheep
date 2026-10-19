@@ -84,7 +84,6 @@ const devicesOpen = $('devices-open');
 const computers = $('computers');
 const gateProfiles = $('gate-profiles');
 const gateScan = $('gate-scan');
-const profileOpen = $('profile-open');
 const toast = $('toast');
 const dot = $('dot');
 // An <svg>, which `$` would refuse as not an HTMLElement.
@@ -182,7 +181,6 @@ function onChange(change: Change): void {
       return;
     case 'profiles':
       renderHeader();
-      profileOpen.classList.toggle('hidden', state.view !== 'list' || !state.profiles.length);
       announceProfile();
       if (state.view === 'computers') renderComputers();
       if (state.gate) renderGateProfiles();
@@ -239,14 +237,14 @@ function applyView(): void {
   devices.classList.toggle('on', view === 'devices');
   computers.classList.toggle('on', view === 'computers');
   $('settings').classList.toggle('on', view === 'settings');
-  // Always one tap away on the home screen, like switching accounts in a messaging app.
-  profileOpen.classList.toggle('hidden', view !== 'list' || !state.profiles.length);
+  // The gear is the home's way into Settings; a chat has its own ⋮ menu instead.
+  $('gear').classList.toggle('hidden', view !== 'list');
+  $('menu-open').classList.toggle('hidden', view !== 'chat');
+  $('tabs').classList.toggle('hidden', !listShown());
   foot.classList.toggle('hidden', view !== 'chat');
   // The list is already on screen beside an open chat, so there is nowhere to go back to.
   back.classList.toggle('hidden', view === 'list' || (wide && view === 'chat'));
-  // In a chat the ⋮ holds what changes that chat; elsewhere the settings of the app.
   $('chat-menu').classList.toggle('hidden', view !== 'chat');
-  $('app-menu').classList.toggle('hidden', view === 'chat');
   if (view === 'chat') renderStyles();
   const termButton = $('toggle-term');
   // A shell has no chat to switch back to.
@@ -316,7 +314,7 @@ $('menu-open').addEventListener('click', (event) => {
 });
 document.addEventListener('click', (event) => {
   // A switch inside the menu stays open so its new state can be seen.
-  if (menu.contains(event.target as Node) && event.target !== $('settings-open')) return;
+  if (menu.contains(event.target as Node)) return;
   menu.classList.add('hidden');
 });
 
@@ -338,7 +336,7 @@ $('toggle-term').addEventListener('click', () => {
 $('version').textContent = 'RemoteSheep v' + __VERSION__;
 
 function renderHeader(): void {
-  const { view, sessions } = state;
+  const { view } = state;
   const current = store.currentSession();
   const status = view === 'chat' ? current?.status || '' : '';
   dot.className = 'dot ' + (state.link === 'open' ? status : 'unknown');
@@ -347,12 +345,11 @@ function renderHeader(): void {
   brand.classList.toggle('hidden', view !== 'list');
   dot.classList.toggle('hidden', view === 'list');
   nameEl.classList.toggle('home', view === 'list');
+  sub.classList.toggle('host', view === 'list');
   if (view === 'list') {
     title.textContent = 'RemoteSheep ';
-    const profile = store.activeProfileName();
-    sub.textContent =
-      (profile ? profile + '  ·  ' : '') +
-      (sessions.length ? sessions.length + ' running' : 'none');
+    // Which computer the list shows; tapping it opens the computers, like a host picker.
+    sub.textContent = store.activeProfileName() ?? '';
   } else if (view === 'devices') {
     title.textContent = 'Devices ';
     sub.textContent = state.devices.length + ' linked';
@@ -390,6 +387,8 @@ function renderHome(): void {
   $('tab-consoles').classList.toggle('on', state.home === 'consoles');
   $('tab-consoles').classList.toggle('hidden', !store.hasShells() && state.home !== 'consoles');
   $('tab-spaces').classList.toggle('on', state.home === 'spaces');
+  // Like the dot on a messaging app's tab: something settled while you were elsewhere.
+  $('tab-sessions').classList.toggle('has-unread', store.unreadTotal() > 0);
   const label = state.home !== 'spaces' ? store.spaceLabel() : null;
   spaceLeave.classList.toggle('hidden', label === null);
   spaceLeave.textContent = (label ?? '') + '  ×';
@@ -576,15 +575,13 @@ function renderDevices(): void {
 // ---- computers: the profiles, one per paired computer ----
 // A plain placeholder like the devices list; the redesign decides its place.
 
-$('settings-open').addEventListener('click', () => {
-  store.openSettings();
-});
 $('computers-open').addEventListener('click', () => {
   store.openComputers();
 });
-profileOpen.addEventListener('click', () => {
-  store.openComputers();
+sub.addEventListener('click', () => {
+  if (state.view === 'list') store.openComputers();
 });
+$('gear').addEventListener('click', () => store.openSettings());
 gateScan.addEventListener('click', () => void scanToPair());
 
 const REACH_TEXT = {

@@ -43,7 +43,16 @@
       </svg>
       <span class="name" id="name">Sessions <span class="sub" id="sub"></span></span>
       <button id="toggle-term" class="icon hidden" title="raw terminal">$</button>
-      <button id="profile-open" class="icon hidden" title="switch profile">&#8644;</button>
+      <button id="gear" class="icon hidden" title="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.2 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+            />
+          </g>
+        </svg>
+      </button>
       <button id="menu-open" class="icon" title="menu">&#8942;</button>
       <div id="menu" class="hidden">
         <div id="chat-menu">
@@ -56,25 +65,66 @@
             Quick replies
           </button>
         </div>
-        <div id="app-menu">
-          <button id="settings-open">Settings</button>
-          <button id="check-update" title="check for updates">Check for updates</button>
-        </div>
       </div>
     </header>
 
     <div id="home" class="hidden">
       <input id="search" type="search" placeholder="Search" autocomplete="off" />
-      <div class="pills">
-        <button id="tab-sessions" class="pill">Sessions</button>
-        <button id="tab-consoles" class="pill hidden">Consoles</button>
-        <button id="tab-spaces" class="pill">Spaces</button>
-        <button id="space-leave" class="pill on hidden" title="show every session"></button>
-      </div>
+      <button id="space-leave" class="pill on hidden" title="show every session"></button>
       <p id="home-error" class="hidden"></p>
     </div>
     <div id="list"></div>
-    <button id="new-session" class="round hidden" title="new session">+</button>
+    <nav id="tabs" class="hidden">
+      <button id="tab-sessions">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Sessions<span class="badge"></span>
+      </button>
+      <button id="tab-consoles" class="hidden">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <g
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="m7 9 3 3-3 3M12 15h5" />
+          </g>
+        </svg>
+        Consoles
+      </button>
+      <button id="tab-spaces">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Spaces
+      </button>
+    </nav>
+    <button id="new-session" class="round hidden" title="new session">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M12 5v14M5 12h14"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        /></svg
+      >New
+    </button>
     <div id="sheet" class="hidden">
       <div class="sheet-box">
         <h3 id="sheet-title">New session in&hellip;</h3>
@@ -113,6 +163,8 @@
       <div class="lbl">Computers</div>
       <button id="computers-open">Profiles</button>
       <button id="devices-open">Linked devices</button>
+      <div class="lbl">App</div>
+      <button id="check-update" title="check for updates">Check for updates</button>
       <div class="lbl">Look</div>
       <button id="toggle-theme" title="theme">Dark theme</button>
       <button id="toggle-size" title="text size">Text size</button>

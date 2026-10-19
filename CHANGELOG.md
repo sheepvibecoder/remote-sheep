@@ -21,6 +21,7 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Changed
 
+- The home screen follows the mockup: a gear for Settings instead of the ⋮ and the ⇄, the computer's name with a green dot under the app name, the tabs at the bottom with their icons and a dot when something is unread, a **+ New** button, a colour dot for each agent and the time in red when a session asks for an answer. Check for updates moved into Settings.
 - The terminal keys are esc, tab, ↑, ↓ and ⏎, with Stop (Ctrl+C) apart; the 1 and 2 keys give way to the answer buttons.
 - The first step of the redesign: warm paper colours with a Watermelon accent, in light and dark;
   the Inter, Source Serif 4 and JetBrains Mono fonts, served by the agent itself; the status of a

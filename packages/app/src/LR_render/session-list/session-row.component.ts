@@ -21,7 +21,7 @@ import { AvatarComponent } from './avatar.component';
         <span class="l1">
           <span class="t">{{ row().title }}</span>
           @if (row().time) {
-            <span class="tm">{{ row().time }}</span>
+            <span class="tm" [class.ask]="row().asks">{{ row().time }}</span>
           }
         </span>
         <span class="l2">
@@ -33,7 +33,7 @@ import { AvatarComponent } from './avatar.component';
         <span class="sp">
           {{ row().place }}
           @if (row().agent; as agent) {
-            · <span class="agent-tag">{{ agent }}</span>
+            · <span class="agent-tag" [attr.data-agent]="agent"><i></i>{{ agent }}</span>
           }
         </span>
       </span>

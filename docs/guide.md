@@ -37,14 +37,15 @@ computer running Herdr, and the phone is paired.
 ### On the phone
 
 The app looks like a messaging app. The home screen lists the sessions as
-chats; **Sessions** and **Spaces** switch between them and the Herdr
+chats; the tabs at the bottom (**Sessions**, **Consoles** when there are any, and **Spaces**) switch between them and the Herdr
 workspaces, and the search box narrows either by name. Tapping a space shows
 only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
 workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it opens on its terminal. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
-the chat clears it. Settings live behind the **⋮** menu of the list: **Settings** (the accent colour, with five to
-choose from, your reply styles and quick replies, the reading speed, profiles, linked devices, the
-theme and the text size) and **Check for updates**.
+the chat clears it. The **gear** at the top of the list opens **Settings**: the accent colour, with five to choose
+from, your reply styles and quick replies, the reading speed, consoles, profiles, linked devices, the
+theme, the text size and **Check for updates**. The computer's name under the app name, with a
+green dot, opens the list of computers.
 Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 
@@ -95,7 +96,7 @@ office: each is a profile, and their sessions, badges and chats never mix. The h
 screen is titled with the profile it shows, and a chat names it next to its status;
 after a switch the app says **Now on …**.
 
-The **⇄** button on the home screen (or **⋮ → Profiles**) lists them with whether
+The computer's name at the top of the home screen (or **Settings → Profiles**) lists them with whether
 each answers right now (**online** or **offline**, for example when `pnpm start` is
 not running at the office); tapping one switches to it. **Scan a QR code to add a
 computer** opens the camera inside the app, as the scan screen does, so a new computer
@@ -111,7 +112,7 @@ address, the app knows only that computer.
 
 ### Linked devices
 
-**⋮ → Linked devices** shows every phone paired with
+**Settings → Linked devices** shows every phone paired with
 this computer: its id, when it paired, when it was last used, when its pairing
 expires, and which one is this phone. **Unlink** does exactly what
 `remote-sheep revoke <id>` does; unlinking this phone takes it back to the
@@ -129,7 +130,7 @@ opens that chat. Nothing from the transcript is sent.
 - **Needs a relay.** Push works only on https, so open the app from the
   relay's address. Plain LAN http cannot use it, and without a relay the
   agent sends no push. On an iPhone, add the app to the home screen first.
-- **Switch it on** in **⋮ → Linked devices → Notifications**. Where it cannot work, the
+- **Switch it on** in **Settings → Linked devices → Notifications**. Where it cannot work, the
   switch says why.
 - **What the agent keeps.** One push subscription per paired device, inside
   `devices.json`. It is removed when the device is unlinked, revoked or its
