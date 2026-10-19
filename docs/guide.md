@@ -52,6 +52,10 @@ and open the raw terminal with **$**. While a session waits for an answer, or
 the terminal is open, **Enter**, **Esc**, **Ctrl+C**, **1**, **2**, **↑** and **↓** appear above
 the message box: they answer Claude Code's menus.
 
+Each message shows the hour it was written, with a line for each day (**Today**, **Yesterday**,
+then the date). What you send gets one tick once Herdr takes it and two once it shows up in the
+transcript. The model answering in the chat, such as **Opus 5.5**, appears next to the microphone.
+
 ### Consoles
 
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any

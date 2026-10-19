@@ -26,9 +26,14 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
+import { chatItems, type ChatItem } from '../L1_domain/chat';
 
 /** An order shown before the transcript has caught up with it. */
-export type PendingMessage = Extract<ChatMessage, { kind: 'text' }> & { pendingSend: true };
+export type PendingMessage = Extract<ChatMessage, { kind: 'text' }> & {
+  pendingSend: true;
+  /** Herdr took it; the transcript may still be catching up. */
+  accepted: boolean;
+};
 
 /**
  * Why the page shows the scan screen instead of the sessions: no pairing yet, a
@@ -75,6 +80,8 @@ export interface AppState {
   showTerm: boolean;
   messages: ChatMessage[];
   note: string | null;
+  /** The model of the open chat, as the agent names it; null when it does not say. */
+  model: string | null;
   terminal: string;
   pending: PendingMessage | null;
   /** The phones paired with the agent, this one marked `current`. */
@@ -170,6 +177,7 @@ export class Store {
       showTerm: false,
       messages: [],
       note: null,
+      model: null,
       terminal: '',
       pending: null,
       devices: [],
@@ -211,6 +219,7 @@ export class Store {
         if (message.target !== state.target || state.view !== 'chat' || state.showTerm) return;
         state.messages = message.messages;
         state.note = message.note;
+        state.model = message.model ?? null;
         // The transcript has caught up once it carries the order we just sent.
         const pending = state.pending;
         if (
@@ -439,8 +448,16 @@ export class Store {
       role: 'user',
       kind: 'text',
       text: spoken,
+      at: this.now(),
       pendingSend: true,
+      accepted: false,
     };
+    this.emit('chat');
+  }
+
+  sendAccepted(): void {
+    if (!this.state.pending) return;
+    this.state.pending.accepted = true;
     this.emit('chat');
   }
 
@@ -595,6 +612,12 @@ export class Store {
     return pending ? [...messages, pending] : messages;
   }
 
+  /** The chat as the view draws it: day lines, hours, and where each order is. */
+  chatItems(): ChatItem[] {
+    const { messages, pending } = this.state;
+    return chatItems(messages, pending, this.now());
+  }
+
   /** The newest reply when it is one not read aloud yet; null otherwise. */
   takeNewReply(): string | null {
     const last = this.state.messages[this.state.messages.length - 1];
@@ -614,6 +637,7 @@ export class Store {
     const state = this.state;
     state.messages = [];
     state.note = null;
+    state.model = null;
     state.terminal = '';
     state.pending = null;
     this.primed = false;

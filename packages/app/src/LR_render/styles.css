@@ -504,6 +504,54 @@ app-session-row {
 .bubble.pending {
   opacity: 0.55;
 }
+/* The hour, and on what the person sent its ticks: small and grey, under the text. */
+.bubble .meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.bubble.shot .meta {
+  padding: 0 8px 2px;
+}
+.ticks {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.daysep {
+  align-self: center;
+  margin: 8px 0 2px;
+}
+.daysep span {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+/* The model replying in the open chat, next to the microphone. */
+.ctx-info {
+  flex: none;
+  max-width: 30%;
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* A screenshot fills its bubble, with the padding removed so it does not
      float inside a frame. */

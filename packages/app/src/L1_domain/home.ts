@@ -2,6 +2,7 @@
 // sessions gather into the Herdr workspaces they run in.
 
 import type { AgentStatus, Session, Workspace } from '@remote-sheep/protocol';
+import { dateOf, dayOf, hourOf } from './clock';
 
 /** A workspace and the sessions running in it, as the Spaces tab lists it. */
 export interface Space {
@@ -54,17 +55,10 @@ export function byAttention(
     .map(({ session }) => session);
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const twoDigits = (n: number) => String(n).padStart(2, '0');
-
 /** The time on a row, as a messaging app shows it: the hour today, the date before. */
 export function rowTime(at: number | null, now: number): string {
   if (at === null) return '';
-  const then = new Date(at);
-  if (then.toDateString() === new Date(now).toDateString()) {
-    return twoDigits(then.getHours()) + ':' + twoDigits(then.getMinutes());
-  }
-  return String(then.getDate()) + ' ' + (MONTHS[then.getMonth()] ?? '');
+  return dayOf(at) === dayOf(now) ? hourOf(at) : dateOf(at);
 }
 
 /** What one row of the list shows: a session, a console or a workspace. */

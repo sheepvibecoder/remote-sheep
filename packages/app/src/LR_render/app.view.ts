@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
+import { modelLabel } from '../L1_domain/chat';
 import { initials } from '../L1_domain/home';
 import { composeOrder } from '../L1_domain/order';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
@@ -83,6 +84,7 @@ const text = $('text', HTMLTextAreaElement);
 const send = $('send', HTMLButtonElement);
 const keys = $('keys');
 const mic = $('mic', HTMLButtonElement);
+const model = $('model');
 const menu = $('menu');
 
 // Built by `startApp`, which is where the browser's push port arrives.
@@ -676,10 +678,34 @@ function onChat(): void {
   if (reply && autoSpeak()) speak(reply);
 }
 
-// Patch bubble by bubble. Rebuilding the whole thread on every change is what
+// One tick: Herdr took the order. Two: the transcript carries it.
+const TICK_PATHS: Record<'delivered' | 'received', string> = {
+  delivered: 'm5 13 4 4 10-11',
+  received: 'm2 13 4 4 8-9M10 16l1 1 8-9',
+};
+
+function ticks(delivery: 'delivered' | 'received'): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'ticks');
+  svg.setAttribute('aria-label', delivery);
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', TICK_PATHS[delivery]);
+  svg.append(path);
+  return svg;
+}
+
+function renderModel(): void {
+  const name = modelLabel(state.model);
+  model.textContent = name ?? '';
+  model.classList.toggle('hidden', !name);
+}
+
+// Patch item by item. Rebuilding the whole thread on every change is what
 // made the first version flash.
 function renderChat(): void {
-  const wanted: ChatMessage[] = store.thread();
+  renderModel();
+  const wanted = store.chatItems();
   if (!wanted.length) {
     chat.textContent = '';
     const hint = document.createElement('div');
@@ -690,27 +716,43 @@ function renderChat(): void {
   }
   for (const stale of chat.querySelectorAll('.hint')) stale.remove();
   while (chat.children.length > wanted.length) chat.lastElementChild?.remove();
-  wanted.forEach((message, i) => {
+  wanted.forEach((item, i) => {
     let bubble = chat.children[i] as HTMLElement | undefined;
     if (!bubble) {
       bubble = document.createElement('div');
       chat.append(bubble);
     }
+    if (item.kind === 'day') {
+      if (bubble.dataset['stamp'] === item.key) return;
+      bubble.dataset['stamp'] = item.key;
+      bubble.className = 'daysep';
+      bubble.dataset['raw'] = '';
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      bubble.replaceChildren(label);
+      return;
+    }
+    const { message, time, delivery } = item;
     const body = message.kind === 'text' ? message.text : '';
-    const stamp = message.id + ':' + message.kind + ':' + body.length;
+    const stamp = [item.key, message.kind, body.length, time, delivery ?? ''].join(':');
     if (bubble.dataset['stamp'] === stamp) return;
     bubble.dataset['stamp'] = stamp;
-    const isPending = 'pendingSend' in message;
-    bubble.className = 'bubble ' + message.role + (isPending ? ' pending' : '');
+    bubble.className = 'bubble ' + message.role + (delivery === 'sending' ? ' pending' : '');
 
     if (message.kind === 'image') {
       bubble.classList.add('shot');
       bubble.dataset['raw'] = '';
       renderImage(bubble, message);
-      return;
+    } else {
+      bubble.dataset['raw'] = message.text;
+      renderRich(bubble, message.text);
     }
-    bubble.dataset['raw'] = message.text;
-    renderRich(bubble, message.text);
+    if (!time && (delivery === null || delivery === 'sending')) return;
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = time;
+    if (delivery === 'delivered' || delivery === 'received') meta.append(ticks(delivery));
+    bubble.append(meta);
   });
 }
 
@@ -865,6 +907,7 @@ async function sendOrder(): Promise<void> {
   chat.scrollTop = chat.scrollHeight;
   try {
     await request({ kind: 'prompt', target, text: order });
+    store.sendAccepted();
     text.value = '';
     photo = null;
     showAttached();

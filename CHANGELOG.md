@@ -19,6 +19,9 @@ All notable changes to remote-sheep are recorded here. The format follows
 - The session list puts the sessions waiting for an answer first, marked **Needs your answer**,
   then the latest change first; each row shows the time the phone saw its status change and the
   coding agent Herdr reports in the pane (Claude Code, Codex or any other).
+- The chat shows the hour of each message and a line for each day; what you send gets one tick
+  once Herdr takes it and two once it is in the transcript; the model answering appears next to
+  the microphone.
 
 ## [0.6.1] — 2026-10-16
 

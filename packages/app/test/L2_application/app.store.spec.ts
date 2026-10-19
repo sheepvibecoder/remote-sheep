@@ -529,6 +529,41 @@ describe('Store', () => {
     expect(store.thread()).toHaveLength(2);
   });
 
+  it('marks a sent order delivered once the agent took it, received once in the transcript', () => {
+    const sentAt = new Date(2026, 9, 18, 14, 59).getTime();
+    const store = new Store(new MemoryStorage(), new FakePush(), () => sentAt);
+    store.setLink('open');
+    store.openChat('p1');
+    store.beginSend('hola');
+    expect(store.chatItems().at(-1)).toMatchObject({ delivery: 'sending', time: '14:59' });
+    store.sendAccepted();
+    expect(store.chatItems().at(-1)).toMatchObject({ delivery: 'delivered', pending: true });
+    store.receive({
+      type: 'chat',
+      target: 'p1',
+      messages: [said('a', 'user', 'hola')],
+      note: null,
+    });
+    expect(store.chatItems().at(-1)).toMatchObject({ key: 'a', delivery: 'received' });
+  });
+
+  it('names the model of the open chat, and forgets it when another chat opens', () => {
+    const { store } = setup();
+    store.openChat('p1');
+    expect(store.state.model).toBeNull();
+    store.receive({
+      type: 'chat',
+      target: 'p1',
+      messages: [],
+      note: null,
+      model: 'claude-opus-5-5',
+    });
+    expect(store.state.model).toBe('claude-opus-5-5');
+    store.back();
+    store.openChat('p2');
+    expect(store.state.model).toBeNull();
+  });
+
   it('drops the order it showed when sending fails', () => {
     const { store } = setup();
     store.openChat('p1');
