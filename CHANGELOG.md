@@ -16,6 +16,9 @@ All notable changes to remote-sheep are recorded here. The format follows
   the Inter, Source Serif 4 and JetBrains Mono fonts, served by the agent itself; the status of a
   session shown as a ring around its avatar; **RemoteSheep** and the sheep logo at the top of the
   list, the version at the bottom of every view, and the sheep as the app icon.
+- The session list puts the sessions waiting for an answer first, marked **Needs your answer**,
+  then the latest change first; each row shows the time the phone saw its status change and the
+  coding agent Herdr reports in the pane (Claude Code, Codex or any other).
 
 ## [0.6.1] — 2026-10-16
 

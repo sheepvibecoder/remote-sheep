@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@remote-sheep/protocol';
-import { groupSpaces, initials, matches, ringOf } from '../../src/L1_domain/home';
+import {
+  agentLabel,
+  byAttention,
+  groupSpaces,
+  initials,
+  matches,
+  ringOf,
+  rowTime,
+  sessionRow,
+  spaceRow,
+} from '../../src/L1_domain/home';
 
 function session(
   title: string,
@@ -82,5 +92,115 @@ describe('ringOf', () => {
 
   it('rings a status Herdr cannot tell as idle, never as one that asks for a look', () => {
     expect(ringOf('unknown')).toBe('idle');
+  });
+});
+
+describe('agentLabel', () => {
+  it('names the agents people know by their product name', () => {
+    expect(agentLabel('claude')).toBe('Claude Code');
+    expect(agentLabel('codex')).toBe('Codex');
+  });
+
+  it('shows any other agent Herdr names as it names it, capitalised', () => {
+    expect(agentLabel('gemini')).toBe('Gemini');
+  });
+
+  it('shows no tag when Herdr does not say', () => {
+    expect(agentLabel(undefined)).toBeNull();
+    expect(agentLabel('')).toBeNull();
+  });
+});
+
+describe('byAttention', () => {
+  it('puts the sessions waiting for an answer first, then the latest change first', () => {
+    const at: Record<string, number> = { a: 10, b: 30, c: 20, d: 5 };
+    const sorted = byAttention(
+      [
+        session('a', 'p', 'working'),
+        session('b', 'p', 'done'),
+        session('c', 'p', 'idle'),
+        session('d', 'p', 'blocked'),
+      ],
+      (target) => at[target] ?? null,
+    );
+    expect(sorted.map((s) => s.target)).toEqual(['d', 'b', 'c', 'a']);
+  });
+
+  it('keeps the order Herdr gave for sessions with no change seen yet or at the same time', () => {
+    const sorted = byAttention(
+      [session('a', 'p'), session('b', 'p'), session('c', 'p')],
+      (target) => (target === 'c' ? 1 : null),
+    );
+    expect(sorted.map((s) => s.target)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('rowTime', () => {
+  const now = new Date(2026, 9, 18, 15, 0).getTime();
+
+  it('shows the hour of a change made today', () => {
+    expect(rowTime(new Date(2026, 9, 18, 9, 5).getTime(), now)).toBe('09:05');
+  });
+
+  it('shows the day and month of an older change', () => {
+    expect(rowTime(new Date(2026, 9, 12, 23, 0).getTime(), now)).toBe('12 Oct');
+  });
+
+  it('shows nothing when no change was seen', () => {
+    expect(rowTime(null, now)).toBe('');
+  });
+});
+
+describe('sessionRow', () => {
+  const now = new Date(2026, 9, 18, 15, 0).getTime();
+  const seen = { changedAt: new Date(2026, 9, 18, 9, 5).getTime(), unread: 2, now };
+
+  it('shows a session waiting for an answer as asking for one', () => {
+    const row = sessionRow({ ...session('Fix login', 'acme', 'blocked'), agent: 'claude' }, seen);
+    expect(row).toEqual({
+      key: 'Fix login',
+      avatar: 'FL',
+      ring: 'needs',
+      shell: false,
+      title: 'Fix login',
+      time: '09:05',
+      line: 'Needs your answer',
+      asks: true,
+      place: 'acme',
+      agent: 'Claude Code',
+      unread: 2,
+    });
+  });
+
+  it('says what a session that asks nothing is doing', () => {
+    expect(sessionRow(session('a', 'p', 'working'), seen).line).toBe('Working…');
+    expect(sessionRow(session('a', 'p', 'done'), seen).line).toBe('Done');
+    expect(sessionRow(session('a', 'p', 'idle'), seen).line).toBe('Idle');
+    expect(sessionRow(session('a', 'p', 'unknown'), seen).line).toBe('Status unknown');
+    expect(sessionRow(session('a', 'p', 'working'), seen).asks).toBe(false);
+  });
+
+  it('draws a console as a terminal that never asks, whatever its status', () => {
+    const row = sessionRow({ ...session('pwsh', 'acme', 'blocked'), kind: 'shell' }, seen);
+    expect(row).toMatchObject({ avatar: '$', shell: true, line: 'Console', asks: false });
+  });
+});
+
+describe('spaceRow', () => {
+  it('shows a workspace with its session count, its most urgent ring and no time', () => {
+    expect(spaceRow({ id: 'w5', label: 'acme', count: 1, status: 'working' })).toEqual({
+      key: 'w5',
+      avatar: 'AC',
+      ring: 'work',
+      shell: false,
+      title: 'acme',
+      time: '',
+      line: '1 session',
+      asks: false,
+      place: '',
+      agent: null,
+      unread: 0,
+    });
+    expect(spaceRow({ id: 'w6', label: 'b', count: 3, status: 'idle' }).line).toBe('3 sessions');
   });
 });

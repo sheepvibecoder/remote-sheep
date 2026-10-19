@@ -1,7 +1,13 @@
-// The Angular root. For now it only starts the hand-written view, whose markup is still in
-// index.html: the screens move into Angular components one at a time (ADR 0007).
+// The Angular root. It starts the hand-written view, whose markup is still in index.html, and
+// hands it what it needs to mount the screens already moved into components (ADR 0007).
 
-import { afterNextRender, Component, inject } from '@angular/core';
+import {
+  afterNextRender,
+  ApplicationRef,
+  Component,
+  EnvironmentInjector,
+  inject,
+} from '@angular/core';
 import { APP_DEPENDENCIES } from './app-dependencies';
 import { startApp } from './app.view';
 
@@ -12,8 +18,9 @@ import { startApp } from './app.view';
 export class AppComponent {
   constructor() {
     const dependencies = inject(APP_DEPENDENCIES);
+    const angular = { appRef: inject(ApplicationRef), injector: inject(EnvironmentInjector) };
     afterNextRender(() => {
-      startApp(dependencies);
+      startApp(dependencies, angular);
     });
   }
 }

@@ -152,6 +152,12 @@ export default tseslint.config(
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
   },
   {
+    // Templates (inline ones are linted as .html) go through Angular's template parser, which
+    // has no type information; the type-aware TypeScript rules cannot run on them.
+    files: ['packages/app/src/**/*.html'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     // The service worker runs in a worker scope: no DOM, no Node.
     files: ['packages/app/sw/**/*.ts'],
     languageOptions: { globals: globals.serviceworker },

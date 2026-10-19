@@ -11,7 +11,15 @@ import type {
   Session,
   Workspace,
 } from '@remote-sheep/protocol';
-import { groupSpaces, matches, type Space } from '../L1_domain/home';
+import {
+  byAttention,
+  groupSpaces,
+  matches,
+  sessionRow,
+  spaceRow,
+  type ListRow,
+  type Space,
+} from '../L1_domain/home';
 import type { LinkState } from '../L1_domain/link-state';
 import type { AgentConnection } from '../L1_domain/ports/agent-connection';
 import type { Preferences } from '../L1_domain/ports/preferences';
@@ -135,13 +143,17 @@ export class Store {
   private readonly lastStatus: Map<string, string>;
   /** Settles the person has not looked at yet, per session. */
   private readonly unreadCounts: Map<string, number>;
+  /** When the phone saw each session's status change: the time a row shows and sorts by. */
+  private readonly changeTimes: Map<string, number>;
 
   constructor(
     private readonly preferences: Preferences,
     private readonly push: PushSubscriptions,
+    private readonly now: () => number = () => Date.now(),
   ) {
     this.lastStatus = readMap(preferences, 'statuses', isText);
     this.unreadCounts = readMap(preferences, 'unread', isCount);
+    this.changeTimes = readMap(preferences, 'changed', isCount);
     this.state = {
       link: 'closed',
       gate: null,
@@ -484,12 +496,31 @@ export class Store {
   listedSessions(): Session[] {
     const { sessions, space, query, home } = this.state;
     const kind = home === 'consoles' ? 'shell' : 'agent';
-    return sessions.filter(
+    const listed = sessions.filter(
       (session) =>
         session.kind === kind &&
         (space === null || session.space === space) &&
         (matches(session.title, query) || matches(session.project, query)),
     );
+    return byAttention(listed, (target) => this.changedAt(target));
+  }
+
+  /** The rows of the open tab, with what this phone saw of each session. */
+  listedRows(): ListRow[] {
+    if (this.state.home === 'spaces') return this.listedSpaces().map(spaceRow);
+    const now = this.now();
+    return this.listedSessions().map((session) =>
+      sessionRow(session, {
+        changedAt: this.changedAt(session.target),
+        unread: this.unread(session.target),
+        now,
+      }),
+    );
+  }
+
+  /** When the phone last saw this session's status change, or null if it never did. */
+  changedAt(target: string): number | null {
+    return this.changeTimes.get(target) ?? null;
   }
 
   /** Whether the agent lists any console; it lists none unless its owner turned them on. */
@@ -539,13 +570,14 @@ export class Store {
     for (const session of sessions) {
       const was = this.lastStatus.get(session.target);
       this.lastStatus.set(session.target, session.status);
+      if (was !== session.status) this.changeTimes.set(session.target, this.now());
       const settled =
         was === 'working' && (session.status === 'done' || session.status === 'blocked');
       const onScreen = this.visible && state.view === 'chat' && state.target === session.target;
       if (settled && !onScreen)
         this.unreadCounts.set(session.target, this.unread(session.target) + 1);
     }
-    for (const map of [this.lastStatus, this.unreadCounts]) {
+    for (const map of [this.lastStatus, this.unreadCounts, this.changeTimes]) {
       for (const target of [...map.keys()]) if (!live.has(target)) map.delete(target);
     }
     this.saveCounts();
@@ -554,6 +586,7 @@ export class Store {
   private saveCounts(): void {
     this.preferences.setItem('statuses', JSON.stringify(Object.fromEntries(this.lastStatus)));
     this.preferences.setItem('unread', JSON.stringify(Object.fromEntries(this.unreadCounts)));
+    this.preferences.setItem('changed', JSON.stringify(Object.fromEntries(this.changeTimes)));
   }
 
   /** The chat as shown: the transcript plus an order still on its way. */

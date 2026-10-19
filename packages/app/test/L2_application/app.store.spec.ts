@@ -235,6 +235,68 @@ describe('Store', () => {
     });
   });
 
+  describe('attention order', () => {
+    /** A store whose clock the test moves by hand. */
+    function clocked() {
+      const clock = { now: 1000 };
+      const storage = new MemoryStorage();
+      const store = new Store(storage, new FakePush(), () => clock.now);
+      store.setLink('open');
+      return { store, storage, clock };
+    }
+
+    it('lists the sessions waiting for an answer first, then the latest change first', () => {
+      const { store, clock } = clocked();
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'working'), session('p2', 'working'), session('p3', 'working')],
+      });
+      clock.now = 2000;
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'done'), session('p2', 'working'), session('p3', 'working')],
+      });
+      clock.now = 3000;
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'done'), session('p2', 'working'), session('p3', 'blocked')],
+      });
+      expect(store.listedSessions().map((s) => s.target)).toEqual(['p3', 'p1', 'p2']);
+      expect(store.changedAt('p1')).toBe(2000);
+      expect(store.changedAt('p2')).toBe(1000);
+    });
+
+    it('keeps the time of a status that did not change, and remembers it across visits', () => {
+      const { store, storage, clock } = clocked();
+      store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });
+      clock.now = 5000;
+      store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });
+      expect(store.changedAt('p1')).toBe(1000);
+      expect(new Store(storage, new FakePush(), () => 9000).changedAt('p1')).toBe(1000);
+    });
+
+    it('builds the rows of the open tab with its own clock and counts', () => {
+      const { store, clock } = clocked();
+      store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });
+      clock.now = 2000;
+      store.receive({ type: 'sessions', sessions: [session('p1', 'done')] });
+      expect(store.listedRows()).toEqual([
+        expect.objectContaining({ key: 'p1', ring: 'done', unread: 1, line: 'Done' }),
+      ]);
+      store.setHome('spaces');
+      expect(store.listedRows()).toEqual([
+        expect.objectContaining({ key: 'w1', line: '1 session', time: '' }),
+      ]);
+    });
+
+    it('forgets the time of a session that is gone', () => {
+      const { store } = clocked();
+      store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });
+      store.receive({ type: 'sessions', sessions: [] });
+      expect(store.changedAt('p1')).toBeNull();
+    });
+  });
+
   describe('home', () => {
     function withSessions() {
       const ready = setup();
@@ -259,7 +321,7 @@ describe('Store', () => {
     it('lists every session under Sessions until a search narrows them', () => {
       const { store, changes } = withSessions();
       expect(store.state.home).toBe('sessions');
-      expect(store.listedSessions().map((s) => s.target)).toEqual(['p1', 'p2', 'p3']);
+      expect(store.listedSessions().map((s) => s.target)).toEqual(['p2', 'p1', 'p3']);
       store.setQuery('REMOTE');
       expect(store.listedSessions().map((s) => s.target)).toEqual(['p2', 'p3']);
       expect(changes).toEqual(['home']);
@@ -319,7 +381,7 @@ describe('Store', () => {
         sessions: [...store.state.sessions, shell('w5:s1', 'w5'), shell('wF:s2', 'wF')],
       });
       expect(store.hasShells()).toBe(true);
-      expect(store.listedSessions().map((s) => s.target)).toEqual(['p1', 'p2', 'p3']);
+      expect(store.listedSessions().map((s) => s.target)).toEqual(['p2', 'p1', 'p3']);
       store.setHome('consoles');
       expect(store.listedSessions().map((s) => s.target)).toEqual(['w5:s1', 'wF:s2']);
       store.openSpace('wF');

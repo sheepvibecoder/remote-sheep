@@ -5,15 +5,15 @@
 // alone. The connection arrives from the composition root as a port.
 
 import './appearance';
-import type {
-  AgentStatus,
-  ChatMessage,
-  Request,
-  ResultOf,
-  UploadResult,
-} from '@remote-sheep/protocol';
+import {
+  createComponent,
+  type ApplicationRef,
+  type ComponentRef,
+  type EnvironmentInjector,
+} from '@angular/core';
+import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
-import { initials, ringOf } from '../L1_domain/home';
+import { initials } from '../L1_domain/home';
 import { composeOrder } from '../L1_domain/order';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
@@ -28,6 +28,7 @@ import { $, must, say } from './dom';
 import { hideEditor, markUp } from './photo-editor';
 import { canScan, scanQr } from './qr-scanner';
 import { renderRich } from './rich-text';
+import { SessionListComponent } from './session-list/session-list.component';
 import { autoSpeak, speak } from './speech';
 
 declare const __VERSION__: string;
@@ -414,45 +415,9 @@ async function startIn(space: string, label: string, shell: boolean): Promise<vo
   sheet.classList.add('hidden');
 }
 
-interface Row {
-  key: string;
-  avatar: string;
-  status: AgentStatus;
-  /** A console, drawn as a terminal rather than as an agent. */
-  shell: boolean;
-  title: string;
-  meta: string;
-  /** Settles not looked at yet; 0 shows no badge. */
-  unread: number;
-}
-
-function rows(): Row[] {
-  if (state.home === 'spaces') {
-    return store.listedSpaces().map((space) => ({
-      key: space.id,
-      avatar: initials(space.label),
-      status: space.status,
-      shell: false,
-      title: space.label,
-      meta: String(space.count) + (space.count === 1 ? ' session' : ' sessions'),
-      unread: 0,
-    }));
-  }
-  return store.listedSessions().map((session) => ({
-    key: session.target,
-    avatar: session.kind === 'shell' ? '$' : initials(session.title),
-    status: session.status,
-    shell: session.kind === 'shell',
-    title: session.title,
-    meta: (session.kind === 'shell' ? 'console' : session.status) + '  ·  ' + session.project,
-    unread: store.unread(session.target),
-  }));
-}
-
 /** A tap opens the chat of a session, or the sessions of a space. */
-function openRow(card: HTMLElement): void {
-  const key = must(card.dataset['key'], 'row key');
-  if (card.dataset['kind'] === 'spaces') store.openSpace(key);
+function openRow(key: string): void {
+  if (state.home === 'spaces') store.openSpace(key);
   else openChat(key);
 }
 
@@ -465,51 +430,12 @@ function emptyHint(): string {
     : 'No agent sessions in Herdr right now.';
 }
 
-// Rows are patched in place: Herdr is polled every few seconds and rebuilding
-// the list each time would flash it.
+/** The Angular list, mounted on #list once the app starts. */
+let listView: ComponentRef<SessionListComponent> | null = null;
+
 function renderList(): void {
-  const wanted = rows();
-  for (const stale of list.querySelectorAll('.hint')) stale.remove();
-  while (list.children.length > wanted.length) list.lastElementChild?.remove();
-  wanted.forEach((row, i) => {
-    let card = list.children[i] as HTMLButtonElement | undefined;
-    if (!card) {
-      card = document.createElement('button');
-      card.className = 'card';
-      const avatar = document.createElement('span');
-      avatar.className = 'av';
-      const who = document.createElement('span');
-      who.className = 'who';
-      const title = document.createElement('span');
-      title.className = 't';
-      const meta = document.createElement('span');
-      meta.className = 's';
-      who.append(title, meta);
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      card.append(avatar, who, badge);
-      const self = card;
-      card.addEventListener('click', () => openRow(self));
-      list.append(card);
-    }
-    card.dataset['key'] = row.key;
-    card.dataset['kind'] = state.home;
-    const avatar = must(card.querySelector<HTMLElement>('.av'), 'row avatar');
-    avatar.className = 'av ' + ringOf(row.status) + (row.shell ? ' sh' : '');
-    avatar.textContent = row.avatar;
-    must(card.querySelector('.t'), 'row title').textContent = row.title;
-    must(card.querySelector('.s'), 'row meta').textContent = row.meta;
-    const badge = must(card.querySelector<HTMLElement>('.badge'), 'row badge');
-    badge.textContent = row.unread ? String(row.unread) : '';
-    badge.classList.toggle('hidden', !row.unread);
-    card.classList.toggle('unread', row.unread > 0);
-  });
-  if (!wanted.length) {
-    const hint = document.createElement('div');
-    hint.className = 'hint';
-    hint.textContent = emptyHint();
-    list.append(hint);
-  }
+  listView?.setInput('rows', store.listedRows());
+  listView?.setInput('hint', emptyHint());
 }
 
 // ---- linked devices ----
@@ -1026,7 +952,13 @@ export interface AppDependencies {
 }
 
 /** Pairs with the QR in the fragment, or reconnects with the pairing this phone kept. */
-export function startApp(dependencies: AppDependencies): void {
+/** What the view needs from Angular to mount the screens already rebuilt as components. */
+export interface AngularHost {
+  appRef: ApplicationRef;
+  injector: EnvironmentInjector;
+}
+
+export function startApp(dependencies: AppDependencies, angular: AngularHost): void {
   const profile = chooseProfile(
     localStorage,
     dependencies.fragment,
@@ -1034,6 +966,12 @@ export function startApp(dependencies: AppDependencies): void {
     Date.now(),
   );
   store = new Store(profilePreferences(localStorage, profile), dependencies.push);
+  listView = createComponent(SessionListComponent, {
+    environmentInjector: angular.injector,
+    hostElement: list,
+  });
+  angular.appRef.attachView(listView.hostView);
+  listView.instance.open.subscribe(openRow);
   updates = dependencies.updates;
   state = store.state;
   store.subscribe(onChange);
