@@ -14,7 +14,7 @@ import {
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
-import { initials } from '../L1_domain/home';
+import { initials, pageTitle } from '../L1_domain/home';
 import { asksNothing, composeOrder, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
@@ -154,6 +154,7 @@ function onChange(change: Change): void {
       showHerdrStatus();
       return;
     case 'sessions':
+      document.title = pageTitle(store.unreadTotal());
       renderHeader();
       renderKeys();
       // The Consoles tab shows up with the first console the agent lists.
@@ -166,6 +167,7 @@ function onChange(change: Change): void {
       if (!sheet.classList.contains('hidden')) renderSheet();
       return;
     case 'view':
+      document.title = pageTitle(store.unreadTotal());
       applyView();
       renderHeader();
       if (listShown()) renderList();
@@ -1277,5 +1279,23 @@ wideQuery.addEventListener('change', () => {
   if (listShown()) {
     renderHome();
     renderList();
+  }
+});
+
+// ---- keyboard ----
+// Ctrl+K jumps to the search, Alt+↓ to the next session that waits for an answer. They only
+// listen once the app is paired and showing, so the pairing screen is left alone.
+
+document.addEventListener('keydown', (event) => {
+  if (state.gate) return;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    if (!listShown()) return;
+    event.preventDefault();
+    search.focus();
+  } else if (event.altKey && event.key === 'ArrowDown') {
+    const next = store.nextToAnswer();
+    if (next === null) return;
+    event.preventDefault();
+    openChat(next);
   }
 });

@@ -184,3 +184,21 @@ export function groupSpaces(
   }
   return [...spaces.values()];
 }
+
+/** The tab title: the number of sessions with something unread in front of the name. */
+export function pageTitle(unread: number): string {
+  return unread > 0 ? '(' + unread + ') RemoteSheep' : 'RemoteSheep';
+}
+
+/**
+ * The next session that asks for an answer, after the open one and wrapping around; null when
+ * no other one asks. Rows come in list order, so "next" is the next one down the list.
+ */
+export function nextToAnswer(
+  rows: readonly Pick<ListRow, 'key' | 'asks'>[],
+  open: string | null,
+): string | null {
+  const from = rows.findIndex((row) => row.key === open) + 1;
+  const ordered = [...rows.slice(from), ...rows.slice(0, from)];
+  return ordered.find((row) => row.asks && row.key !== open)?.key ?? null;
+}

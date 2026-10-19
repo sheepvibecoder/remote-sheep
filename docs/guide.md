@@ -75,6 +75,10 @@ On a window 900 px wide or more, the list stays on the left and the open chat or
 the right, so you can move between sessions without going back. The open session is highlighted in
 the list.
 
+Shortcuts: **Ctrl K** goes to the search, and **Alt ↓** opens the next session that waits for an
+answer, wrapping around. The tab title shows how many sessions have something unread, for example
+`(2) RemoteSheep`.
+
 ### Consoles
 
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any

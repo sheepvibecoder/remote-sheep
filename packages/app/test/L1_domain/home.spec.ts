@@ -6,6 +6,8 @@ import {
   groupSpaces,
   initials,
   matches,
+  nextToAnswer,
+  pageTitle,
   ringOf,
   rowTime,
   sessionRow,
@@ -202,5 +204,37 @@ describe('spaceRow', () => {
       unread: 0,
     });
     expect(spaceRow({ id: 'w6', label: 'b', count: 3, status: 'idle' }).line).toBe('3 sessions');
+  });
+});
+
+describe('pageTitle', () => {
+  it('puts the count of unread sessions in front of the name, and nothing when there are none', () => {
+    expect(pageTitle(0)).toBe('RemoteSheep');
+    expect(pageTitle(3)).toBe('(3) RemoteSheep');
+  });
+});
+
+describe('nextToAnswer', () => {
+  const row = (key: string, asks: boolean) => ({ key, asks });
+  const rows = [row('a', false), row('b', true), row('c', false), row('d', true)];
+
+  it('picks the next session that needs an answer after the open one', () => {
+    expect(nextToAnswer(rows, 'a')).toBe('b');
+    expect(nextToAnswer(rows, 'b')).toBe('d');
+  });
+
+  it('wraps around to the first one, and skips the open one', () => {
+    expect(nextToAnswer(rows, 'd')).toBe('b');
+    expect(nextToAnswer([row('a', true), row('b', false)], 'a')).toBeNull();
+  });
+
+  it('starts from the top when nothing is open or the open one is not listed', () => {
+    expect(nextToAnswer(rows, null)).toBe('b');
+    expect(nextToAnswer(rows, 'gone')).toBe('b');
+  });
+
+  it('is null when nothing needs an answer', () => {
+    expect(nextToAnswer([row('a', false)], 'a')).toBeNull();
+    expect(nextToAnswer([], null)).toBeNull();
   });
 });

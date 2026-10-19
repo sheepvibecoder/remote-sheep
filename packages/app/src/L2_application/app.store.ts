@@ -16,6 +16,7 @@ import {
   byAttention,
   groupSpaces,
   matches,
+  nextToAnswer,
   sessionRow,
   spaceRow,
   type ListRow,
@@ -660,6 +661,25 @@ export class Store {
         unread: this.unread(session.target),
         now,
       }),
+    );
+  }
+
+  /** How many sessions have something unread, for the tab title. */
+  unreadTotal(): number {
+    return [...this.unreadCounts.values()].filter((count) => count > 0).length;
+  }
+
+  /**
+   * The next session that asks for an answer, or null; for the Alt+↓ shortcut. It looks at every
+   * agent in list order, whatever tab, space or search the list is showing.
+   */
+  nextToAnswer(): string | null {
+    const open = this.state.view === 'chat' ? this.state.target : null;
+    const agents = this.state.sessions.filter((session) => session.kind === 'agent');
+    const ordered = byAttention(agents, (target) => this.changedAt(target));
+    return nextToAnswer(
+      ordered.map((session) => ({ key: session.target, asks: session.status === 'blocked' })),
+      open,
     );
   }
 

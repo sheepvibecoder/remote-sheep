@@ -299,6 +299,25 @@ describe('Store', () => {
       expect(store.unread('p1')).toBe(0);
     });
 
+    it('adds up what is unread across sessions, and finds the next one that needs an answer', () => {
+      const { store } = setup();
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'working'), session('p2', 'idle')],
+      });
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'done'), session('p2', 'blocked')],
+      });
+      expect(store.unreadTotal()).toBe(1);
+      expect(store.nextToAnswer()).toBe('p2');
+      store.setQuery('nothing matches this');
+      store.setHome('spaces');
+      expect(store.nextToAnswer()).toBe('p2');
+      store.openChat('p2');
+      expect(store.nextToAnswer()).toBeNull();
+    });
+
     it('does not count a session settling in the chat on screen', () => {
       const { store } = setup();
       store.openChat('p1');
