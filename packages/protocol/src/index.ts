@@ -39,6 +39,10 @@ export {
 export { decodeHello, decodeWelcome, encodeHello, encodeWelcome } from './secure/handshake-frames';
 export type { SecureSession } from './secure/secure-session';
 
+/** The coding agents a phone can ask Herdr to start; anything else is refused at the door. */
+export const AGENT_KINDS = ['claude', 'codex'] as const;
+export type AgentKind = (typeof AGENT_KINDS)[number];
+
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
 
 /** A coding agent with a transcript, or a plain shell that only has its terminal. */
@@ -128,8 +132,11 @@ export type Request =
   | { kind: 'push-unsubscribe' }
   /** The Herdr workspaces, to group sessions and to pick where a new one starts. */
   | { kind: 'spaces' }
-  /** Starts a Claude Code session, or a plain shell, in a new tab of this workspace. */
-  | { kind: 'new-session'; space: string; shell: boolean };
+  /**
+   * Starts a coding agent (Claude Code when `agent` is absent, as older phones ask), or a plain
+   * shell, in a new tab of this workspace.
+   */
+  | { kind: 'new-session'; space: string; shell: boolean; agent?: AgentKind };
 
 export type ClientMessage =
   /**
@@ -290,11 +297,19 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
       return { kind: 'push-unsubscribe' };
     case 'spaces':
       return { kind: 'spaces' };
-    case 'new-session':
+    case 'new-session': {
       if (!isText(value['space'])) return null;
       // Absent from phones older than shells: they only ever start Claude Code.
       if (value['shell'] !== undefined && typeof value['shell'] !== 'boolean') return null;
-      return { kind: 'new-session', space: value['space'], shell: value['shell'] === true };
+      const agent = value['agent'];
+      if (agent !== undefined && !AGENT_KINDS.some((known) => known === agent)) return null;
+      return {
+        kind: 'new-session',
+        space: value['space'],
+        shell: value['shell'] === true,
+        ...(agent === undefined ? {} : { agent: agent as AgentKind }),
+      };
+    }
     default:
       return null;
   }

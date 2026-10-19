@@ -5,7 +5,13 @@
 // hub watches the transcript of each session somebody is looking at. A phone
 // hears about a change only when something actually changed.
 
-import type { ImageResult, Request, ServerMessage, Session } from '@remote-sheep/protocol';
+import type {
+  AgentKind,
+  ImageResult,
+  Request,
+  ServerMessage,
+  Session,
+} from '@remote-sheep/protocol';
 import type { Multiplexer } from '../L1_domain/ports/multiplexer';
 import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
@@ -137,7 +143,7 @@ export class SessionHub implements ConnectionEvents {
       case 'spaces':
         return this.options.multiplexer.listSpaces();
       case 'new-session':
-        return this.newSession(request.space, request.shell);
+        return this.newSession(request.space, request.shell, request.agent ?? 'claude');
     }
   }
 
@@ -181,7 +187,11 @@ export class SessionHub implements ConnectionEvents {
     }
   }
 
-  private async newSession(space: string, shell: boolean): Promise<{ target: string }> {
+  private async newSession(
+    space: string,
+    shell: boolean,
+    agent: AgentKind,
+  ): Promise<{ target: string }> {
     if (shell && !this.options.shells) {
       throw new Error(
         'consoles are off on this computer: start the agent with REMOTE_SHEEP_SHELLS=1',
@@ -191,7 +201,9 @@ export class SessionHub implements ConnectionEvents {
     if (!spaces.some((known) => known.id === space)) throw new Error('unknown workspace: ' + space);
     const multiplexer = this.options.multiplexer;
     return {
-      target: await (shell ? multiplexer.startShell(space) : multiplexer.startSession(space)),
+      target: await (shell
+        ? multiplexer.startShell(space)
+        : multiplexer.startSession(space, agent)),
     };
   }
 

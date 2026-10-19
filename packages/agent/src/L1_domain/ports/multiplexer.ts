@@ -1,4 +1,4 @@
-import type { Session, Workspace } from '@remote-sheep/protocol';
+import type { AgentKind, Session, Workspace } from '@remote-sheep/protocol';
 
 /** Whatever keeps the agents' terminals alive: Herdr today, tmux or zellij later. */
 export interface Multiplexer {
@@ -15,7 +15,7 @@ export interface Multiplexer {
   /** The places a new session can start in. */
   listSpaces(): Promise<Workspace[]>;
   /** Starts a coding agent in a new terminal of this space; answers its target. */
-  startSession(space: string): Promise<string>;
+  startSession(space: string, agent: AgentKind): Promise<string>;
   /** Opens a new terminal of this space with only its shell; answers its target. */
   startShell(space: string): Promise<string>;
 }

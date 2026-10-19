@@ -2,7 +2,13 @@
 
 import { execFile } from 'node:child_process';
 import { basename } from 'node:path';
-import type { AgentStatus, Session, SessionKind, Workspace } from '@remote-sheep/protocol';
+import type {
+  AgentKind,
+  AgentStatus,
+  Session,
+  SessionKind,
+  Workspace,
+} from '@remote-sheep/protocol';
 import type { Multiplexer } from '../../L1_domain/ports/multiplexer';
 
 /** Runs herdr with these arguments and resolves with its stdout. */
@@ -172,7 +178,7 @@ export class HerdrMultiplexer implements Multiplexer {
 
   // A new tab rather than a split: on a phone-sized view of the layout, a split
   // would shrink a pane someone is already working in.
-  async startSession(space: string): Promise<string> {
+  async startSession(space: string, agent: AgentKind): Promise<string> {
     const pane = await this.newTab(space);
     // Herdr names every agent; the name only has to be unique.
     const name = 'sheep-' + Date.now().toString(36);
@@ -182,14 +188,14 @@ export class HerdrMultiplexer implements Multiplexer {
         'start',
         name,
         '--kind',
-        'claude',
+        agent,
         '--pane',
         pane,
         '--timeout',
         String(START_TIMEOUT_MS),
       ]);
     } catch (error) {
-      // Claude Code may start on a question, such as trusting the folder. The
+      // The agent may start on a question, such as trusting the folder. The
       // session exists and the phone can answer it, so that is not a failure.
       if (!(error instanceof Error) || !error.message.includes('agent_not_ready')) throw error;
     }

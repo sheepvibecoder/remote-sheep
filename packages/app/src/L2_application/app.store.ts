@@ -4,6 +4,7 @@
 // replaces LR_render and leaves the connection, the protocol and these rules alone.
 
 import type {
+  AgentKind,
   ChatMessage,
   LinkedDevice,
   Request,
@@ -86,6 +87,8 @@ export interface AppState {
   query: string;
   /** The Herdr workspaces, as last read from the agent. */
   spaces: Workspace[];
+  /** What the New sheet starts: an agent, or a plain console. */
+  newKind: NewKind;
   /** The workspace whose sessions the Sessions tab shows; null shows them all. */
   space: string | null;
   /** Why reading the workspaces or starting a session failed; null once one works. */
@@ -121,6 +124,9 @@ export type UpdateCheck =
   | { status: 'idle' | 'checking' }
   | { status: 'latest' | 'available'; version: string }
   | { status: 'failed'; error: string };
+
+/** What the New sheet can start. */
+export type NewKind = AgentKind | 'shell';
 
 /** Which part of the state moved, so the page redraws only that. */
 export type Change =
@@ -198,6 +204,7 @@ export class Store {
       query: '',
       spaces: [],
       space: null,
+      newKind: 'claude',
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
@@ -334,10 +341,20 @@ export class Store {
     this.emit('home');
   }
 
-  /** Starts a session, or a console, in this workspace and opens it. */
-  async newSession(agent: Agent, space: string, shell = false): Promise<void> {
+  setNewKind(kind: NewKind): void {
+    this.state.newKind = kind;
+    this.emit('home');
+  }
+
+  /** Starts what the sheet picked (an agent or a console) in this workspace and opens it. */
+  async newSession(agent: Agent, space: string): Promise<void> {
+    const kind = this.state.newKind;
+    const shell = kind === 'shell';
     try {
-      const { target } = await agent.request({ kind: 'new-session', space, shell });
+      const request: Extract<Request, { kind: 'new-session' }> = shell
+        ? { kind: 'new-session', space, shell }
+        : { kind: 'new-session', space, shell, agent: kind };
+      const { target } = await agent.request(request);
       this.state.homeError = null;
       this.openChat(target);
       // Not listed yet, so openChat could not tell it is a shell.

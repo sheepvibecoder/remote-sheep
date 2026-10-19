@@ -460,7 +460,9 @@ describe('Store', () => {
       const { store } = withSessions();
       const agent = new FakeAgent({ target: 'w8:p9' });
       await store.newSession(agent, 'w8');
-      expect(agent.asked).toEqual([{ kind: 'new-session', space: 'w8', shell: false }]);
+      expect(agent.asked).toEqual([
+        { kind: 'new-session', space: 'w8', shell: false, agent: 'claude' },
+      ]);
       expect(store.state.view).toBe('chat');
       expect(store.state.target).toBe('w8:p9');
       expect(store.state.homeError).toBeNull();
@@ -492,11 +494,24 @@ describe('Store', () => {
     it('opens a console in a workspace on its terminal', async () => {
       const { store } = withSessions();
       const agent = new FakeAgent({ target: 'w8:s9' });
-      await store.newSession(agent, 'w8', true);
+      store.setNewKind('shell');
+      await store.newSession(agent, 'w8');
       expect(agent.asked).toEqual([{ kind: 'new-session', space: 'w8', shell: true }]);
       expect(store.state.view).toBe('chat');
       expect(store.state.target).toBe('w8:s9');
       expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'w8:s9', terminal: true });
+    });
+
+    it('starts the kind picked in the sheet, Claude Code first, and remembers it', async () => {
+      const { store } = withSessions();
+      expect(store.state.newKind).toBe('claude');
+      store.setNewKind('codex');
+      const agent = new FakeAgent({ target: 'w8:p9' });
+      await store.newSession(agent, 'w8');
+      expect(agent.asked).toEqual([
+        { kind: 'new-session', space: 'w8', shell: false, agent: 'codex' },
+      ]);
+      expect(store.state.showTerm).toBe(false);
     });
 
     it('keeps the reason when the workspaces cannot be read or a session cannot start', async () => {

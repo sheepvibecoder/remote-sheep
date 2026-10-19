@@ -220,7 +220,7 @@ describe('HerdrMultiplexer', () => {
       }
       return '{"result":{}}';
     });
-    expect(await herdr.startSession('w5')).toBe('w5:p9');
+    expect(await herdr.startSession('w5', 'claude')).toBe('w5:p9');
     expect(calls[0]).toEqual(['tab', 'create', '--workspace', 'w5', '--no-focus']);
     const [command, verb, name, ...rest] = calls[1] ?? [];
     expect([command, verb]).toEqual(['agent', 'start']);
@@ -228,21 +228,31 @@ describe('HerdrMultiplexer', () => {
     expect(rest).toEqual(['--kind', 'claude', '--pane', 'w5:p9', '--timeout', '20000']);
   });
 
+  it('starts the agent it is told to, by the kind Herdr knows it as', async () => {
+    const calls: string[][] = [];
+    const herdr = new HerdrMultiplexer(async (args) => {
+      calls.push(args);
+      return args[0] === 'tab' ? '{"result":{"root_pane":{"pane_id":"w5:p9"}}}' : '{"result":{}}';
+    });
+    await herdr.startSession('w5', 'codex');
+    expect(calls[1]?.slice(3, 5)).toEqual(['--kind', 'codex']);
+  });
+
   it('answers the pane of an agent that started blocked, so the phone can answer it', async () => {
     const herdr = new HerdrMultiplexer(async (args) => {
       if (args[0] === 'tab') return '{"result":{"root_pane":{"pane_id":"w5:p9"}}}';
       throw new Error('agent_not_ready: agent is blocked');
     });
-    expect(await herdr.startSession('w5')).toBe('w5:p9');
+    expect(await herdr.startSession('w5', 'claude')).toBe('w5:p9');
   });
 
   it('fails when Herdr creates no pane or the agent does not start', async () => {
     const noPane = new HerdrMultiplexer(async () => '{"result":{}}');
-    await expect(noPane.startSession('w5')).rejects.toThrow('Herdr created no pane');
+    await expect(noPane.startSession('w5', 'claude')).rejects.toThrow('Herdr created no pane');
     const broken = new HerdrMultiplexer(async (args) => {
       if (args[0] === 'tab') return '{"result":{"root_pane":{"pane_id":"w5:p9"}}}';
       throw new Error('claude: command not found');
     });
-    await expect(broken.startSession('w5')).rejects.toThrow('claude: command not found');
+    await expect(broken.startSession('w5', 'claude')).rejects.toThrow('claude: command not found');
   });
 });

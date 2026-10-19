@@ -472,11 +472,6 @@ app-session-row {
   flex: 1;
   min-width: 0;
 }
-.sheet-shell {
-  flex: none;
-  padding: 8px 10px;
-  font-family: var(--mono);
-}
 
 /* ---- chat ---- */
 #chat {
@@ -1086,6 +1081,24 @@ header .name.home .sub {
   color: var(--text);
 }
 #speeds button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+#sheet-kinds {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+#sheet-kinds button {
+  flex: 1;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+#sheet-kinds button.on {
   border-color: var(--accent);
   background: var(--accent-soft);
 }

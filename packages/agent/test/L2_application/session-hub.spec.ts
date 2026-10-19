@@ -47,6 +47,7 @@ class FakeMultiplexer implements Multiplexer {
   keys: [string, string[]][] = [];
   spaces: Workspace[] = [{ id: 'w1', label: 'remote-sheep' }];
   started: string[] = [];
+  startedAgents: string[] = [];
   shellsStarted: string[] = [];
   /** Which kind of pane each terminal read reached. */
   reads: string[] = [];
@@ -74,8 +75,9 @@ class FakeMultiplexer implements Multiplexer {
   async listSpaces() {
     return this.spaces;
   }
-  async startSession(space: string) {
+  async startSession(space: string, agent: string) {
     this.started.push(space);
+    this.startedAgents.push(agent);
     return space + ':p9';
   }
   async startShell(space: string) {
@@ -419,6 +421,15 @@ describe('SessionHub', () => {
       target: 'w1:p9',
     });
     expect(mux.started).toEqual(['w1']);
+  });
+
+  it('starts the agent the phone asks for, and Claude Code when it asks for none', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'new-session', space: 'w1', shell: false, agent: 'codex' });
+    await hub.request(phone, { kind: 'new-session', space: 'w1', shell: false });
+    expect(mux.startedAgents).toEqual(['codex', 'claude']);
   });
 
   it('refuses to start a session in a workspace that does not exist', async () => {

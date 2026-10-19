@@ -71,6 +71,11 @@ describe('client messages', () => {
       { type: 'request', id: 12, request: { kind: 'spaces' } },
       { type: 'request', id: 13, request: { kind: 'new-session', space: 'w5', shell: false } },
       { type: 'request', id: 14, request: { kind: 'new-session', space: 'w5', shell: true } },
+      {
+        type: 'request',
+        id: 15,
+        request: { kind: 'new-session', space: 'w5', shell: false, agent: 'codex' },
+      },
     ];
     for (const message of messages) {
       expect(decodeClientMessage(encodeClientMessage(message))).toEqual(message);
@@ -137,6 +142,13 @@ describe('client messages', () => {
     expect(
       decodeClientMessage(request({ kind: 'new-session', space: 'w5', shell: 'yes' })),
     ).toBeNull();
+  });
+
+  it('accepts only the agents it knows for a new-session, so nothing else reaches the CLI', () => {
+    for (const agent of ['rm -rf', '', 5, null, 'Claude']) {
+      const message = { kind: 'new-session', space: 'w5', shell: false, agent };
+      expect(decodeClientMessage(raw({ type: 'request', id: 1, request: message }))).toBeNull();
+    }
   });
 
   it('reads a new-session from a phone older than shells as a Claude Code session', () => {

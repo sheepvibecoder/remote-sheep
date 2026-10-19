@@ -39,8 +39,8 @@ computer running Herdr, and the phone is paired.
 The app looks like a messaging app. The home screen lists the sessions as
 chats; **Sessions** and **Spaces** switch between them and the Herdr
 workspaces, and the search box narrows either by name. Tapping a space shows
-only its sessions. The **+** button starts Claude Code in a new tab of the
-workspace you pick and opens its chat. A number on a session counts how many
+only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
+workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it opens on its terminal. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. Settings live behind the **⋮** menu of the list: **Settings** (the accent colour, with five to
 choose from, your reply styles and quick replies, the reading speed, profiles, linked devices, the
@@ -75,7 +75,7 @@ A console is a Herdr pane running a plain shell, with no Claude Code in it. It r
 command on the computer, so consoles are off until the agent is started with
 `REMOTE_SHEEP_SHELLS=1` (a line in `.env`, see Settings); the agent
 says at start whether they are on. Once on, a **Consoles** tab next to **Sessions** lists them,
-each with a dark **$** avatar, so they never mix with the Claude Code chats; and the **+** sheet offers **$ console** next to each workspace. A
+each with a dark **$** avatar, so they never mix with the Claude Code chats; and **Console** in the **+** sheet starts one in the workspace you pick. A
 console opens on its terminal: what you send runs as a command, followed by Enter, and the
 keys above the message box reach the shell.
 

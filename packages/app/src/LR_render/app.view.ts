@@ -22,7 +22,13 @@ import type { Connect } from '../L1_domain/ports/agent-connection';
 import type { PairingStore } from '../L1_domain/ports/pairing-store';
 import type { PushSubscriptions } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
-import { Store, type Change, type Gate, type Profile } from '../L2_application/app.store';
+import {
+  Store,
+  type Change,
+  type Gate,
+  type NewKind,
+  type Profile,
+} from '../L2_application/app.store';
 import { LinkStarter } from '../L2_application/link-starter';
 import { chooseProfile, profilePreferences } from '../L2_application/profile-choice';
 import { stopDictation } from './dictation';
@@ -389,7 +395,24 @@ sheet.addEventListener('click', (event) => {
   if (event.target === sheet) sheet.classList.add('hidden');
 });
 
+// What the sheet starts: an agent of the pick, or a plain console.
+const KINDS: { kind: NewKind; label: string }[] = [
+  { kind: 'claude', label: 'Claude Code' },
+  { kind: 'codex', label: 'Codex' },
+  { kind: 'shell', label: 'Console' },
+];
+for (const { kind, label } of KINDS) {
+  const option = document.createElement('button');
+  option.dataset['kind'] = kind;
+  option.textContent = label;
+  option.addEventListener('click', () => store.setNewKind(kind));
+  $('sheet-kinds').append(option);
+}
+
 function renderSheet(): void {
+  for (const option of $('sheet-kinds').children) {
+    option.classList.toggle('on', (option as HTMLElement).dataset['kind'] === state.newKind);
+  }
   sheetList.textContent = '';
   if (!state.spaces.length) {
     const hint = document.createElement('p');
@@ -413,25 +436,23 @@ function renderSheet(): void {
     title.textContent = space.label;
     who.append(title);
     row.append(avatar, who);
-    row.addEventListener('click', () => void startIn(space.id, space.label, false));
-    // The agent refuses it unless its owner turned consoles on, and says how.
-    const shell = document.createElement('button');
-    shell.className = 'sheet-shell';
-    shell.textContent = '$ console';
-    shell.title = 'open a plain console in ' + space.label;
-    shell.addEventListener('click', () => void startIn(space.id, space.label, true));
-    line.append(row, shell);
+    row.addEventListener('click', () => void startIn(space.id, space.label));
+    line.append(row);
     sheetList.append(line);
   }
 }
 
-async function startIn(space: string, label: string, shell: boolean): Promise<void> {
+async function startIn(space: string, label: string): Promise<void> {
   sheetList.textContent = '';
   const hint = document.createElement('p');
   hint.className = 'hint';
-  hint.textContent = (shell ? 'Opening a console in ' : 'Starting Claude Code in ') + label + '...';
+  const what = KINDS.find((known) => known.kind === state.newKind)?.label ?? 'a session';
+  hint.textContent =
+    (state.newKind === 'shell' ? 'Opening a console in ' : 'Starting ' + what + ' in ') +
+    label +
+    '...';
   sheetList.append(hint);
-  await store.newSession(agent, space, shell);
+  await store.newSession(agent, space);
   sheet.classList.add('hidden');
 }
 
