@@ -26,6 +26,14 @@ export const REPLY_STYLES: readonly ReplyStyle[] = [
   { id: 'spanish', label: 'En español', suffix: ' (responde en español)' },
 ];
 
+/** Orders sent with one tap, above the message box. Spanish, like the sessions they reach. */
+export const QUICK_REPLIES: readonly string[] = [
+  'Continúa',
+  'Corre los tests',
+  'Haz commit',
+  'Explícame el cambio',
+];
+
 /** The style with this id; one line when it is unknown, such as one removed since. */
 export function replyStyle(id: string | null): ReplyStyle {
   return REPLY_STYLES.find((style) => style.id === id) ?? ONE_LINE;
@@ -41,6 +49,11 @@ export interface Order {
   spoken: string;
   /** What the session receives. */
   order: string;
+}
+
+/** A quick reply goes as it is, with the reply style; a photo waiting in the box is not its. */
+export function quickOrder(reply: string, style: ReplyStyle): Order {
+  return composeOrder(reply, style, null);
 }
 
 /** A photo on its own is a complete order; words are optional then. */

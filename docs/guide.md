@@ -61,6 +61,11 @@ The **⋮** of a chat names the model and holds the **reply style** every order 
 picked shows as a chip next to the microphone; tap it to change it. It is kept for each computer.
 **Read replies aloud** is there too.
 
+Above the message box, **Continúa**, **Corre los tests**, **Haz commit** and **Explícame el
+cambio** send that order with one tap, with the reply style, and leave what you were typing in the
+box. **Quick replies** in the chat's **⋮** hides or shows them. Code in a reply appears in a dark
+block with a **Copy** button.
+
 ### Consoles
 
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any

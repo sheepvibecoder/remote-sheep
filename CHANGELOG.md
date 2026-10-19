@@ -25,6 +25,9 @@ All notable changes to remote-sheep are recorded here. The format follows
 - The chat has its own **⋮** menu: the model, the reply style (Off, One line, Explain simply,
   10 lines max, En español) and reading replies aloud. The style replaces **Short replies**,
   starts at One line, shows as a chip next to the microphone and is kept for each computer.
+- The chat looks like the mockup: the agent's replies as serif prose without a balloon, your own
+  messages in a grey balloon, code in a dark block with a **Copy** button, and a rounded message
+  box with its controls underneath. Quick replies above it send a common order with one tap.
 
 ## [0.6.1] — 2026-10-16
 

@@ -501,18 +501,65 @@ app-session-row {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* The agent writes like a report: serif prose on the page, no balloon. The person's own words
+   sit in a grey balloon, as in the mockup. */
 .bubble.assistant {
-  align-self: flex-start;
-  background: var(--panel);
-  border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  align-self: stretch;
+  max-width: 100%;
+  padding: 2px 2px;
+  font-family: var(--serif);
+  font-size: calc(var(--chat) + 0.5px);
+  line-height: 1.6;
 }
 .bubble.user {
   align-self: flex-end;
-  background: var(--mine);
-  color: var(--on-mine);
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  background: var(--sunk);
+  color: var(--text);
+  border-radius: 18px;
+}
+.bubble p {
+  margin: 0;
+}
+.bubble p + p,
+.bubble p + .code,
+.bubble .code + p {
+  margin-top: 10px;
+}
+.code {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--code-bg);
+  font-family: var(--sans);
+  white-space: normal;
+}
+.code header {
+  /* Not the page header: no panel colour of its own. */
+  background: transparent;
+  gap: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 6px 12px;
+  font-size: 12px;
+  color: #a19d94;
+  border-bottom: 1px solid #2e2c29;
+}
+.code header button {
+  border: none;
+  background: transparent;
+  color: #a19d94;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+.code pre {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #edeae2;
+  white-space: pre;
+  overflow-x: auto;
 }
 .bubble code {
   font-family: var(--mono);
@@ -635,27 +682,27 @@ app-session-row {
 }
 
 footer {
-  padding: 6px 8px 8px;
+  padding: 6px 12px 8px;
   background: var(--thread);
   flex: none;
 }
+/* The message box of the mockup: the text on top, the controls in a row under it. */
 .bar {
   display: flex;
-  gap: 6px;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 8px 8px 14px;
+  box-shadow: 0 2px 10px rgba(40, 35, 25, 0.05);
 }
 .field {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-end;
-  background: var(--panel);
-  border-radius: 24px;
-  padding: 2px 4px 2px 14px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  display: contents;
 }
 textarea {
-  flex: 1;
+  flex: 1 0 100%;
   min-width: 0;
   height: 44px;
   max-height: 140px;
@@ -671,14 +718,15 @@ textarea {
 }
 .field button.icon {
   color: var(--muted);
-  padding: 10px 8px;
-  font-size: 20px;
+  padding: 6px 8px;
+  font-size: 19px;
 }
 button.round {
   flex: none;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border-radius: 12px;
   border: none;
   padding: 0;
   background: var(--accent);
@@ -687,6 +735,22 @@ button.round {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.quick {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+}
+.quick button {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+  white-space: nowrap;
 }
 .keys {
   display: flex;

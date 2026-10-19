@@ -15,7 +15,14 @@ import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
 import { initials } from '../L1_domain/home';
-import { REPLY_STYLES, asksNothing, composeOrder } from '../L1_domain/order';
+import {
+  QUICK_REPLIES,
+  REPLY_STYLES,
+  asksNothing,
+  composeOrder,
+  quickOrder,
+  type Order,
+} from '../L1_domain/order';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
 import type { PairingStore } from '../L1_domain/ports/pairing-store';
@@ -811,6 +818,8 @@ function renderStyles(): void {
     option.classList.toggle('on', option.dataset['style'] === picked.id);
   }
   styleChip.textContent = picked.label;
+  toggleQuick.classList.toggle('on', state.quickReplies);
+  quick.classList.toggle('hidden', !store.showsQuickReplies());
   styleChip.classList.toggle('hidden', asksNothing(picked));
 }
 
@@ -914,29 +923,47 @@ for (const input of [photoInput, cameraInput]) {
 
 send.addEventListener('click', () => void sendOrder());
 
+const quick = $('quick');
+const toggleQuick = $('toggle-quick');
+for (const reply of QUICK_REPLIES) {
+  const chip = document.createElement('button');
+  chip.textContent = reply;
+  // What is being typed, and a photo waiting, stay in the box.
+  chip.addEventListener('click', () => void deliver(quickOrder(reply, state.replyStyle)));
+  quick.append(chip);
+}
+toggleQuick.addEventListener('click', () => store.setQuickReplies(!state.quickReplies));
+
 async function sendOrder(): Promise<void> {
   const body = text.value.trim();
-  const target = state.target;
   // A photo on its own is a complete order; words are optional then.
-  if ((!body && !photo) || !target) return;
+  if (!body && !photo) return;
+  const sent = await deliver(composeOrder(body, state.replyStyle, photo?.path ?? null));
+  if (!sent) return;
+  text.value = '';
+  photo = null;
+  showAttached();
+}
+
+/** Sends one order and shows it until the transcript carries it; true once Herdr took it. */
+async function deliver({ spoken, order }: Order): Promise<boolean> {
+  const target = state.target;
+  if (!target) return false;
   stopDictation();
   send.disabled = true;
   say('sending...');
-
-  const { spoken, order } = composeOrder(body, state.replyStyle, photo?.path ?? null);
   // Show it straight away; the transcript takes a moment to catch up.
   store.beginSend(spoken);
   chat.scrollTop = chat.scrollHeight;
   try {
     await request({ kind: 'prompt', target, text: order });
     store.sendAccepted();
-    text.value = '';
-    photo = null;
-    showAttached();
     say('sent');
+    return true;
   } catch (err) {
     store.sendFailed();
     say((err as Error).message, true);
+    return false;
   } finally {
     send.disabled = false;
   }

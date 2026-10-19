@@ -87,6 +87,8 @@ export interface AppState {
   pending: PendingMessage | null;
   /** How every order asks to be answered, kept per computer. */
   replyStyle: ReplyStyle;
+  /** Whether the one-tap orders show above the message box, kept per computer. */
+  quickReplies: boolean;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -184,6 +186,7 @@ export class Store {
       terminal: '',
       pending: null,
       replyStyle: replyStyle(preferences.getItem('replyStyle')),
+      quickReplies: preferences.getItem('quickReplies') !== '0',
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -471,6 +474,12 @@ export class Store {
     this.emit('chat');
   }
 
+  setQuickReplies(on: boolean): void {
+    this.state.quickReplies = on;
+    this.preferences.setItem('quickReplies', on ? '1' : '0');
+    this.emit('chat');
+  }
+
   sendFailed(): void {
     this.state.pending = null;
     this.emit('chat');
@@ -517,6 +526,12 @@ export class Store {
   showsKeys(): boolean {
     if (this.state.view !== 'chat') return false;
     return this.state.showTerm || this.currentSession()?.status === 'blocked';
+  }
+
+  /** The one-tap orders, in the chat of a coding agent: a console takes commands, not replies. */
+  showsQuickReplies(): boolean {
+    const { quickReplies, view, showTerm } = this.state;
+    return quickReplies && view === 'chat' && !showTerm && !this.isShell();
   }
 
   /** The rows of the Sessions or the Consoles tab: one kind each, so they never look alike. */

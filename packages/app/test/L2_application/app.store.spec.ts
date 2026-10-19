@@ -572,6 +572,33 @@ describe('Store', () => {
     expect(new Store(storage, new FakePush()).state.replyStyle.id).toBe('simple');
   });
 
+  it('shows the quick replies until they are turned off, and remembers it', () => {
+    const { store, storage } = setup();
+    expect(store.state.quickReplies).toBe(true);
+    store.setQuickReplies(false);
+    expect(store.state.quickReplies).toBe(false);
+    expect(new Store(storage, new FakePush()).state.quickReplies).toBe(false);
+  });
+
+  it('offers the quick replies in the chat of a coding agent only', () => {
+    const { store } = setup();
+    store.receive({
+      type: 'sessions',
+      sessions: [session('p1'), { ...session('s1'), kind: 'shell', status: 'unknown' }],
+    });
+    expect(store.showsQuickReplies()).toBe(false);
+    store.openChat('p1');
+    expect(store.showsQuickReplies()).toBe(true);
+    store.toggleTerminal();
+    expect(store.showsQuickReplies()).toBe(false);
+    store.toggleTerminal();
+    store.setQuickReplies(false);
+    expect(store.showsQuickReplies()).toBe(false);
+    store.setQuickReplies(true);
+    store.openChat('s1');
+    expect(store.showsQuickReplies()).toBe(false);
+  });
+
   it('drops the order it showed when sending fails', () => {
     const { store } = setup();
     store.openChat('p1');

@@ -52,6 +52,9 @@
           <div id="styles"></div>
           <hr />
           <button id="toggle-speak" title="read replies aloud">Read replies aloud</button>
+          <button id="toggle-quick" title="one-tap orders above the message box">
+            Quick replies
+          </button>
         </div>
         <div id="app-menu">
           <button id="computers-open">Profiles</button>
@@ -104,6 +107,7 @@
       <input id="photo-input" type="file" accept="image/*" hidden />
       <input id="camera-input" type="file" accept="image/*" capture="environment" hidden />
 
+      <div id="quick" class="quick hidden"></div>
       <div class="bar">
         <div class="field">
           <textarea id="text" rows="1" placeholder="Message" autocapitalize="sentences"></textarea>
