@@ -28,7 +28,7 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
-import type { ReplyStyle } from '../L1_domain/order';
+import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
   readQuickReplies,
@@ -648,6 +648,28 @@ export class Store {
   paneChoices(): PaneChoice[] {
     const { view, showTerm, terminal } = this.state;
     return view === 'chat' && showTerm ? paneChoices(terminal) : [];
+  }
+
+  /** With the raw terminal up, the box types into the pane: keystrokes, not a chat order. */
+  typesIntoPane(): boolean {
+    return this.state.view === 'chat' && this.state.showTerm;
+  }
+
+  /**
+   * What the send button delivers, or null when there is nothing to send. The pane gets the
+   * words exactly as typed: a reply style or a photo path would break a shell command.
+   * `usesPhoto` says whether the attached photo goes with it, so it is cleared only then.
+   */
+  orderFor(text: string, photoPath: string | null): (Order & { usesPhoto: boolean }) | null {
+    const words = text.trim();
+    if (this.typesIntoPane()) {
+      return words ? { spoken: words, order: words, usesPhoto: false } : null;
+    }
+    if (!words && !photoPath) return null;
+    return {
+      ...composeOrder(words, this.state.replyStyle, photoPath),
+      usesPhoto: photoPath !== null,
+    };
   }
 
   /** The one-tap orders, in the chat of a coding agent: a console takes commands, not replies. */

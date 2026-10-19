@@ -753,6 +753,10 @@ button.round {
   gap: 6px;
   margin-bottom: 6px;
 }
+.choices .lbl {
+  font-size: 12px;
+  color: var(--muted);
+}
 .choices button {
   display: flex;
   align-items: center;
@@ -1285,4 +1289,96 @@ header button.icon svg {
 .card .tm.ask {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ---- raw terminal: the whole screen goes dark and the box types into the pane ---- */
+body.pane footer {
+  background: var(--term-bg);
+}
+body.pane .bar {
+  background: transparent;
+  border-color: var(--term-line);
+  border-radius: 16px;
+  box-shadow: none;
+  flex-wrap: nowrap;
+  padding: 4px 6px 4px 14px;
+}
+body.pane textarea {
+  flex: 1 1 auto;
+  color: var(--term);
+  font: 13.5px/22px var(--mono);
+}
+body.pane textarea::placeholder {
+  color: var(--term-faint);
+}
+/* A photo and a reply style belong to a chat order, never to keystrokes. */
+body.pane #photo,
+body.pane #camera,
+body.pane #attached,
+body.pane #style-chip,
+body.pane #model {
+  display: none;
+}
+body.pane #flash {
+  color: var(--term-faint);
+}
+body.pane .choices .lbl {
+  padding: 0 2px 2px;
+  font-size: 12px;
+  color: var(--term-muted);
+}
+body.pane .choices button {
+  background: transparent;
+  border-color: var(--term-line);
+  color: var(--term);
+}
+body.pane .choices b {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--term-key);
+  color: var(--term-muted);
+  font: 12px var(--mono);
+}
+body.pane .choices button.primary {
+  border-color: var(--accent);
+}
+body.pane .choices button.primary b {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+body.pane .keygroup {
+  gap: 0;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--term-key);
+}
+body.pane .keygroup button {
+  height: 34px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--term);
+  font: 13px var(--mono);
+}
+body.pane .keygroup button:active {
+  background: var(--term-key-on);
+}
+/* On a wide window the header spans the list too, so only the phone darkens it. */
+@media (max-width: 899px) {
+  body.pane header {
+    background: var(--term-bg);
+    border-color: var(--term-line);
+    color: var(--term);
+  }
+  body.pane header .sub,
+  body.pane header button.icon {
+    color: var(--term-muted);
+  }
+  body.pane #version {
+    background: var(--term-bg);
+    color: var(--term-faint);
+  }
 }

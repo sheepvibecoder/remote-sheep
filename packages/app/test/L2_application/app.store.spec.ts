@@ -150,6 +150,34 @@ describe('Store', () => {
     expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'w1:s1', terminal: true });
   });
 
+  it('types into the pane as written while the terminal is up, and orders the chat otherwise', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'idle')] });
+    store.openChat('p1');
+    store.setReplyStyle('one-line');
+    expect(store.typesIntoPane()).toBe(false);
+    expect(store.orderFor('hola', 'C:\\up\\x.jpg')).toEqual({
+      spoken: 'hola',
+      order: 'hola (responde en una sola linea)\n\nImagen adjunta: C:\\up\\x.jpg',
+      usesPhoto: true,
+    });
+    expect(store.orderFor('hola', null)?.usesPhoto).toBe(false);
+    expect(store.orderFor('', 'C:\\up\\x.jpg')?.spoken).toBe('Mira esta imagen.');
+    expect(store.orderFor('  ', null)).toBeNull();
+    store.toggleTerminal();
+    expect(store.typesIntoPane()).toBe(true);
+    expect(store.orderFor('ls -la', 'C:\\up\\x.jpg')).toEqual({
+      spoken: 'ls -la',
+      order: 'ls -la',
+      // The pane never takes the photo: it stays attached for the chat.
+      usesPhoto: false,
+    });
+    // The photo belongs to the chat: on its own it types nothing into the pane.
+    expect(store.orderFor('', 'C:\\up\\x.jpg')).toBeNull();
+    store.back();
+    expect(store.typesIntoPane()).toBe(false);
+  });
+
   it('offers the answer keys only while the open session waits for one or the terminal is up', () => {
     const { store } = setup();
     store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });

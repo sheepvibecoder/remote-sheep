@@ -15,7 +15,7 @@ import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
 import { initials, pageTitle } from '../L1_domain/home';
-import { asksNothing, composeOrder, quickOrder, type Order } from '../L1_domain/order';
+import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
@@ -250,6 +250,11 @@ function applyView(): void {
   // A shell has no chat to switch back to.
   termButton.classList.toggle('hidden', view !== 'chat' || store.isShell());
   termButton.classList.toggle('on', showTerm);
+  // With the terminal up the whole screen goes dark and the box types into the pane.
+  const pane = store.typesIntoPane();
+  document.body.classList.toggle('pane', pane);
+  text.placeholder = pane ? 'Type into the pane' : 'Message';
+  onText();
   renderKeys();
   syncHistory(view);
 }
@@ -844,7 +849,11 @@ function renderKeys(): void {
   choices.classList.toggle('hidden', offered.length === 0);
   if (signature === shownChoices) return;
   shownChoices = signature;
+  const label = document.createElement('div');
+  label.className = 'lbl';
+  label.textContent = 'The pane is asking';
   choices.replaceChildren(
+    label,
     ...offered.map((choice) => {
       const button = document.createElement('button');
       button.dataset['key'] = choice.key;
@@ -900,7 +909,8 @@ function onText(): void {
   text.style.height = 'auto';
   text.style.height = Math.min(text.scrollHeight, 140) + 'px';
   // While dictating the mic stays, so the person can stop it.
-  const ready = (text.value.trim() !== '' || photo !== null) && !mic.classList.contains('on');
+  const ready =
+    store.orderFor(text.value, photo?.path ?? null) !== null && !mic.classList.contains('on');
   send.classList.toggle('hidden', !ready);
   mic.classList.toggle('hidden', ready);
 }
@@ -1013,13 +1023,12 @@ function drawQuick(): void {
 toggleQuick.addEventListener('click', () => store.setQuickReplies(!state.quickReplies));
 
 async function sendOrder(): Promise<void> {
-  const body = text.value.trim();
-  // A photo on its own is a complete order; words are optional then.
-  if (!body && !photo) return;
-  const sent = await deliver(composeOrder(body, state.replyStyle, photo?.path ?? null));
+  const order = store.orderFor(text.value, photo?.path ?? null);
+  if (!order) return;
+  const sent = await deliver(order);
   if (!sent) return;
   text.value = '';
-  photo = null;
+  if (order.usesPhoto) photo = null;
   showAttached();
 }
 

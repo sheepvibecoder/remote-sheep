@@ -24,6 +24,12 @@
   --code-bg: #1f1d1b;
   --term-bg: #1a1917;
   --term: #e7e4da;
+  /* The terminal is dark in both themes, so its own greys do not follow the theme. */
+  --term-line: #34322e;
+  --term-key: #2a2926;
+  --term-key-on: #3a3935;
+  --term-muted: #a19d94;
+  --term-faint: #7e7a72;
   --serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
   --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace;

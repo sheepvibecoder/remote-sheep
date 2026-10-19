@@ -55,6 +55,10 @@ the terminal is open, **esc**, **tab**, **↑**, **↓** and **⏎** appear abov
 **Stop** (Ctrl+C) apart from them: they answer Claude Code's menus. When the terminal shows a
 numbered question ("1. Yes 2. No"), each answer is a button of its own above the keys.
 
+With the terminal open the whole screen turns dark and the box reads **Type into the pane**: what
+you write or dictate reaches the pane exactly as typed, with no reply style and no photo. A photo
+already attached waits for you back in the chat.
+
 Each message shows the hour it was written, with a line for each day (**Today**, **Yesterday**,
 then the date). What you send gets one tick once Herdr takes it and two once it shows up in the
 transcript. The model answering in the chat, such as **Opus 5.5**, appears next to the microphone.
