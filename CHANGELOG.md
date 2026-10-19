@@ -23,6 +23,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- The **New session** sheet offered **Console** while consoles were turned off in **Settings**:
+  now it offers it only while they are on, and a picked Console falls back to Claude Code.
 - One damaged reply style in the phone's storage threw away every style you had written and
   brought back the defaults: now only the damaged one is dropped.
 - A blank quick reply in the phone's storage showed up as an empty chip that sent **Mira esta

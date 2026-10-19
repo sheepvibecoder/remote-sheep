@@ -402,13 +402,22 @@ export class Store {
     try {
       this.state.shells = (await agent.request(request)).on;
       this.state.homeError = null;
+      // A Console the sheet no longer offers must not stay picked: back to its default.
+      if (!this.newKinds().includes(this.state.newKind)) this.state.newKind = 'claude';
     } catch (error) {
       this.state.homeError = describe(error);
     }
     this.emit('shells');
   }
 
+  /** The kinds the New sheet offers: Console only while consoles are not turned off. */
+  newKinds(): NewKind[] {
+    return this.state.shells === false ? ['claude', 'codex'] : ['claude', 'codex', 'shell'];
+  }
+
+  /** Picks what the New sheet starts; a kind it does not offer is refused. */
   setNewKind(kind: NewKind): void {
+    if (!this.newKinds().includes(kind)) return;
     this.state.newKind = kind;
     this.emit('home');
   }

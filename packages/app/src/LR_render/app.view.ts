@@ -200,6 +200,7 @@ function onChange(change: Change): void {
       return;
     case 'shells':
       renderShells();
+      if (!sheet.classList.contains('hidden')) renderSheet();
       return;
     case 'quick':
       drawQuick();
@@ -452,8 +453,9 @@ function renderHome(): void {
 newSession.addEventListener('click', () => {
   sheet.classList.remove('hidden');
   renderSheet();
-  // The sheet redraws on the 'home' change; a failure lands in homeError.
+  // The sheet redraws on the 'home' and 'shells' changes; a failure lands in homeError.
   void store.loadSpaces(agent);
+  void store.loadShells(agent);
 });
 
 sheet.addEventListener('click', (event) => {
@@ -482,8 +484,11 @@ const FOLDER_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>';
 
 function renderSheet(): void {
+  const offered = store.newKinds();
   for (const option of $('sheet-kinds').children) {
-    option.classList.toggle('on', (option as HTMLElement).dataset['kind'] === state.newKind);
+    const kind = (option as HTMLElement).dataset['kind'];
+    option.classList.toggle('on', kind === state.newKind);
+    option.classList.toggle('hidden', !offered.some((known) => known === kind));
   }
   sheetList.textContent = '';
   if (!state.spaces.length) {

@@ -739,6 +739,23 @@ describe('Store', () => {
       expect(store.state.newKind).toBe('codex');
     });
 
+    it('offers Console in the sheet only while consoles are not turned off', async () => {
+      const { store } = withSessions();
+      expect(store.newKinds()).toEqual(['claude', 'codex', 'shell']);
+      await store.loadShells(new FakeAgent({ on: true }));
+      expect(store.newKinds()).toEqual(['claude', 'codex', 'shell']);
+      store.setNewKind('shell');
+      expect(store.state.newKind).toBe('shell');
+      await store.setShells(new FakeAgent({ on: false }), false);
+      expect(store.newKinds()).toEqual(['claude', 'codex']);
+      // The picked Console is no longer offered: the sheet falls back to its default.
+      expect(store.state.newKind).toBe('claude');
+      store.setNewKind('shell');
+      expect(store.state.newKind).toBe('claude');
+      store.setNewKind('codex');
+      expect(store.state.newKind).toBe('codex');
+    });
+
     it('reads and switches whether consoles are allowed, keeping the answer of the agent', async () => {
       const { store } = withSessions();
       expect(store.state.shells).toBeNull();
