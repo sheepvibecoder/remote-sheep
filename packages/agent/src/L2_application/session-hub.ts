@@ -204,7 +204,9 @@ export class SessionHub implements ConnectionEvents {
     if (watch.last) {
       connection.send(chatFrame(target, watch.last.chat, null));
     } else if (watch.note) {
-      connection.send(chatFrame(target, { messages: [], model: null }, watch.note));
+      connection.send(
+        chatFrame(target, { messages: [], model: null, usedTokens: null }, watch.note),
+      );
     }
   }
 
@@ -378,7 +380,7 @@ export class SessionHub implements ConnectionEvents {
   private setNote(target: string, watch: ChatWatch, note: string): void {
     if (watch.note === note) return;
     watch.note = note;
-    this.sendChat(target, { messages: [], model: null }, note);
+    this.sendChat(target, { messages: [], model: null, usedTokens: null }, note);
   }
 
   private schedule(target: string): void {
@@ -471,8 +473,8 @@ export class SessionHub implements ConnectionEvents {
   }
 }
 
-// The model is left out rather than sent as null, so a phone from before it existed sees the
-// same frame it always did.
+// The model and the used tokens are left out rather than sent as null, so a phone from before
+// they existed sees the same frame it always did.
 function chatFrame(target: string, chat: Chat, note: string | null): ServerMessage {
   return {
     type: 'chat',
@@ -480,5 +482,6 @@ function chatFrame(target: string, chat: Chat, note: string | null): ServerMessa
     messages: chat.messages,
     note,
     ...(chat.model ? { model: chat.model } : {}),
+    ...(chat.usedTokens === null ? {} : { usedTokens: chat.usedTokens }),
   };
 }

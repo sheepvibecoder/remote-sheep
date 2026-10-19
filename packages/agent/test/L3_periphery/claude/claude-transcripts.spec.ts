@@ -169,6 +169,57 @@ describe('ClaudeTranscripts', () => {
     expect(transcripts.read(file).model).toBeNull();
   });
 
+  it('counts the context of the latest reply: its input plus both cache reads and writes', () => {
+    const file = transcriptPath('s1');
+    const usage = (input: number, read: number, created: number) => ({
+      input_tokens: input,
+      cache_read_input_tokens: read,
+      cache_creation_input_tokens: created,
+      output_tokens: 999,
+    });
+    writeFileSync(
+      file,
+      user('u1', 'hola') +
+        assistant('a1', 'hi', {
+          message: { role: 'assistant', content: 'hi', usage: usage(1, 2, 3) },
+        }) +
+        assistant('a2', 'more', {
+          message: { role: 'assistant', content: 'more', usage: usage(10, 20_000, 300) },
+        }) +
+        // Neither a subagent's usage nor the CLI's own stand-in reply measures the session.
+        assistant('a3', 'sub', {
+          isSidechain: true,
+          message: { role: 'assistant', content: 'sub', usage: usage(5, 5, 5) },
+        }) +
+        assistant('a4', 'error', {
+          message: {
+            role: 'assistant',
+            model: '<synthetic>',
+            content: 'error',
+            usage: usage(0, 0, 0),
+          },
+        }),
+    );
+    expect(transcripts.read(file).usedTokens).toBe(20_310);
+  });
+
+  it('counts a missing part of the usage as zero', () => {
+    const file = transcriptPath('s1');
+    writeFileSync(
+      file,
+      assistant('a1', 'hi', {
+        message: { role: 'assistant', content: 'hi', usage: { input_tokens: 7, output_tokens: 3 } },
+      }),
+    );
+    expect(transcripts.read(file).usedTokens).toBe(7);
+  });
+
+  it('counts no tokens when no reply reports its usage', () => {
+    const file = transcriptPath('s1');
+    writeFileSync(file, user('u1', 'hola') + assistant('a1', 'hi'));
+    expect(transcripts.read(file).usedTokens).toBeNull();
+  });
+
   it('returns only the most recent messages', () => {
     const file = transcriptPath('s1');
     let body = '';

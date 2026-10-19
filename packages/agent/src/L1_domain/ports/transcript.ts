@@ -2,11 +2,13 @@ import type { ChatMessage, ImageResult } from '@remote-sheep/protocol';
 
 export type Located = { file: string } | { file: null; note: string };
 
-/** What a transcript holds for the phone: the conversation, and the model replying in it. */
+/** What a transcript holds for the phone: the conversation, the model replying in it and how full its context is. */
 export interface Chat {
   messages: ChatMessage[];
   /** The model of the latest reply; null when the agent does not say. */
   model: string | null;
+  /** How much of the context window the latest reply filled; null when the agent does not say. */
+  usedTokens: number | null;
 }
 
 /** Where an agent writes its conversation: Claude Code today, Codex later. */

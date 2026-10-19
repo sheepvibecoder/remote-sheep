@@ -73,7 +73,25 @@ interface Entry {
   toolUseResult?: unknown;
   /** ISO time the line was written. */
   timestamp?: string;
-  message?: { content?: unknown; model?: string };
+  message?: { content?: unknown; model?: string; usage?: Usage };
+}
+
+/** The token counts the API returned for one reply. */
+interface Usage {
+  input_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}
+
+// The context a reply was given is its fresh input plus what it read from and wrote to the
+// prompt cache; output tokens only join the context with the next request.
+function contextOf(usage: Usage): number {
+  const part = (n: number | undefined) => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
+  return (
+    part(usage.input_tokens) +
+    part(usage.cache_read_input_tokens) +
+    part(usage.cache_creation_input_tokens)
+  );
 }
 
 // What Claude Code writes as the model of a reply it made up itself, such as an API error.
@@ -115,6 +133,7 @@ export class ClaudeTranscripts implements TranscriptSource {
   read(file: string): Chat {
     const messages: ChatMessage[] = [];
     let model: string | null = null;
+    let usedTokens: number | null = null;
     for (const line of this.tail(file)) {
       const entry = parse(line);
       if (!entry || (entry.type !== 'user' && entry.type !== 'assistant')) continue;
@@ -125,6 +144,11 @@ export class ClaudeTranscripts implements TranscriptSource {
       const role: Role = entry.type;
       const named = entry.message?.model;
       if (role === 'assistant' && named && named !== SYNTHETIC) model = named;
+      // A stand-in reply never reached the API, so its zero usage says nothing about the context.
+      const usage = entry.message?.usage;
+      if (role === 'assistant' && named !== SYNTHETIC && usage && typeof usage === 'object') {
+        usedTokens = contextOf(usage);
+      }
       const time = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
       const at = Number.isFinite(time) ? { at: time } : {};
       // The id is uuid:index, so it points straight back at its block when the
@@ -143,7 +167,7 @@ export class ClaudeTranscripts implements TranscriptSource {
         if (text) messages.push({ id, role, kind: 'text', text, ...at });
       });
     }
-    return { messages: messages.slice(-this.options.maxMessages), model };
+    return { messages: messages.slice(-this.options.maxMessages), model, usedTokens };
   }
 
   image(file: string, id: string): ImageResult | null {

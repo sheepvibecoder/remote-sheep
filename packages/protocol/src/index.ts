@@ -196,8 +196,19 @@ export type ServerMessage =
   /** device: the phone's id (`publicKeyId` of its identity key) as the agent stores it. */
   | { type: 'ready'; protocol: number; version: string; device: string }
   | { type: 'sessions'; sessions: Session[] }
-  /** model: the model of the latest reply, as the transcript names it; absent when unknown. */
-  | { type: 'chat'; target: string; messages: ChatMessage[]; note: string | null; model?: string }
+  /**
+   * model: the model of the latest reply, as the transcript names it; absent when unknown.
+   * usedTokens: how much of the context window the session fills after its latest reply (input
+   * plus cached tokens of that reply); absent when unknown, so older phones and agents still fit.
+   */
+  | {
+      type: 'chat';
+      target: string;
+      messages: ChatMessage[];
+      note: string | null;
+      model?: string;
+      usedTokens?: number;
+    }
   | { type: 'terminal'; target: string; output: string }
   /** Why the agent cannot reach Herdr; null once it can again. */
   | { type: 'status'; herdrError: string | null }

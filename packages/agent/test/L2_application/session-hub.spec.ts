@@ -101,13 +101,18 @@ class FakeTranscripts implements TranscriptSource {
   located: Located = { file: '/t/p1.jsonl' };
   messages: ChatMessage[] = [text('a:0', 'hola')];
   model: string | null = null;
+  usedTokens: number | null = null;
   onChange: (() => void) | null = null;
   stopped = 0;
   async locate() {
     return this.located;
   }
   read() {
-    return { messages: this.messages.map((m) => ({ ...m })), model: this.model };
+    return {
+      messages: this.messages.map((m) => ({ ...m })),
+      model: this.model,
+      usedTokens: this.usedTokens,
+    };
   }
   image(_file: string, id: string) {
     return id === 'a:1' ? { media: 'image/png', data: new Uint8Array([1, 2]) } : null;
@@ -312,6 +317,47 @@ describe('SessionHub', () => {
     await settle();
     await hub.request(late, { kind: 'watch', target: 'p1', terminal: false });
     expect(late.of('chat').at(-1)?.model).toBe('claude-opus-5-5');
+  });
+
+  it('sends the tokens the chat fills, and again when only they changed', async () => {
+    transcripts.usedTokens = 124_000;
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: false });
+    expect(phone.of('chat')).toEqual([
+      {
+        type: 'chat',
+        target: 'p1',
+        messages: [text('a:0', 'hola')],
+        note: null,
+        usedTokens: 124_000,
+      },
+    ]);
+
+    transcripts.usedTokens = 130_000;
+    transcripts.onChange?.();
+    await settle();
+    expect(phone.of('chat').at(-1)?.usedTokens).toBe(130_000);
+  });
+
+  it('leaves the tokens out of the chat when the transcript does not report them', async () => {
+    transcripts.model = 'claude-opus-5-5';
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: false });
+    // The same frame a phone from before usedTokens always got.
+    expect(phone.of('chat')).toEqual([
+      {
+        type: 'chat',
+        target: 'p1',
+        messages: [text('a:0', 'hola')],
+        note: null,
+        model: 'claude-opus-5-5',
+      },
+    ]);
+    expect(phone.of('chat')[0]).not.toHaveProperty('usedTokens');
   });
 
   it('follows the session to a new transcript after /clear', async () => {
