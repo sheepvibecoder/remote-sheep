@@ -23,6 +23,10 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- One damaged reply style in the phone's storage threw away every style you had written and
+  brought back the defaults: now only the damaged one is dropped.
+- A blank quick reply in the phone's storage showed up as an empty chip that sent **Mira esta
+  imagen.** with no photo: blank replies are now dropped when the list is read.
 - Removing the reply style you had picked switched you to One line, so orders went out with a
   suffix you never chose: the pick now falls back to Off and the order is sent as written.
 - A chat that finished while the page was hidden (another tab, screen off) kept its unread count

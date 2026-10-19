@@ -54,6 +54,10 @@ describe('quick replies', () => {
     expect(readQuickReplies('[1,2]')).toEqual(DEFAULT_QUICK_REPLIES);
   });
 
+  it('drop blank stored replies, which would send an empty order', () => {
+    expect(readQuickReplies(JSON.stringify(['x', '', '   ', 'y']))).toEqual(['x', 'y']);
+  });
+
   it('keep at most the maximum of what was stored', () => {
     const many = Array.from({ length: 12 }, (_, i) => 'r' + i);
     expect(readQuickReplies(JSON.stringify(many))).toHaveLength(MAX_QUICK_REPLIES);

@@ -51,7 +51,10 @@ export function movedQuickReply(
   return list;
 }
 
-/** The stored list, cut to the maximum; the defaults when nothing usable was stored. */
+/**
+ * The stored list, cut to the maximum; the defaults when nothing usable was stored. Blank entries
+ * are dropped: a chip with no words would send an empty order, which goes out as the photo phrase.
+ */
 export function readQuickReplies(stored: string | null): string[] {
   let parsed: unknown;
   try {
@@ -59,8 +62,8 @@ export function readQuickReplies(stored: string | null): string[] {
   } catch {
     parsed = null;
   }
-  if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) {
+  if (!Array.isArray(parsed) || !parsed.every((item): item is string => typeof item === 'string')) {
     return [...DEFAULT_QUICK_REPLIES];
   }
-  return parsed.slice(0, MAX_QUICK_REPLIES);
+  return parsed.filter((reply) => reply.trim() !== '').slice(0, MAX_QUICK_REPLIES);
 }

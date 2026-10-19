@@ -76,7 +76,10 @@ function isStyle(value: unknown): value is ReplyStyle {
   );
 }
 
-/** The stored list, with Off first; the defaults when nothing usable was stored. */
+/**
+ * The stored list, with Off first; the defaults when nothing usable was stored. A malformed entry
+ * is dropped on its own, so one bad style does not cost the person every style they wrote.
+ */
 export function readStyles(stored: string | null): ReplyStyle[] {
   let parsed: unknown;
   try {
@@ -84,7 +87,8 @@ export function readStyles(stored: string | null): ReplyStyle[] {
   } catch {
     parsed = null;
   }
-  if (!Array.isArray(parsed) || !parsed.every(isStyle)) return [...DEFAULT_REPLY_STYLES];
-  const others = parsed.filter((style) => style.id !== OFF);
-  return [parsed.find((style) => style.id === OFF) ?? OFF_STYLE, ...others];
+  const styles = Array.isArray(parsed) ? parsed.filter(isStyle) : [];
+  if (styles.length === 0) return [...DEFAULT_REPLY_STYLES];
+  const others = styles.filter((style) => style.id !== OFF);
+  return [styles.find((style) => style.id === OFF) ?? OFF_STYLE, ...others];
 }

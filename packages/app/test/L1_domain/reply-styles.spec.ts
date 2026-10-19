@@ -84,6 +84,17 @@ describe('reply styles', () => {
     expect(readStyles('[{"id":1}]')).toEqual(DEFAULT_REPLY_STYLES);
   });
 
+  it('drop only the malformed stored styles and keep the valid custom ones', () => {
+    const stored = JSON.stringify([
+      { id: 'off', label: 'Off', suffix: '' },
+      { id: 'custom-1', label: 'Bullets', suffix: ' (en viñetas)' },
+      { id: 'custom-2', label: 7 },
+      null,
+      { id: 'custom-3', label: 'Short', suffix: ' (corto)' },
+    ]);
+    expect(ids(readStyles(stored))).toEqual(['off', 'custom-1', 'custom-3']);
+  });
+
   it('always keep Off, first, even if the stored list lost it', () => {
     const stored = JSON.stringify([{ id: 'x', label: 'X', suffix: ' (x)' }]);
     expect(ids(readStyles(stored))).toEqual(['off', 'x']);
