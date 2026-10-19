@@ -22,9 +22,9 @@ describe('reply styles', () => {
     ]);
   });
 
-  it('pick the style by id, and fall back to one line, or to Off once one line is gone', () => {
+  it('pick the style by id, fall back to Off for a removed one, and start on one line', () => {
     expect(replyStyle(DEFAULT_REPLY_STYLES, 'simple').label).toBe('Explain simply');
-    expect(replyStyle(DEFAULT_REPLY_STYLES, 'gone').id).toBe('one-line');
+    expect(replyStyle(DEFAULT_REPLY_STYLES, 'gone').id).toBe('off');
     expect(replyStyle(DEFAULT_REPLY_STYLES, null).id).toBe('one-line');
     expect(replyStyle(withoutStyle(DEFAULT_REPLY_STYLES, 'one-line'), null).id).toBe('off');
   });

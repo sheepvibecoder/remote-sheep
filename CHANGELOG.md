@@ -21,6 +21,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- Removing the reply style you had picked switched you to One line, so orders went out with a
+  suffix you never chose: the pick now falls back to Off and the order is sent as written.
 - A chat that finished while the page was hidden (another tab, screen off) kept its unread count
   in the tab title and its row after you came back to it: the open chat now counts as read when
   the page shows again.

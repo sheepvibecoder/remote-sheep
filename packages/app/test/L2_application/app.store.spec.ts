@@ -353,10 +353,17 @@ describe('Store', () => {
     store.removeStyle(added?.id ?? '');
     expect(seen).toContain('styles');
     expect(store.state.styles.map((s) => s.id)).not.toContain(added?.id);
-    expect(store.state.replyStyle.id).toBe('one-line');
+    expect(store.state.replyStyle.id).toBe('off');
     store.removeStyle('simple');
     store.resetStyles();
     expect(store.state.styles.map((s) => s.id)).toContain('simple');
+  });
+
+  it('keeps the picked reply style when another one is removed', () => {
+    const { store } = setup();
+    store.setReplyStyle('ten-lines');
+    store.removeStyle('simple');
+    expect(store.state.replyStyle.id).toBe('ten-lines');
   });
 
   it('lets the person write, edit and remove quick replies, which survive a reload', () => {

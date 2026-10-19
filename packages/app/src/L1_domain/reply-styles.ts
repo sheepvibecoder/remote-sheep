@@ -16,9 +16,13 @@ export const DEFAULT_REPLY_STYLES: readonly ReplyStyle[] = [
   { id: 'spanish', label: 'En español', suffix: ' (responde en español)' },
 ];
 
-/** The style with this id; one line when it is unknown or removed, and Off once one line is gone. */
+/**
+ * The style with this id. A phone that never picked one (null) starts on one line; a pick that is
+ * gone (removed, reset away, or a stale id) falls to Off, so the order goes out as written instead
+ * of with a suffix the person did not choose.
+ */
 export function replyStyle(styles: readonly ReplyStyle[], id: string | null): ReplyStyle {
-  const found = styles.find((style) => style.id === id) ?? styles.find((s) => s.id === ONE_LINE);
+  const found = styles.find((style) => style.id === (id ?? ONE_LINE));
   return found ?? styles.find((style) => style.id === OFF) ?? OFF_STYLE;
 }
 
