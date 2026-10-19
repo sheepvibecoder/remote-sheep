@@ -42,9 +42,9 @@ workspaces, and the search box narrows either by name. Tapping a space shows
 only its sessions. The **+** button starts Claude Code in a new tab of the
 workspace you pick and opens its chat. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
-the chat clears it. Settings (profiles, linked devices, short replies,
-read aloud, text size, theme, check for updates) live behind the **⋮** menu.
-Every screen shows the version under its title; **Check for updates** compares it
+the chat clears it. Settings (profiles, linked devices, text size, theme, check for updates) live
+behind the **⋮** menu of the list.
+Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 
 In a chat, type or dictate with the microphone, attach a photo from the gallery with the clip or take one with the camera,
@@ -55,6 +55,11 @@ the message box: they answer Claude Code's menus.
 Each message shows the hour it was written, with a line for each day (**Today**, **Yesterday**,
 then the date). What you send gets one tick once Herdr takes it and two once it shows up in the
 transcript. The model answering in the chat, such as **Opus 5.5**, appears next to the microphone.
+
+The **⋮** of a chat names the model and holds the **reply style** every order carries: **Off**,
+**One line** (the default), **Explain simply**, **10 lines max** or **En español**. The style
+picked shows as a chip next to the microphone; tap it to change it. It is kept for each computer.
+**Read replies aloud** is there too.
 
 ### Consoles
 

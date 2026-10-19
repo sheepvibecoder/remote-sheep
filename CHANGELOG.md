@@ -22,6 +22,9 @@ All notable changes to remote-sheep are recorded here. The format follows
 - The chat shows the hour of each message and a line for each day; what you send gets one tick
   once Herdr takes it and two once it is in the transcript; the model answering appears next to
   the microphone.
+- The chat has its own **⋮** menu: the model, the reply style (Off, One line, Explain simply,
+  10 lines max, En español) and reading replies aloud. The style replaces **Short replies**,
+  starts at One line, shows as a chip next to the microphone and is kept for each computer.
 
 ## [0.6.1] — 2026-10-16
 

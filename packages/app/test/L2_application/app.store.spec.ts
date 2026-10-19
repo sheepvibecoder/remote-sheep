@@ -564,6 +564,14 @@ describe('Store', () => {
     expect(store.state.model).toBeNull();
   });
 
+  it('keeps the reply style picked for this computer, one line until one is picked', () => {
+    const { store, storage } = setup();
+    expect(store.state.replyStyle.id).toBe('one-line');
+    store.setReplyStyle('simple');
+    expect(store.state.replyStyle.label).toBe('Explain simply');
+    expect(new Store(storage, new FakePush()).state.replyStyle.id).toBe('simple');
+  });
+
   it('drops the order it showed when sending fails', () => {
     const { store } = setup();
     store.openChat('p1');

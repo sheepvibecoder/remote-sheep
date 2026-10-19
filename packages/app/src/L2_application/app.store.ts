@@ -26,6 +26,7 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
+import { replyStyle, type ReplyStyle } from '../L1_domain/order';
 import { chatItems, type ChatItem } from '../L1_domain/chat';
 
 /** An order shown before the transcript has caught up with it. */
@@ -84,6 +85,8 @@ export interface AppState {
   model: string | null;
   terminal: string;
   pending: PendingMessage | null;
+  /** How every order asks to be answered, kept per computer. */
+  replyStyle: ReplyStyle;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -180,6 +183,7 @@ export class Store {
       model: null,
       terminal: '',
       pending: null,
+      replyStyle: replyStyle(preferences.getItem('replyStyle')),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -458,6 +462,12 @@ export class Store {
   sendAccepted(): void {
     if (!this.state.pending) return;
     this.state.pending.accepted = true;
+    this.emit('chat');
+  }
+
+  setReplyStyle(id: string): void {
+    this.state.replyStyle = replyStyle(id);
+    this.preferences.setItem('replyStyle', this.state.replyStyle.id);
     this.emit('chat');
   }
 

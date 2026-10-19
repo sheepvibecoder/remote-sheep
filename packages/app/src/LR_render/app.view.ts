@@ -15,7 +15,7 @@ import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
 import { initials } from '../L1_domain/home';
-import { composeOrder } from '../L1_domain/order';
+import { REPLY_STYLES, asksNothing, composeOrder } from '../L1_domain/order';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
 import type { PairingStore } from '../L1_domain/ports/pairing-store';
@@ -85,6 +85,7 @@ const send = $('send', HTMLButtonElement);
 const keys = $('keys');
 const mic = $('mic', HTMLButtonElement);
 const model = $('model');
+const menuModel = $('menu-model');
 const menu = $('menu');
 
 // Built by `startApp`, which is where the browser's push port arrives.
@@ -206,7 +207,10 @@ function applyView(): void {
   profileOpen.classList.toggle('hidden', view !== 'list' || !state.profiles.length);
   foot.classList.toggle('hidden', view !== 'chat');
   back.classList.toggle('hidden', view === 'list');
-  $('brief').classList.toggle('hidden', view !== 'chat');
+  // In a chat the ⋮ holds what changes that chat; elsewhere the settings of the app.
+  $('chat-menu').classList.toggle('hidden', view !== 'chat');
+  $('app-menu').classList.toggle('hidden', view === 'chat');
+  if (view === 'chat') renderStyles();
   const termButton = $('toggle-term');
   // A shell has no chat to switch back to.
   termButton.classList.toggle('hidden', view !== 'chat' || store.isShell());
@@ -699,6 +703,9 @@ function renderModel(): void {
   const name = modelLabel(state.model);
   model.textContent = name ?? '';
   model.classList.toggle('hidden', !name);
+  menuModel.textContent = name ? 'Model · ' + name : '';
+  menuModel.classList.toggle('hidden', !name);
+  renderStyles();
 }
 
 // Patch item by item. Rebuilding the whole thread on every change is what
@@ -778,19 +785,34 @@ function onTerminal(value: string): void {
 
 // ---- footer controls ----
 
-const brief = $('brief');
-let briefOn = localStorage.getItem('brief') !== '0';
+const styles = $('styles');
+const styleChip = $('style-chip', HTMLButtonElement);
 
-function applyBrief(): void {
-  brief.classList.toggle('on', briefOn);
+for (const style of REPLY_STYLES) {
+  const option = document.createElement('button');
+  option.dataset['style'] = style.id;
+  option.textContent = style.label;
+  option.addEventListener('click', () => {
+    store.setReplyStyle(style.id);
+    menu.classList.add('hidden');
+  });
+  styles.append(option);
 }
 
-brief.addEventListener('click', () => {
-  briefOn = !briefOn;
-  localStorage.setItem('brief', briefOn ? '1' : '0');
-  applyBrief();
+// The chip says which style every order carries; tapping it opens the menu to change it.
+styleChip.addEventListener('click', (event) => {
+  event.stopPropagation();
+  menu.classList.toggle('hidden');
 });
-applyBrief();
+
+function renderStyles(): void {
+  const picked = state.replyStyle;
+  for (const option of styles.querySelectorAll<HTMLElement>('button')) {
+    option.classList.toggle('on', option.dataset['style'] === picked.id);
+  }
+  styleChip.textContent = picked.label;
+  styleChip.classList.toggle('hidden', asksNothing(picked));
+}
 
 /** The box grows with what is written, up to a few lines, and the mic turns into send. */
 function onText(): void {
@@ -901,7 +923,7 @@ async function sendOrder(): Promise<void> {
   send.disabled = true;
   say('sending...');
 
-  const { spoken, order } = composeOrder(body, briefOn, photo?.path ?? null);
+  const { spoken, order } = composeOrder(body, state.replyStyle, photo?.path ?? null);
   // Show it straight away; the transcript takes a moment to catch up.
   store.beginSend(spoken);
   chat.scrollTop = chat.scrollHeight;

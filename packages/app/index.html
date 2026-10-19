@@ -46,13 +46,20 @@
       <button id="profile-open" class="icon hidden" title="switch profile">&#8644;</button>
       <button id="menu-open" class="icon" title="menu">&#8942;</button>
       <div id="menu" class="hidden">
-        <button id="computers-open">Profiles</button>
-        <button id="devices-open">Linked devices</button>
-        <button id="brief" title="ask for a short reply">Short replies</button>
-        <button id="toggle-speak" title="read replies aloud">Read aloud</button>
-        <button id="toggle-size" title="text size">Text size</button>
-        <button id="toggle-theme" title="theme">Dark theme</button>
-        <button id="check-update" title="check for updates">Check for updates</button>
+        <div id="chat-menu">
+          <div class="lbl" id="menu-model"></div>
+          <div class="lbl">Reply style</div>
+          <div id="styles"></div>
+          <hr />
+          <button id="toggle-speak" title="read replies aloud">Read replies aloud</button>
+        </div>
+        <div id="app-menu">
+          <button id="computers-open">Profiles</button>
+          <button id="devices-open">Linked devices</button>
+          <button id="toggle-size" title="text size">Text size</button>
+          <button id="toggle-theme" title="theme">Dark theme</button>
+          <button id="check-update" title="check for updates">Check for updates</button>
+        </div>
       </div>
     </header>
 
@@ -110,6 +117,7 @@
             </svg>
           </button>
         </div>
+        <button id="style-chip" class="style-chip hidden" title="reply style"></button>
         <span id="model" class="ctx-info hidden" title="model"></span>
         <button id="mic" class="round" title="dictate">
           <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
