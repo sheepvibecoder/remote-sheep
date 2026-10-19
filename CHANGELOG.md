@@ -6,6 +6,10 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The unread dot on the **Sessions** tab is round again instead of a stretched oval.
+
 ## [0.9.0] — 2026-10-19
 
 ### Added

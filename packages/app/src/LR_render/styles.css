@@ -1455,6 +1455,9 @@ header button.icon svg {
   position: absolute;
   top: -3px;
   left: calc(50% + 8px);
+  /* The tab dot shares the count badge's class; drop its pill sizing so it stays round. */
+  min-width: 0;
+  padding: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
