@@ -16,6 +16,7 @@ import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
 import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
 import { loadAgentKeyPair } from './L3_periphery/files/file-agent-identity';
 import { FileDeviceRegistry } from './L3_periphery/files/file-device-registry';
+import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
 import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
 import { FileUploadStore } from './L3_periphery/files/file-upload-store';
 import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
@@ -60,6 +61,7 @@ async function createPushNotifier(
 
 async function serve(registry: FileDeviceRegistry) {
   const keys = await loadAgentKeyPair(config.agentKeyFile);
+  const shells = await loadShellSetting(config.settingsFile);
   const pairing = new PairingService({ registry, clock, random });
   const tls =
     existsSync(config.certFile) && existsSync(config.keyFile)
@@ -88,7 +90,7 @@ async function serve(registry: FileDeviceRegistry) {
     listIntervalMs: config.listIntervalMs,
     terminalIntervalMs: config.terminalIntervalMs,
     debounceMs: config.debounceMs,
-    shells: config.shells,
+    shells,
     notifier: push,
     push,
     log,
@@ -151,9 +153,9 @@ async function serve(registry: FileDeviceRegistry) {
     console.log('to serve over https.');
   }
   console.log(
-    config.shells
-      ? 'Consoles are on: paired phones can open a shell here and run any command.'
-      : 'Consoles are off; start with REMOTE_SHEEP_SHELLS=1 to open shells from the phone.',
+    shells.enabled()
+      ? 'Consoles are on: paired phones can open a shell here and run any command. Turn them off in the app, under Settings.'
+      : 'Consoles are off. Turn them on in the app, under Settings.',
   );
   console.log('Paired phones: `remote-sheep devices`; unpair one: `remote-sheep revoke <id>`.');
   console.log('Stop with Ctrl+C.');

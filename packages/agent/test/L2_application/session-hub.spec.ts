@@ -6,6 +6,7 @@ import {
   type Session,
   type Workspace,
 } from '@remote-sheep/protocol';
+import type { ShellSetting } from '../../src/L1_domain/ports/shell-setting';
 import { SessionHub } from '../../src/L2_application/session-hub';
 import type { Multiplexer } from '../../src/L1_domain/ports/multiplexer';
 import type { Located, TranscriptSource } from '../../src/L1_domain/ports/transcript';
@@ -86,6 +87,16 @@ class FakeMultiplexer implements Multiplexer {
   }
 }
 
+class FakeShells implements ShellSetting {
+  constructor(public on: boolean) {}
+  enabled() {
+    return this.on;
+  }
+  async set(on: boolean) {
+    this.on = on;
+  }
+}
+
 class FakeTranscripts implements TranscriptSource {
   located: Located = { file: '/t/p1.jsonl' };
   messages: ChatMessage[] = [text('a:0', 'hola')];
@@ -163,7 +174,7 @@ describe('SessionHub', () => {
       listIntervalMs: LIST_MS,
       terminalIntervalMs: TERMINAL_MS,
       debounceMs: 0,
-      shells: false,
+      shells: new FakeShells(false),
     });
   });
 
@@ -242,7 +253,7 @@ describe('SessionHub', () => {
       listIntervalMs: LIST_MS,
       terminalIntervalMs: TERMINAL_MS,
       debounceMs: 0,
-      shells: false,
+      shells: new FakeShells(false),
       notifier: { notify: (change) => heard.push(change.session.target + ' ' + change.to) },
     });
     await settle();
@@ -449,14 +460,37 @@ describe('SessionHub', () => {
     expect(phone.of('sessions').at(-1)).toEqual({ type: 'sessions', sessions: [session('p1')] });
     await expect(
       hub.request(phone, { kind: 'new-session', space: 'w1', shell: true }),
-    ).rejects.toThrow(
-      'consoles are off on this computer: start the agent with REMOTE_SHEEP_SHELLS=1',
-    );
+    ).rejects.toThrow('consoles are off on this computer: turn them on in the app, under Settings');
     await expect(
       hub.request(phone, { kind: 'prompt', target: 'w1:s1', text: 'dir' }),
     ).rejects.toThrow('unknown session');
     expect(mux.shellsStarted).toEqual([]);
     expect(mux.prompts).toEqual([]);
+  });
+
+  it('reports the consoles switch and changes it for every phone, listing no shells once off', async () => {
+    const setting = new FakeShells(true);
+    hub.stop();
+    hub = new SessionHub({
+      multiplexer: mux,
+      transcripts,
+      uploads,
+      devices: pairing,
+      listIntervalMs: LIST_MS,
+      terminalIntervalMs: TERMINAL_MS,
+      debounceMs: 0,
+      shells: setting,
+    });
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    expect(await hub.request(phone, { kind: 'shells' })).toEqual({ on: true });
+    expect(await hub.request(phone, { kind: 'shells', on: false })).toEqual({ on: false });
+    expect(setting.on).toBe(false);
+    await expect(
+      hub.request(phone, { kind: 'new-session', space: 'w1', shell: true }),
+    ).rejects.toThrow('consoles are off on this computer');
+    expect(await hub.request(phone, { kind: 'shells', on: true })).toEqual({ on: true });
   });
 
   describe('with consoles on', () => {
@@ -470,7 +504,7 @@ describe('SessionHub', () => {
         listIntervalMs: LIST_MS,
         terminalIntervalMs: TERMINAL_MS,
         debounceMs: 0,
-        shells: true,
+        shells: new FakeShells(true),
       });
     });
 
@@ -482,6 +516,46 @@ describe('SessionHub', () => {
         type: 'sessions',
         sessions: [session('p1'), ...mux.shells],
       });
+    });
+
+    it('cuts every way into a shell that is already open the moment consoles go off', async () => {
+      const setting = new FakeShells(true);
+      hub.stop();
+      hub = new SessionHub({
+        multiplexer: mux,
+        transcripts,
+        uploads,
+        devices: pairing,
+        listIntervalMs: LIST_MS,
+        terminalIntervalMs: TERMINAL_MS,
+        debounceMs: 0,
+        shells: setting,
+      });
+      const watcher = new FakeConnection();
+      const owner = new FakeConnection();
+      hub.open(watcher);
+      hub.open(owner);
+      await settle();
+      await hub.request(watcher, { kind: 'watch', target: 'w1:s1', terminal: true });
+      await settle();
+      await hub.request(owner, { kind: 'shells', on: false });
+      // Before the next poll of the list: the cached list still holds the shell.
+      expect(owner.of('sessions').at(-1)).toEqual({ type: 'sessions', sessions: [session('p1')] });
+      await expect(
+        hub.request(owner, { kind: 'prompt', target: 'w1:s1', text: 'dir' }),
+      ).rejects.toThrow('unknown session');
+      await expect(
+        hub.request(owner, { kind: 'keys', target: 'w1:s1', keys: ['enter'] }),
+      ).rejects.toThrow('unknown session');
+      const frames = watcher.of('terminal').length;
+      mux.terminal = 'secret> ';
+      await vi.advanceTimersByTimeAsync(TERMINAL_MS * 3);
+      expect(watcher.of('terminal')).toHaveLength(frames);
+      const late = new FakeConnection();
+      hub.open(late);
+      expect(late.of('sessions').at(-1)).toEqual({ type: 'sessions', sessions: [session('p1')] });
+      expect(mux.prompts).toEqual([]);
+      expect(mux.keys).toEqual([]);
     });
 
     it('starts a shell in a known workspace and answers its pane', async () => {
@@ -643,7 +717,7 @@ describe('SessionHub', () => {
         listIntervalMs: LIST_MS,
         terminalIntervalMs: TERMINAL_MS,
         debounceMs: 0,
-        shells: false,
+        shells: new FakeShells(false),
         log: (message) => logged.push(message),
       });
       await saveDevice('aaaa', T0);
@@ -677,7 +751,7 @@ describe('SessionHub', () => {
         listIntervalMs: LIST_MS,
         terminalIntervalMs: TERMINAL_MS,
         debounceMs: 0,
-        shells: false,
+        shells: new FakeShells(false),
         notifier: { notify: (change) => heard.push(change.session.target + ' ' + change.to) },
         push: {
           publicKey: 'VAPID-KEY',

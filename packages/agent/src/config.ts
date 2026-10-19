@@ -28,11 +28,9 @@ export const config = {
   /** null when no relay is configured. */
   relay,
 
-  // Off by default: a paired phone could then run any command here, so the owner opts in.
-  shells: process.env['REMOTE_SHEEP_SHELLS'] === '1',
-
   home,
   relayFile,
+  settingsFile: join(home, 'settings.json'),
   agentKeyFile: join(home, 'agent-key.json'),
   vapidFile: join(home, 'vapid.json'),
   devicesFile: join(home, 'devices.json'),

@@ -8,6 +8,7 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Added
 
+- A **Consoles** switch in Settings. Consoles are now on from the start and the choice is kept on the computer in `settings.json`; the `REMOTE_SHEEP_SHELLS` variable is gone. A settings file that cannot be read turns them off rather than on.
 - Keyboard shortcuts: Ctrl+K goes to the search and Alt+↓ opens the next session that waits for an answer. The tab title counts the sessions with something unread, like `(2) RemoteSheep`.
 - A wide window (900 px and up) shows the list on the left and the open session on the right, with the open row highlighted and "Pick a session to start" when none is open. A phone keeps one screen at a time.
 - The **+** sheet asks what to start (Claude Code, Codex or Console) before the workspace. The phone sends an optional `agent` in `new-session` (`claude` or `codex`, nothing else is accepted); older phones do not send it and get Claude Code as before.

@@ -170,6 +170,7 @@ function onChange(change: Change): void {
       document.title = pageTitle(store.unreadTotal());
       applyView();
       renderHeader();
+      if (state.view === 'settings') void store.loadShells(agent);
       if (listShown()) renderList();
       if (state.view === 'devices') renderDevices();
       if (state.view === 'computers') {
@@ -194,6 +195,9 @@ function onChange(change: Change): void {
       return;
     case 'chat':
       onChat();
+      return;
+    case 'shells':
+      renderShells();
       return;
     case 'quick':
       drawQuick();
@@ -1299,3 +1303,20 @@ document.addEventListener('keydown', (event) => {
     openChat(next);
   }
 });
+
+// ---- settings: consoles ----
+
+const toggleShells = $('toggle-shells', HTMLButtonElement);
+
+function renderShells(): void {
+  toggleShells.textContent =
+    state.shells === null ? 'Consoles' : state.shells ? 'Consoles: on' : 'Consoles: off';
+  toggleShells.classList.toggle('on', state.shells === true);
+  toggleShells.disabled = state.shells === null;
+  if (state.homeError && state.view === 'settings') say(state.homeError, true);
+}
+
+toggleShells.addEventListener('click', () => {
+  if (state.shells !== null) void store.setShells(agent, !state.shells);
+});
+renderShells();

@@ -12,6 +12,7 @@ import type {
   ServerMessage,
   Session,
 } from '@remote-sheep/protocol';
+import type { ShellSetting } from '../L1_domain/ports/shell-setting';
 import type { Multiplexer } from '../L1_domain/ports/multiplexer';
 import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
@@ -37,10 +38,10 @@ export interface HubOptions {
   /** One append often fires several file events; they are folded into one read. */
   debounceMs: number;
   /**
-   * Whether phones may see and start plain shells. Off unless the owner turns it on:
-   * a shell runs any command on this computer, not only what a coding agent would.
+   * Whether phones may see and start plain shells. On at first; the owner can turn it off from
+   * the app, because a shell runs any command on this computer, not only what a coding agent would.
    */
-  shells: boolean;
+  shells: ShellSetting;
   /** When set, the session list is watched even with no phone connected. */
   notifier?: Notifier;
   /** Absent when this agent cannot send push (no relay); phones asking to subscribe are told why. */
@@ -98,7 +99,7 @@ export class SessionHub implements ConnectionEvents {
   open(connection: Connection): void {
     this.viewers.set(connection, { target: null, terminal: false });
     if (this.monitor.known()) {
-      connection.send({ type: 'sessions', sessions: this.monitor.current() });
+      connection.send({ type: 'sessions', sessions: this.reachable() });
     }
     const herdrError = this.monitor.error();
     if (herdrError !== null) connection.send({ type: 'status', herdrError });
@@ -142,6 +143,13 @@ export class SessionHub implements ConnectionEvents {
         return this.requirePush().unsubscribe(connection.device);
       case 'spaces':
         return this.options.multiplexer.listSpaces();
+      case 'shells':
+        if (request.on !== undefined) {
+          await this.options.shells.set(request.on);
+          // The cached list still holds the shells until the next poll; phones are told now.
+          this.broadcast((c) => c.send({ type: 'sessions', sessions: this.reachable() }));
+        }
+        return { on: this.options.shells.enabled() };
       case 'new-session':
         return this.newSession(request.space, request.shell, request.agent ?? 'claude');
     }
@@ -192,10 +200,8 @@ export class SessionHub implements ConnectionEvents {
     shell: boolean,
     agent: AgentKind,
   ): Promise<{ target: string }> {
-    if (shell && !this.options.shells) {
-      throw new Error(
-        'consoles are off on this computer: start the agent with REMOTE_SHEEP_SHELLS=1',
-      );
+    if (shell && !this.options.shells.enabled()) {
+      throw new Error('consoles are off on this computer: turn them on in the app, under Settings');
     }
     const spaces = await this.options.multiplexer.listSpaces();
     if (!spaces.some((known) => known.id === space)) throw new Error('unknown workspace: ' + space);
@@ -207,10 +213,19 @@ export class SessionHub implements ConnectionEvents {
     };
   }
 
+  /**
+   * The sessions a phone may reach right now. The monitor's list is only as fresh as its last
+   * poll, so shells are left out here the moment the owner turns consoles off, not a poll later.
+   */
+  private reachable(): Session[] {
+    const shells = this.options.shells.enabled();
+    return this.monitor.current().filter((session) => session.kind !== 'shell' || shells);
+  }
+
   /** The agents, then the shells when they are allowed: one list, so each target is known once. */
   private async listPanes(): Promise<Session[]> {
     const agents = await this.options.multiplexer.listSessions();
-    if (!this.options.shells) return agents;
+    if (!this.options.shells.enabled()) return agents;
     return [...agents, ...(await this.options.multiplexer.listShells())];
   }
 
@@ -229,7 +244,7 @@ export class SessionHub implements ConnectionEvents {
   }
 
   private requireSession(target: string): Session {
-    const found = this.monitor.current().find((s) => s.target === target);
+    const found = this.reachable().find((s) => s.target === target);
     if (!found) throw new Error('unknown session: ' + target);
     return found;
   }
@@ -310,7 +325,7 @@ export class SessionHub implements ConnectionEvents {
     // A phone that reopens straight into a chat can ask before the first list
     // has arrived; the next refresh finds the file then.
     if (!this.monitor.known()) return;
-    const session = this.monitor.current().find((s) => s.target === target);
+    const session = this.reachable().find((s) => s.target === target);
     if (!session) {
       this.setNote(target, watch, 'session gone');
       return;
@@ -403,7 +418,7 @@ export class SessionHub implements ConnectionEvents {
       if (viewer.target && viewer.terminal) targets.add(viewer.target);
     }
     for (const target of targets) {
-      const session = this.monitor.current().find((s) => s.target === target);
+      const session = this.reachable().find((s) => s.target === target);
       // Gone since the phone asked; the next list tells it so.
       if (!session) continue;
       let output: string;

@@ -533,6 +533,29 @@ describe('Store', () => {
       expect(store.state.showTerm).toBe(false);
     });
 
+    it('reads and switches whether consoles are allowed, keeping the answer of the agent', async () => {
+      const { store } = withSessions();
+      expect(store.state.shells).toBeNull();
+      const agent = new FakeAgent({ on: true });
+      await store.loadShells(agent);
+      expect(store.state.shells).toBe(true);
+      expect(agent.asked).toEqual([{ kind: 'shells' }]);
+      const off = new FakeAgent({ on: false });
+      await store.setShells(off, false);
+      expect(off.asked).toEqual([{ kind: 'shells', on: false }]);
+      expect(store.state.shells).toBe(false);
+    });
+
+    it('leaves the switch as it was and says why when the agent cannot change it', async () => {
+      const { store } = withSessions();
+      await store.loadShells(new FakeAgent({ on: true }));
+      const broken = new FakeAgent();
+      broken.failure = new Error('could not write settings');
+      await store.setShells(broken, false);
+      expect(store.state.shells).toBe(true);
+      expect(store.state.homeError).toBe('could not write settings');
+    });
+
     it('keeps the reason when the workspaces cannot be read or a session cannot start', async () => {
       const { store } = withSessions();
       const agent = new FakeAgent();

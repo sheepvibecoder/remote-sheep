@@ -132,6 +132,8 @@ export type Request =
   | { kind: 'push-unsubscribe' }
   /** The Herdr workspaces, to group sessions and to pick where a new one starts. */
   | { kind: 'spaces' }
+  /** Reads whether phones may use plain consoles, or sets it when `on` is given. */
+  | { kind: 'shells'; on?: boolean }
   /**
    * Starts a coding agent (Claude Code when `agent` is absent, as older phones ask), or a plain
    * shell, in a new tab of this workspace.
@@ -178,6 +180,7 @@ export interface Results {
   'push-subscribe': undefined;
   'push-unsubscribe': undefined;
   spaces: Workspace[];
+  shells: { on: boolean };
   /** The pane of the new session, ready to open as a chat. */
   'new-session': { target: string };
 }
@@ -297,6 +300,9 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
       return { kind: 'push-unsubscribe' };
     case 'spaces':
       return { kind: 'spaces' };
+    case 'shells':
+      if (value['on'] !== undefined && typeof value['on'] !== 'boolean') return null;
+      return { kind: 'shells', ...(value['on'] === undefined ? {} : { on: value['on'] }) };
     case 'new-session': {
       if (!isText(value['space'])) return null;
       // Absent from phones older than shells: they only ever start Claude Code.

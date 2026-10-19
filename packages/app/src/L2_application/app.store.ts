@@ -88,6 +88,8 @@ export interface AppState {
   query: string;
   /** The Herdr workspaces, as last read from the agent. */
   spaces: Workspace[];
+  /** Whether phones may use plain consoles, as the agent last said; null until it did. */
+  shells: boolean | null;
   /** What the New sheet starts: an agent, or a plain console. */
   newKind: NewKind;
   /** The workspace whose sessions the Sessions tab shows; null shows them all. */
@@ -140,6 +142,7 @@ export type Change =
   | 'chat'
   | 'styles'
   | 'quick'
+  | 'shells'
   | 'terminal'
   | 'devices'
   | 'profiles'
@@ -206,6 +209,7 @@ export class Store {
       spaces: [],
       space: null,
       newKind: 'claude',
+      shells: null,
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
@@ -340,6 +344,26 @@ export class Store {
       this.state.homeError = describe(error);
     }
     this.emit('home');
+  }
+
+  /** Reads whether consoles are allowed; a failure keeps its reason in homeError. */
+  async loadShells(agent: Agent): Promise<void> {
+    await this.askShells(agent, { kind: 'shells' });
+  }
+
+  /** Allows or forbids consoles on the computer; the answer of the agent is what shows. */
+  async setShells(agent: Agent, on: boolean): Promise<void> {
+    await this.askShells(agent, { kind: 'shells', on });
+  }
+
+  private async askShells(agent: Agent, request: Extract<Request, { kind: 'shells' }>) {
+    try {
+      this.state.shells = (await agent.request(request)).on;
+      this.state.homeError = null;
+    } catch (error) {
+      this.state.homeError = describe(error);
+    }
+    this.emit('shells');
   }
 
   setNewKind(kind: NewKind): void {

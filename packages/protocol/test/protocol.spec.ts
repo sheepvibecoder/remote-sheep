@@ -70,6 +70,8 @@ describe('client messages', () => {
       { type: 'request', id: 11, request: { kind: 'push-unsubscribe' } },
       { type: 'request', id: 12, request: { kind: 'spaces' } },
       { type: 'request', id: 13, request: { kind: 'new-session', space: 'w5', shell: false } },
+      { type: 'request', id: 16, request: { kind: 'shells' } },
+      { type: 'request', id: 17, request: { kind: 'shells', on: false } },
       { type: 'request', id: 14, request: { kind: 'new-session', space: 'w5', shell: true } },
       {
         type: 'request',
@@ -142,6 +144,14 @@ describe('client messages', () => {
     expect(
       decodeClientMessage(request({ kind: 'new-session', space: 'w5', shell: 'yes' })),
     ).toBeNull();
+  });
+
+  it('reads the consoles request with or without a switch, and refuses a switch that is not a boolean', () => {
+    for (const on of ['yes', 1, null]) {
+      expect(
+        decodeClientMessage(raw({ type: 'request', id: 1, request: { kind: 'shells', on } })),
+      ).toBeNull();
+    }
   });
 
   it('accepts only the agents it knows for a new-session, so nothing else reaches the CLI', () => {

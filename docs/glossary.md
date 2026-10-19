@@ -10,7 +10,7 @@
 | **Settled**           | A session that went from `working` to `done` or `blocked`: the moment worth a notification.                                                                     |
 | **Transcript**        | The JSONL file where Claude Code writes the conversation; the chat the phone shows is read from it.                                                             |
 | **Chat**              | The messages of one session as the phone shows them: text and images, envelopes and side chains filtered out.                                                   |
-| **Console**           | A Herdr pane running a plain shell, no coding agent: a session of kind `shell`, driven through its terminal only. Off unless `REMOTE_SHEEP_SHELLS=1`.           |
+| **Console**           | A Herdr pane running a plain shell, no coding agent: a session of kind `shell`, driven through its terminal only. On unless turned off in Settings.             |
 | **Terminal**          | The raw pane text; the fallback for prompts that never reach the transcript (permission questions).                                                             |
 | **Order**             | What the person sends a session: text, optionally with the path of an uploaded photo.                                                                           |
 | **Watch**             | What a phone currently looks at (the list, a chat, or a terminal); the agent streams only that.                                                                 |

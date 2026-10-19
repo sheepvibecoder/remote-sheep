@@ -82,9 +82,8 @@ answer, wrapping around. The tab title shows how many sessions have something un
 ### Consoles
 
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any
-command on the computer, so consoles are off until the agent is started with
-`REMOTE_SHEEP_SHELLS=1` (a line in `.env`, see Settings); the agent
-says at start whether they are on. Once on, a **Consoles** tab next to **Sessions** lists them,
+command on the computer, so you can turn consoles off in **Settings**, under **Consoles**; they start
+on, and the choice is kept on the computer in `settings.json`. When they are on, a **Consoles** tab next to **Sessions** lists them,
 each with a dark **$** avatar, so they never mix with the Claude Code chats; and **Console** in the **+** sheet starts one in the workspace you pick. A
 console opens on its terminal: what you send runs as a command, followed by Enter, and the
 keys above the message box reach the shell.
@@ -160,12 +159,11 @@ home screen; a real certificate removes both.
 Set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
 `pnpm start` runs from; the file is ignored by git, and a variable set in the shell wins.
 
-| Variable              | Default                          |                                                                       |
-| --------------------- | -------------------------------- | --------------------------------------------------------------------- |
-| `PORT`                | `3999`                           | Port the phone connects to                                            |
-| `HERDR`               | `herdr` (`herdr.exe` on Windows) | Herdr executable                                                      |
-| `REMOTE_SHEEP_HOME`   | `~/.remote-sheep`                | Agent key, paired phones, VAPID keys, certificate and uploaded photos |
-| `REMOTE_SHEEP_SHELLS` | off                              | `1` lets paired phones list, open and drive plain consoles            |
+| Variable            | Default                          |                                                                       |
+| ------------------- | -------------------------------- | --------------------------------------------------------------------- |
+| `PORT`              | `3999`                           | Port the phone connects to                                            |
+| `HERDR`             | `herdr` (`herdr.exe` on Windows) | Herdr executable                                                      |
+| `REMOTE_SHEEP_HOME` | `~/.remote-sheep`                | Agent key, paired phones, VAPID keys, certificate and uploaded photos |
 
 ### Relay
 
