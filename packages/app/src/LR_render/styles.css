@@ -1087,6 +1087,22 @@ header .name.home .sub {
   padding: 2px 7px;
   border-radius: 6px;
 }
+/* A quick reply row holds its name and the move arrows as plain buttons. */
+#settings .quick-row button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+#settings .quick-row button.end {
+  padding: 0 6px;
+  color: var(--text-3);
+}
+#settings .quick-row button:disabled {
+  opacity: 0.3;
+}
 :is(#settings, #computers) .item.add {
   color: var(--accent);
   font-weight: 600;

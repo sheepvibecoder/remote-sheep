@@ -1356,17 +1356,28 @@ let editingQuick: number | null = null;
 
 function renderQuickSettings(): void {
   quickSettings.replaceChildren(
-    ...state.quickList.map((reply, place) => {
-      const row = document.createElement('button');
-      row.className = 'item';
-      const name = document.createElement('span');
+    ...state.quickList.map((reply, place, list) => {
+      // A div, not a button: the row holds the arrow buttons, and buttons cannot nest.
+      const row = document.createElement('div');
+      row.className = 'item quick-row';
+      const name = document.createElement('button');
       name.className = 'tx';
       name.textContent = reply;
-      const more = document.createElement('span');
-      more.className = 'end';
-      more.textContent = '⋮';
-      row.append(name, more);
-      row.addEventListener('click', () => openQuickForm(place));
+      name.addEventListener('click', () => openQuickForm(place));
+      const arrow = (text: string, title: string, step: -1 | 1, blocked: boolean) => {
+        const button = document.createElement('button');
+        button.className = 'end';
+        button.textContent = text;
+        button.title = title;
+        button.disabled = blocked;
+        button.addEventListener('click', () => store.moveQuick(place, step));
+        return button;
+      };
+      row.append(
+        name,
+        arrow('↑', 'move up', -1, place === 0),
+        arrow('↓', 'move down', 1, place === list.length - 1),
+      );
       return row;
     }),
   );

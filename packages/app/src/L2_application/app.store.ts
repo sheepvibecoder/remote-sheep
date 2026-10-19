@@ -34,6 +34,7 @@ import { isNewer } from '../L1_domain/version';
 import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
+  movedQuickReply,
   readQuickReplies,
   withQuickReply,
   withoutQuickReply,
@@ -605,6 +606,12 @@ export class Store {
 
   removeQuick(place: number): void {
     this.keepQuick(withoutQuickReply(this.state.quickList, place));
+  }
+
+  /** Moves a reply one place up (-1) or down (1); the first cannot go up nor the last down. */
+  moveQuick(place: number, step: -1 | 1): void {
+    const list = movedQuickReply(this.state.quickList, place, step);
+    if (list) this.keepQuick(list);
   }
 
   resetQuick(): void {

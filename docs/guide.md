@@ -76,7 +76,8 @@ Above the message box, the quick replies (at first **Continúa**, **Corre los te
 and **Explícame el cambio**) send that order with one tap, with the reply style, and leave what you were typing in the
 box. **Quick replies** in the chat's **⋮** hides or shows them. In **Settings** you write your own
 (up to eight): **Add quick reply** opens a box to write one, a tap on a reply opens it to edit or
-delete, and **Reset replies** brings these four back. Code in a reply appears in a dark
+delete, **↑** and **↓** move it one place up or down (the chips follow that order), and **Reset
+replies** brings these four back. Code in a reply appears in a dark
 block with a **Copy** button.
 
 ### On a computer

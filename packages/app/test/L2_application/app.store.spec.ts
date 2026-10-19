@@ -398,6 +398,23 @@ describe('Store', () => {
     expect(store.state.quickList[0]).toBe('Corre los tests');
   });
 
+  it('moves a quick reply one place up or down, and the new order survives a reload', () => {
+    const { store, storage } = setup();
+    const seen: string[] = [];
+    store.subscribe((change) => seen.push(change));
+    store.moveQuick(3, -1);
+    store.moveQuick(0, 1);
+    expect(seen).toEqual(['quick', 'quick']);
+    const moved = ['Corre los tests', 'Continúa', 'Explícame el cambio', 'Haz commit'];
+    expect(store.state.quickList).toEqual(moved);
+    expect(new Store(storage, new FakePush()).state.quickList).toEqual(moved);
+    seen.length = 0;
+    store.moveQuick(0, -1);
+    store.moveQuick(3, 1);
+    expect(store.state.quickList).toEqual(moved);
+    expect(seen).toEqual([]);
+  });
+
   it('offers no chips when every quick reply was removed', () => {
     const { store } = setup();
     store.receive({ type: 'sessions', sessions: [session('p1', 'idle')] });

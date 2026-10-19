@@ -33,6 +33,24 @@ export function withoutQuickReply(replies: readonly string[], place: number): st
   return replies.filter((_, i) => i !== place);
 }
 
+/**
+ * The list with the reply at this place swapped with its neighbour one step up (-1) or down (1),
+ * or null when there is no reply there or no neighbour on that side.
+ */
+export function movedQuickReply(
+  replies: readonly string[],
+  place: number,
+  step: -1 | 1,
+): string[] | null {
+  const reply = replies[place];
+  const other = replies[place + step];
+  if (reply === undefined || other === undefined) return null;
+  const list = [...replies];
+  list[place] = other;
+  list[place + step] = reply;
+  return list;
+}
+
 /** The stored list, cut to the maximum; the defaults when nothing usable was stored. */
 export function readQuickReplies(stored: string | null): string[] {
   let parsed: unknown;

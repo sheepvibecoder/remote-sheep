@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_QUICK_REPLIES,
   MAX_QUICK_REPLIES,
+  movedQuickReply,
   readQuickReplies,
   withoutQuickReply,
   withQuickReply,
@@ -56,5 +57,15 @@ describe('quick replies', () => {
   it('keep at most the maximum of what was stored', () => {
     const many = Array.from({ length: 12 }, (_, i) => 'r' + i);
     expect(readQuickReplies(JSON.stringify(many))).toHaveLength(MAX_QUICK_REPLIES);
+  });
+
+  it('move one place up or down, and not past either end', () => {
+    const replies = ['a', 'b', 'c'];
+    expect(movedQuickReply(replies, 2, -1)).toEqual(['a', 'c', 'b']);
+    expect(movedQuickReply(replies, 0, 1)).toEqual(['b', 'a', 'c']);
+    expect(movedQuickReply(replies, 0, -1)).toBeNull();
+    expect(movedQuickReply(replies, 2, 1)).toBeNull();
+    expect(movedQuickReply(replies, 5, -1)).toBeNull();
+    expect(replies).toEqual(['a', 'b', 'c']);
   });
 });
