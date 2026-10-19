@@ -27,6 +27,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- The hint under **Reply styles** in **Settings** no longer says a style is picked per chat: the
+  style picked from a chat's **⋮** menu applies to every chat on that computer.
 - The tab title left out the unread count until the computer sent its first session list, so it
   stayed bare while connecting or offline: now it shows the saved count as the page opens.
 - The **New session** sheet offered **Console** while consoles were turned off in **Settings**:
