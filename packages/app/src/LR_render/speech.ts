@@ -1,5 +1,6 @@
 // Reading replies aloud. It runs in the browser and costs no tokens.
 
+import { SPEECH_RATES, speechRate } from '../L1_domain/speech-rate';
 import { $, language, say } from './dom';
 import { speakable } from './rich-text';
 
@@ -17,7 +18,7 @@ export function speak(raw: string): void {
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(first.slice(0, 700));
   utterance.lang = language();
-  utterance.rate = 1.05;
+  utterance.rate = speechRate(localStorage.getItem('rate'));
   speechSynthesis.speak(utterance);
 }
 
@@ -38,3 +39,24 @@ button.addEventListener('click', () => {
   if (enabled) speak('listo');
 });
 apply();
+
+// The speed is chosen in Settings; each tap also reads a sample so the change can be heard.
+const speeds = $('speeds');
+function showRate(): void {
+  const current = speechRate(localStorage.getItem('rate'));
+  for (const option of speeds.children) {
+    option.classList.toggle('on', Number((option as HTMLElement).dataset['rate']) === current);
+  }
+}
+for (const step of SPEECH_RATES) {
+  const option = document.createElement('button');
+  option.dataset['rate'] = String(step.rate);
+  option.textContent = step.label;
+  option.addEventListener('click', () => {
+    localStorage.setItem('rate', String(step.rate));
+    showRate();
+    speak('Así suena esta velocidad.');
+  });
+  speeds.append(option);
+}
+showRate();

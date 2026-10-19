@@ -43,7 +43,8 @@ only its sessions. The **+** button starts Claude Code in a new tab of the
 workspace you pick and opens its chat. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. Settings live behind the **⋮** menu of the list: **Settings** (the accent colour, with five to
-choose from, the theme and the text size), profiles, linked devices and check for updates.
+choose from, your reply styles and quick replies, the reading speed, profiles, linked devices, the
+theme and the text size) and **Check for updates**.
 Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 

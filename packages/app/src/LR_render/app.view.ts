@@ -295,13 +295,7 @@ $('menu-open').addEventListener('click', (event) => {
 });
 document.addEventListener('click', (event) => {
   // A switch inside the menu stays open so its new state can be seen.
-  if (
-    menu.contains(event.target as Node) &&
-    event.target !== devicesOpen &&
-    event.target !== $('settings-open') &&
-    event.target !== $('computers-open')
-  )
-    return;
+  if (menu.contains(event.target as Node) && event.target !== $('settings-open')) return;
   menu.classList.add('hidden');
 });
 

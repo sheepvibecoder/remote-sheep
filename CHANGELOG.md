@@ -8,6 +8,7 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Added
 
+- The reading speed of replies read aloud (Slow, Normal, Fast, Faster) in Settings, which also holds the profiles and linked devices that used to sit in the menu.
 - Quick replies you write yourself: in Settings you add up to eight, edit or delete any of them and reset the list.
 - Reply styles you write yourself: in Settings you add a style with a name and a prompt, edit or delete any of them (the ones that come with the app too), and reset the list. Off always stays.
 - A Settings screen behind the ⋮ menu, with a choice of five accent colours (Watermelon, Coral, Raspberry, Violet, Ocean), kept on the phone; the theme and text size moved into it.
