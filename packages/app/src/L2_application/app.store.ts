@@ -26,7 +26,14 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
-import { replyStyle, type ReplyStyle } from '../L1_domain/order';
+import type { ReplyStyle } from '../L1_domain/order';
+import {
+  DEFAULT_REPLY_STYLES,
+  readStyles,
+  replyStyle,
+  withStyle,
+  withoutStyle,
+} from '../L1_domain/reply-styles';
 import { chatItems, type ChatItem } from '../L1_domain/chat';
 import { paneChoices, type PaneChoice } from '../L1_domain/pane-question';
 
@@ -88,6 +95,8 @@ export interface AppState {
   pending: PendingMessage | null;
   /** How every order asks to be answered, kept per computer. */
   replyStyle: ReplyStyle;
+  /** The styles the person picks from, theirs included. */
+  styles: ReplyStyle[];
   /** Whether the one-tap orders show above the message box, kept per computer. */
   quickReplies: boolean;
   /** The phones paired with the agent, this one marked `current`. */
@@ -114,6 +123,7 @@ export type Change =
   | 'status'
   | 'view'
   | 'chat'
+  | 'styles'
   | 'terminal'
   | 'devices'
   | 'profiles'
@@ -167,6 +177,7 @@ export class Store {
     this.lastStatus = readMap(preferences, 'statuses', isText);
     this.unreadCounts = readMap(preferences, 'unread', isCount);
     this.changeTimes = readMap(preferences, 'changed', isCount);
+    const styles = readStyles(preferences.getItem('replyStyles'));
     this.state = {
       link: 'closed',
       gate: null,
@@ -186,7 +197,8 @@ export class Store {
       model: null,
       terminal: '',
       pending: null,
-      replyStyle: replyStyle(preferences.getItem('replyStyle')),
+      styles,
+      replyStyle: replyStyle(styles, preferences.getItem('replyStyle')),
       quickReplies: preferences.getItem('quickReplies') !== '0',
       devices: [],
       devicesError: null,
@@ -476,9 +488,32 @@ export class Store {
   }
 
   setReplyStyle(id: string): void {
-    this.state.replyStyle = replyStyle(id);
+    this.state.replyStyle = replyStyle(this.state.styles, id);
     this.preferences.setItem('replyStyle', this.state.replyStyle.id);
     this.emit('chat');
+  }
+
+  /** Adds a style (no id) or edits one; false when the name or the prompt is empty. */
+  saveStyle(id: string | null, label: string, prompt: string): boolean {
+    const styles = withStyle(this.state.styles, id, label, prompt);
+    if (!styles) return false;
+    this.keepStyles(styles);
+    return true;
+  }
+
+  removeStyle(id: string): void {
+    this.keepStyles(withoutStyle(this.state.styles, id));
+  }
+
+  resetStyles(): void {
+    this.keepStyles([...DEFAULT_REPLY_STYLES]);
+  }
+
+  private keepStyles(styles: ReplyStyle[]): void {
+    this.state.styles = styles;
+    this.preferences.setItem('replyStyles', JSON.stringify(styles));
+    this.setReplyStyle(this.state.replyStyle.id);
+    this.emit('styles');
   }
 
   setQuickReplies(on: boolean): void {

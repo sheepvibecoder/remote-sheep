@@ -58,7 +58,7 @@ then the date). What you send gets one tick once Herdr takes it and two once it 
 transcript. The model answering in the chat, such as **Opus 5.5**, appears next to the microphone.
 
 The **⋮** of a chat names the model and holds the **reply style** every order carries: **Off**,
-**One line** (the default), **Explain simply**, **10 lines max** or **En español**. The style
+**One line** (the default), **Explain simply**, **10 lines max** or **En español**. You write your own in **Settings**: a name and the words to append to the order; every style can be edited or deleted, except **Off**, and **Reset styles** brings the first ones back. The style
 picked shows as a chip next to the microphone; tap it to change it. It is kept for each computer.
 **Read replies aloud** is there too.
 

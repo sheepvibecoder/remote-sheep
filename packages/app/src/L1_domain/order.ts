@@ -11,21 +11,6 @@ export interface ReplyStyle {
   suffix: string;
 }
 
-const ONE_LINE: ReplyStyle = {
-  id: 'one-line',
-  label: 'One line',
-  suffix: ' (responde en una sola linea)',
-};
-
-/** The styles the chat menu offers, in the mockup's order. Settings will let people add their own. */
-export const REPLY_STYLES: readonly ReplyStyle[] = [
-  { id: 'off', label: 'Off', suffix: '' },
-  ONE_LINE,
-  { id: 'simple', label: 'Explain simply', suffix: ' (explicalo simple)' },
-  { id: 'ten-lines', label: '10 lines max', suffix: ' (responde en 10 lineas como maximo)' },
-  { id: 'spanish', label: 'En español', suffix: ' (responde en español)' },
-];
-
 /** Orders sent with one tap, above the message box. Spanish, like the sessions they reach. */
 export const QUICK_REPLIES: readonly string[] = [
   'Continúa',
@@ -33,11 +18,6 @@ export const QUICK_REPLIES: readonly string[] = [
   'Haz commit',
   'Explícame el cambio',
 ];
-
-/** The style with this id; one line when it is unknown, such as one removed since. */
-export function replyStyle(id: string | null): ReplyStyle {
-  return REPLY_STYLES.find((style) => style.id === id) ?? ONE_LINE;
-}
 
 /** Whether a style leaves the order as typed, so there is nothing to show for it. */
 export function asksNothing(style: ReplyStyle): boolean {

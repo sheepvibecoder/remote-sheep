@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  QUICK_REPLIES,
-  REPLY_STYLES,
-  asksNothing,
-  composeOrder,
-  quickOrder,
-  replyStyle,
-} from '../../src/L1_domain/order';
+import { QUICK_REPLIES, asksNothing, composeOrder, quickOrder } from '../../src/L1_domain/order';
+import { DEFAULT_REPLY_STYLES, replyStyle as pick } from '../../src/L1_domain/reply-styles';
+
+const replyStyle = (id: string) => pick(DEFAULT_REPLY_STYLES, id);
 
 describe('composeOrder', () => {
   it('asks for the reply style picked, and for nothing when it is off', () => {
@@ -26,18 +22,8 @@ describe('composeOrder', () => {
 });
 
 describe('replyStyle', () => {
-  it('offers the five styles of the mockup, in its order', () => {
-    expect(REPLY_STYLES.map((s) => s.label)).toEqual([
-      'Off',
-      'One line',
-      'Explain simply',
-      '10 lines max',
-      'En español',
-    ]);
-  });
-
   it('knows which style leaves the order as typed', () => {
-    expect(REPLY_STYLES.filter(asksNothing).map((s) => s.id)).toEqual(['off']);
+    expect(DEFAULT_REPLY_STYLES.filter(asksNothing).map((s) => s.id)).toEqual(['off']);
   });
 
   it('sends a quick reply with the reply style and never with the attached photo', () => {
@@ -54,9 +40,5 @@ describe('replyStyle', () => {
       'Haz commit',
       'Explícame el cambio',
     ]);
-  });
-
-  it('falls back to one line for a style it does not know', () => {
-    expect(replyStyle('gone').id).toBe('one-line');
   });
 });

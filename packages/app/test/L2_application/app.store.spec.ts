@@ -196,6 +196,33 @@ describe('Store', () => {
     expect(store.state.view).toBe('list');
   });
 
+  it('lets the person write, edit and remove reply styles, which survive a reload', () => {
+    const { store, storage } = setup();
+    expect(store.saveStyle(null, 'Three bullets', 'responde en 3 viñetas')).toBe(true);
+    const added = store.state.styles.at(-1);
+    expect(added?.label).toBe('Three bullets');
+    expect(new Store(storage, new FakePush()).state.styles.at(-1)?.suffix).toBe(
+      ' (responde en 3 viñetas)',
+    );
+    store.setReplyStyle(added?.id ?? '');
+    expect(store.saveStyle(added?.id ?? '', 'Bullets', 'en viñetas')).toBe(true);
+    expect(store.state.replyStyle.suffix).toBe(' (en viñetas)');
+    const saved = storage.getItem('replyStyles');
+    const seen: string[] = [];
+    store.subscribe((change) => seen.push(change));
+    expect(store.saveStyle(null, '', 'x')).toBe(false);
+    expect(seen).toEqual([]);
+    expect(storage.getItem('replyStyles')).toBe(saved);
+    expect(new Store(storage, new FakePush()).state.replyStyle.suffix).toBe(' (en viñetas)');
+    store.removeStyle(added?.id ?? '');
+    expect(seen).toContain('styles');
+    expect(store.state.styles.map((s) => s.id)).not.toContain(added?.id);
+    expect(store.state.replyStyle.id).toBe('one-line');
+    store.removeStyle('simple');
+    store.resetStyles();
+    expect(store.state.styles.map((s) => s.id)).toContain('simple');
+  });
+
   describe('updates', () => {
     const source = (answer: string | Error) => ({
       latestVersion: () =>

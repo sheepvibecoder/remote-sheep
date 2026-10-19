@@ -17,12 +17,12 @@ import { modelLabel } from '../L1_domain/chat';
 import { initials } from '../L1_domain/home';
 import {
   QUICK_REPLIES,
-  REPLY_STYLES,
   asksNothing,
   composeOrder,
   quickOrder,
   type Order,
 } from '../L1_domain/order';
+import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
 import type { PairingStore } from '../L1_domain/ports/pairing-store';
@@ -187,6 +187,10 @@ function onChange(change: Change): void {
       return;
     case 'chat':
       onChat();
+      return;
+    case 'styles':
+      drawStyles();
+      renderStyleSettings();
       return;
     case 'terminal':
       onTerminal(state.terminal);
@@ -828,16 +832,23 @@ function renderKeys(): void {
 const styles = $('styles');
 const styleChip = $('style-chip', HTMLButtonElement);
 
-for (const style of REPLY_STYLES) {
-  const option = document.createElement('button');
-  option.dataset['style'] = style.id;
-  option.textContent = style.label;
-  option.addEventListener('click', () => {
-    store.setReplyStyle(style.id);
-    menu.classList.add('hidden');
-  });
-  styles.append(option);
+// The chat menu lists the styles again whenever the person changes them in Settings.
+function drawStyles(): void {
+  styles.replaceChildren(
+    ...state.styles.map((style) => {
+      const option = document.createElement('button');
+      option.dataset['style'] = style.id;
+      option.textContent = style.label;
+      option.addEventListener('click', () => {
+        store.setReplyStyle(style.id);
+        menu.classList.add('hidden');
+      });
+      return option;
+    }),
+  );
+  renderStyles();
 }
+drawStyles();
 
 // The chip says which style every order carries; tapping it opens the menu to change it.
 styleChip.addEventListener('click', (event) => {
@@ -1125,3 +1136,58 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   // Errors surface through the store and the hooks; the page has nothing to wait for.
   void starter.start(dependencies.fragment);
 }
+
+// ---- settings: the reply styles the person writes ----
+
+const styleList = $('style-list');
+const styleName = $('style-name', HTMLInputElement);
+const stylePrompt = $('style-prompt', HTMLInputElement);
+const styleSave = $('style-save');
+let editingStyle: string | null = null;
+
+function renderStyleSettings(): void {
+  styleList.replaceChildren(
+    ...state.styles.map((style) => {
+      const row = document.createElement('div');
+      row.className = 'style-row';
+      const name = document.createElement('span');
+      name.textContent = style.label;
+      const prompt = document.createElement('small');
+      prompt.textContent = promptOf(style.suffix);
+      name.append(prompt);
+      row.append(name);
+      if (!isFixedStyle(style)) {
+        const edit = document.createElement('button');
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          editingStyle = style.id;
+          styleName.value = style.label;
+          stylePrompt.value = promptOf(style.suffix);
+          styleSave.textContent = 'Save';
+        });
+        const remove = document.createElement('button');
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => store.removeStyle(style.id));
+        row.append(edit, remove);
+      }
+      return row;
+    }),
+  );
+}
+
+function clearStyleForm(): void {
+  editingStyle = null;
+  styleName.value = '';
+  stylePrompt.value = '';
+  styleSave.textContent = 'Add style';
+}
+
+styleSave.addEventListener('click', () => {
+  if (store.saveStyle(editingStyle, styleName.value, stylePrompt.value)) clearStyleForm();
+  else say('A style needs a name and a prompt.', true);
+});
+$('style-reset').addEventListener('click', () => {
+  clearStyleForm();
+  store.resetStyles();
+});
+renderStyleSettings();
