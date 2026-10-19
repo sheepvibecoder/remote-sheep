@@ -31,6 +31,8 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
+import { PALETTES, paletteId } from '../L1_domain/palette';
+import { speechRate } from '../L1_domain/speech-rate';
 import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
@@ -117,6 +119,10 @@ export interface AppState {
   quickReplies: boolean;
   /** The one-tap orders, the person's own included. */
   quickList: string[];
+  /** The accent colour, kept for the whole phone. */
+  palette: string;
+  /** How fast replies are read aloud, kept for the whole phone. */
+  speechRate: number;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -146,6 +152,7 @@ export type Change =
   | 'chat'
   | 'styles'
   | 'quick'
+  | 'appearance'
   | 'shells'
   | 'terminal'
   | 'devices'
@@ -201,6 +208,11 @@ export class Store {
     private readonly preferences: Preferences,
     private readonly push: PushSubscriptions,
     private readonly now: () => number = () => Date.now(),
+    /**
+     * What belongs to the phone rather than to one computer (the accent, the reading speed):
+     * kept under the plain keys every phone already has, so no choice is lost to the profiles.
+     */
+    private readonly phone: Preferences = preferences,
   ) {
     this.lastStatus = readMap(preferences, 'statuses', isText);
     this.unreadCounts = readMap(preferences, 'unread', isCount);
@@ -231,6 +243,8 @@ export class Store {
       replyStyle: replyStyle(styles, preferences.getItem('replyStyle')),
       quickReplies: preferences.getItem('quickReplies') !== '0',
       quickList: readQuickReplies(preferences.getItem('quickList')),
+      palette: paletteId(phone.getItem('palette')),
+      speechRate: speechRate(phone.getItem('rate')),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -622,6 +636,21 @@ export class Store {
     this.state.quickList = list;
     this.preferences.setItem('quickList', JSON.stringify(list));
     this.emit('quick');
+  }
+
+  /** Picks an accent; one that is not on offer changes nothing. */
+  setPalette(id: string): void {
+    if (!PALETTES.some((palette) => palette.id === id)) return;
+    this.state.palette = id;
+    this.phone.setItem('palette', id);
+    this.emit('appearance');
+  }
+
+  /** Picks a reading speed; one that is not on offer falls to Normal, like a stored one would. */
+  setSpeechRate(rate: number): void {
+    this.state.speechRate = speechRate(String(rate));
+    this.phone.setItem('rate', String(this.state.speechRate));
+    this.emit('appearance');
   }
 
   setQuickReplies(on: boolean): void {

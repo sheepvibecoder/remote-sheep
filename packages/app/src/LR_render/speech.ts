@@ -1,11 +1,14 @@
 // Reading replies aloud. It runs in the browser and costs no tokens.
 
-import { SPEECH_RATES, speechRate } from '../L1_domain/speech-rate';
+import { DEFAULT_SPEECH_RATE, SPEECH_RATES } from '../L1_domain/speech-rate';
+import type { Store } from '../L2_application/app.store';
 import { $, language, say } from './dom';
 import { speakable } from './rich-text';
 
 const button = $('toggle-speak');
 let enabled = localStorage.getItem('speak') === '1';
+/** The speed the store holds, copied here by `drawSpeed`. */
+let rate = DEFAULT_SPEECH_RATE;
 
 export function speak(raw: string): void {
   if (!('speechSynthesis' in window)) {
@@ -18,7 +21,7 @@ export function speak(raw: string): void {
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(first.slice(0, 700));
   utterance.lang = language();
-  utterance.rate = speechRate(localStorage.getItem('rate'));
+  utterance.rate = rate;
   speechSynthesis.speak(utterance);
 }
 
@@ -42,21 +45,26 @@ apply();
 
 // The speed is chosen in Settings; each tap also reads a sample so the change can be heard.
 const speeds = $('speeds');
-function showRate(): void {
-  const current = speechRate(localStorage.getItem('rate'));
+
+/** Marks the speed the store holds and reads aloud at it from now on. */
+export function drawSpeed(current: number): void {
+  rate = current;
   for (const option of speeds.children) {
     option.classList.toggle('on', Number((option as HTMLElement).dataset['rate']) === current);
   }
 }
-for (const step of SPEECH_RATES) {
-  const option = document.createElement('button');
-  option.dataset['rate'] = String(step.rate);
-  option.textContent = step.label;
-  option.addEventListener('click', () => {
-    localStorage.setItem('rate', String(step.rate));
-    showRate();
-    speak('Así suena esta velocidad.');
-  });
-  speeds.append(option);
+
+/** Builds the speed options, each handing its pick to the store, and marks the current one. */
+export function startSpeeds(store: Store): void {
+  for (const step of SPEECH_RATES) {
+    const option = document.createElement('button');
+    option.dataset['rate'] = String(step.rate);
+    option.textContent = step.label;
+    option.addEventListener('click', () => {
+      store.setSpeechRate(step.rate);
+      speak('Así suena esta velocidad.');
+    });
+    speeds.append(option);
+  }
+  drawSpeed(store.state.speechRate);
 }
-showRate();

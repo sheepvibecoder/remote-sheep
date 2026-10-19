@@ -4,7 +4,7 @@
 // in L2_application; this layer only touches the DOM, so a redesign replaces it
 // alone. The connection arrives from the composition root as a port.
 
-import './appearance';
+import { drawPalette, startPalette } from './appearance';
 import {
   createComponent,
   type ApplicationRef,
@@ -37,7 +37,7 @@ import { hideEditor, markUp } from './photo-editor';
 import { canScan, scanQr } from './qr-scanner';
 import { renderRich } from './rich-text';
 import { SessionListComponent } from './session-list/session-list.component';
-import { autoSpeak, speak } from './speech';
+import { autoSpeak, drawSpeed, speak, startSpeeds } from './speech';
 
 declare const __VERSION__: string;
 
@@ -221,6 +221,10 @@ function onChange(change: Change): void {
       return;
     case 'update':
       onUpdate();
+      return;
+    case 'appearance':
+      drawPalette(state.palette);
+      drawSpeed(state.speechRate);
       return;
   }
 }
@@ -1227,7 +1231,13 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
     dependencies.agent,
     Date.now(),
   );
-  store = new Store(profilePreferences(localStorage, profile), dependencies.push);
+  // The accent and the reading speed belong to the phone, under the plain keys it always used.
+  store = new Store(
+    profilePreferences(localStorage, profile),
+    dependencies.push,
+    () => Date.now(),
+    localStorage,
+  );
   listView = createComponent(SessionListComponent, {
     environmentInjector: angular.injector,
     hostElement: list,
@@ -1242,6 +1252,8 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   state = store.state;
   // Everything below reads `state`, which exists only from here on: drawing at load would
   // crash the page before the first screen.
+  startPalette(store);
+  startSpeeds(store);
   drawStyles();
   drawQuick();
   renderStyleSettings();

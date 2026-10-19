@@ -1165,4 +1165,37 @@ describe('Store', () => {
       expect(store.state.push.error).toBe('notifications need a relay');
     });
   });
+  it('keeps the accent and the read-aloud speed for the whole phone, under the old keys', () => {
+    const profile = new MemoryStorage();
+    const phone = new MemoryStorage();
+    phone.setItem('palette', 'ocean');
+    phone.setItem('rate', '1.25');
+    const store = new Store(profile, new FakePush(), Date.now, phone);
+    expect(store.state.palette).toBe('ocean');
+    expect(store.state.speechRate).toBe(1.25);
+
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setPalette('violet');
+    store.setSpeechRate(0.8);
+    expect(changes).toEqual(['appearance', 'appearance']);
+    expect(phone.getItem('palette')).toBe('violet');
+    expect(phone.getItem('rate')).toBe('0.8');
+    expect(profile.values.size).toBe(0);
+
+    const again = new Store(profile, new FakePush(), Date.now, phone);
+    expect(again.state.palette).toBe('violet');
+    expect(again.state.speechRate).toBe(0.8);
+  });
+
+  it('starts on the default accent and speed when what is stored is gone or unknown', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('palette', 'green');
+    phone.setItem('rate', '9');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    expect(store.state.palette).toBe('watermelon');
+    expect(store.state.speechRate).toBe(1.05);
+    store.setPalette('green');
+    expect(store.state.palette).toBe('watermelon');
+  });
 });
