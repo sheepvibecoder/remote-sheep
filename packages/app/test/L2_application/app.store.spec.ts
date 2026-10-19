@@ -183,6 +183,19 @@ describe('Store', () => {
     expect(store.paneChoices()).toEqual([]);
   });
 
+  it('opens the settings screen from any view and leaves it for the list', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });
+    store.openChat('p1');
+    store.toggleTerminal();
+    store.openSettings();
+    expect(store.state.view).toBe('settings');
+    expect(store.state.showTerm).toBe(false);
+    expect(store.showsKeys()).toBe(false);
+    store.back();
+    expect(store.state.view).toBe('list');
+  });
+
   describe('updates', () => {
     const source = (answer: string | Error) => ({
       latestVersion: () =>

@@ -42,8 +42,8 @@ workspaces, and the search box narrows either by name. Tapping a space shows
 only its sessions. The **+** button starts Claude Code in a new tab of the
 workspace you pick and opens its chat. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
-the chat clears it. Settings (profiles, linked devices, text size, theme, check for updates) live
-behind the **⋮** menu of the list.
+the chat clears it. Settings live behind the **⋮** menu of the list: **Settings** (the accent colour, with five to
+choose from, the theme and the text size), profiles, linked devices and check for updates.
 Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 

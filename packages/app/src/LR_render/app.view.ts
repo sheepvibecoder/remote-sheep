@@ -213,6 +213,7 @@ function applyView(): void {
   term.classList.toggle('on', view === 'chat' && showTerm);
   devices.classList.toggle('on', view === 'devices');
   computers.classList.toggle('on', view === 'computers');
+  $('settings').classList.toggle('on', view === 'settings');
   // Always one tap away on the home screen, like switching accounts in a messaging app.
   profileOpen.classList.toggle('hidden', view !== 'list' || !state.profiles.length);
   foot.classList.toggle('hidden', view !== 'chat');
@@ -292,6 +293,7 @@ document.addEventListener('click', (event) => {
   if (
     menu.contains(event.target as Node) &&
     event.target !== devicesOpen &&
+    event.target !== $('settings-open') &&
     event.target !== $('computers-open')
   )
     return;
@@ -334,6 +336,9 @@ function renderHeader(): void {
   } else if (view === 'devices') {
     title.textContent = 'Devices ';
     sub.textContent = state.devices.length + ' linked';
+  } else if (view === 'settings') {
+    title.textContent = 'Settings ';
+    sub.textContent = '';
   } else if (view === 'computers') {
     title.textContent = 'Profiles ';
     sub.textContent = state.profiles.length + ' paired';
@@ -535,6 +540,9 @@ function renderDevices(): void {
 // ---- computers: the profiles, one per paired computer ----
 // A plain placeholder like the devices list; the redesign decides its place.
 
+$('settings-open').addEventListener('click', () => {
+  store.openSettings();
+});
 $('computers-open').addEventListener('click', () => {
   store.openComputers();
 });
@@ -1036,7 +1044,7 @@ function renderGate(): void {
   gateText.textContent = GATE_TEXT[reason];
   renderGateProfiles();
   gateScan.classList.toggle('hidden', !canScan());
-  for (const el of [list, chat, term, devices, computers]) el.classList.remove('on');
+  for (const el of [list, chat, term, devices, computers, $('settings')]) el.classList.remove('on');
   home.classList.add('hidden');
   newSession.classList.add('hidden');
   sheet.classList.add('hidden');

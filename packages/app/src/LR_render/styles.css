@@ -994,3 +994,43 @@ header .name.home .sub {
   color: var(--text-3);
   padding: 4px 0 6px;
 }
+
+#settings {
+  display: none;
+  padding: 14px;
+}
+#settings.on {
+  display: block;
+}
+#settings .lbl {
+  margin: 14px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+#swatches {
+  display: flex;
+  gap: 12px;
+}
+#swatches button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+#swatches button.on {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--text);
+}
+#settings > button {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}

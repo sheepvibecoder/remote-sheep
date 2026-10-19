@@ -63,7 +63,7 @@ export interface AppState {
   sessions: Session[];
   /** Why the computer cannot reach Herdr; null while it can. */
   herdrError: string | null;
-  view: 'list' | 'chat' | 'devices' | 'computers';
+  view: 'list' | 'chat' | 'devices' | 'computers' | 'settings';
   /** Every computer this phone is paired with, in the order they were added. */
   profiles: Profile[];
   /** Which tab of the home screen is open. */
@@ -328,6 +328,12 @@ export class Store {
 
   openDevices(): void {
     this.state.view = 'devices';
+    this.state.showTerm = false;
+    this.emit('view');
+  }
+
+  openSettings(): void {
+    this.state.view = 'settings';
     this.state.showTerm = false;
     this.emit('view');
   }
