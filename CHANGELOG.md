@@ -9,9 +9,11 @@ All notable changes to remote-sheep are recorded here. The format follows
 ### Added
 
 - A Ctrl+C key in the terminal keys, to stop what runs in a console (`pnpm dev`).
+- Numbered questions in the terminal ("1. Yes 2. No") are offered as answer buttons.
 
 ### Changed
 
+- The terminal keys are esc, tab, ↑, ↓ and ⏎, with Stop (Ctrl+C) apart; the 1 and 2 keys give way to the answer buttons.
 - The first step of the redesign: warm paper colours with a Watermelon accent, in light and dark;
   the Inter, Source Serif 4 and JetBrains Mono fonts, served by the agent itself; the status of a
   session shown as a ring around its avatar; **RemoteSheep** and the sheep logo at the top of the

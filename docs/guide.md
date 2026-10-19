@@ -49,8 +49,9 @@ with the `version.json` the server now serves and offers to reload when it is ne
 
 In a chat, type or dictate with the microphone, attach a photo from the gallery with the clip or take one with the camera,
 and open the raw terminal with **$**. While a session waits for an answer, or
-the terminal is open, **Enter**, **Esc**, **Ctrl+C**, **1**, **2**, **↑** and **↓** appear above
-the message box: they answer Claude Code's menus.
+the terminal is open, **esc**, **tab**, **↑**, **↓** and **⏎** appear above the message box, with
+**Stop** (Ctrl+C) apart from them: they answer Claude Code's menus. When the terminal shows a
+numbered question ("1. Yes 2. No"), each answer is a button of its own above the keys.
 
 Each message shows the hour it was written, with a line for each day (**Today**, **Yesterday**,
 then the date). What you send gets one tick once Herdr takes it and two once it shows up in the

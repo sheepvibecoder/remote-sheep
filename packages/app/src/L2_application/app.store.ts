@@ -28,6 +28,7 @@ import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
 import { replyStyle, type ReplyStyle } from '../L1_domain/order';
 import { chatItems, type ChatItem } from '../L1_domain/chat';
+import { paneChoices, type PaneChoice } from '../L1_domain/pane-question';
 
 /** An order shown before the transcript has caught up with it. */
 export type PendingMessage = Extract<ChatMessage, { kind: 'text' }> & {
@@ -526,6 +527,12 @@ export class Store {
   showsKeys(): boolean {
     if (this.state.view !== 'chat') return false;
     return this.state.showTerm || this.currentSession()?.status === 'blocked';
+  }
+
+  /** The numbered answers the open terminal is asking for, to offer as buttons. */
+  paneChoices(): PaneChoice[] {
+    const { view, showTerm, terminal } = this.state;
+    return view === 'chat' && showTerm ? paneChoices(terminal) : [];
   }
 
   /** The one-tap orders, in the chat of a coding agent: a console takes commands, not replies. */

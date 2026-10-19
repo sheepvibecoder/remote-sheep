@@ -752,20 +752,69 @@ button.round {
   font-size: 13.5px;
   white-space: nowrap;
 }
-.keys {
+.choices {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 6px;
+}
+.choices button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+.choices button.primary {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+.choices b {
+  min-width: 18px;
+  color: var(--accent);
+}
+.keys {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.keygroup {
+  display: flex;
+  flex: 1;
+  gap: 6px;
   overflow-x: auto;
 }
-.keys button {
-  flex: none;
-  min-width: 48px;
-  border-radius: 16px;
-  padding: 6px 14px;
+.keygroup button {
+  flex: 1;
+  min-width: 44px;
+  height: 40px;
+  border-radius: 12px;
   background: var(--panel);
   color: var(--on-soft);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--line);
+}
+.keys .stop {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: none;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.keys .stop i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
 }
 #attached {
   display: flex;

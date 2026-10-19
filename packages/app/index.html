@@ -90,14 +90,16 @@
     <div id="computers"></div>
 
     <footer id="foot" class="hidden">
+      <div class="choices hidden" id="choices"></div>
       <div class="keys hidden" id="keys">
-        <button data-key="enter">Enter</button>
-        <button data-key="esc">Esc</button>
-        <button data-key="ctrl+c">Ctrl+C</button>
-        <button data-key="1">1</button>
-        <button data-key="2">2</button>
-        <button data-key="up">&uarr;</button>
-        <button data-key="down">&darr;</button>
+        <div class="keygroup">
+          <button data-key="esc">esc</button>
+          <button data-key="tab">tab</button>
+          <button data-key="up" aria-label="Up">&uarr;</button>
+          <button data-key="down" aria-label="Down">&darr;</button>
+          <button data-key="enter" aria-label="Enter">&crarr;</button>
+        </div>
+        <button class="stop" data-key="ctrl+c"><i></i>Stop</button>
       </div>
       <div id="attached" class="hidden">
         <img id="attached-preview" alt="attached photo" />

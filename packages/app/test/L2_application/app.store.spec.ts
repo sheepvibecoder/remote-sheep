@@ -165,6 +165,24 @@ describe('Store', () => {
     expect(store.showsKeys()).toBe(false);
   });
 
+  it('offers the numbered answers of a question the open terminal shows, and only there', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });
+    store.openChat('p1');
+    const question = {
+      type: 'terminal',
+      target: 'p1',
+      output: 'Proceed?\n ❯ 1. Yes\n   2. No\n',
+    } as const;
+    store.receive(question);
+    expect(store.paneChoices()).toEqual([]);
+    store.toggleTerminal();
+    store.receive(question);
+    expect(store.paneChoices().map((choice) => choice.key)).toEqual(['1', '2']);
+    store.back();
+    expect(store.paneChoices()).toEqual([]);
+  });
+
   describe('updates', () => {
     const source = (answer: string | Error) => ({
       latestVersion: () =>

@@ -90,6 +90,8 @@ const back = $('back');
 const text = $('text', HTMLTextAreaElement);
 const send = $('send', HTMLButtonElement);
 const keys = $('keys');
+const choices = $('choices');
+let shownChoices = '';
 const mic = $('mic', HTMLButtonElement);
 const model = $('model');
 const menuModel = $('menu-model');
@@ -148,7 +150,7 @@ function onChange(change: Change): void {
       return;
     case 'sessions':
       renderHeader();
-      keys.classList.toggle('hidden', !store.showsKeys());
+      renderKeys();
       // The Consoles tab shows up with the first console the agent lists.
       if (state.view === 'list') renderHome();
       if (state.view === 'list') renderList();
@@ -188,6 +190,7 @@ function onChange(change: Change): void {
       return;
     case 'terminal':
       onTerminal(state.terminal);
+      renderKeys();
       return;
     case 'push':
       if (state.view === 'devices') renderDevices();
@@ -222,7 +225,7 @@ function applyView(): void {
   // A shell has no chat to switch back to.
   termButton.classList.toggle('hidden', view !== 'chat' || store.isShell());
   termButton.classList.toggle('on', showTerm);
-  keys.classList.toggle('hidden', !store.showsKeys());
+  renderKeys();
   syncHistory(view);
 }
 
@@ -792,6 +795,28 @@ function onTerminal(value: string): void {
 
 // ---- footer controls ----
 
+// The key bar and, above it, the answers of a numbered question the pane is asking.
+function renderKeys(): void {
+  keys.classList.toggle('hidden', !store.showsKeys());
+  const offered = store.paneChoices();
+  const signature = offered.map((choice) => choice.key + choice.label + choice.selected).join('|');
+  choices.classList.toggle('hidden', offered.length === 0);
+  if (signature === shownChoices) return;
+  shownChoices = signature;
+  choices.replaceChildren(
+    ...offered.map((choice) => {
+      const button = document.createElement('button');
+      button.dataset['key'] = choice.key;
+      button.classList.toggle('primary', choice.selected);
+      const number = document.createElement('b');
+      number.textContent = choice.key;
+      button.append(number, choice.label);
+      button.addEventListener('click', () => void sendKey(button));
+      return button;
+    }),
+  );
+}
+
 const styles = $('styles');
 const styleChip = $('style-chip', HTMLButtonElement);
 
@@ -969,7 +994,7 @@ async function deliver({ spoken, order }: Order): Promise<boolean> {
   }
 }
 
-for (const button of keys.querySelectorAll<HTMLButtonElement>('button')) {
+for (const button of keys.querySelectorAll<HTMLButtonElement>('button[data-key]')) {
   button.addEventListener('click', () => void sendKey(button));
 }
 
