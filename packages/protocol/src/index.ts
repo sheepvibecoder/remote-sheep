@@ -112,8 +112,13 @@ export interface PushSubscription {
 }
 
 export type Request =
-  /** Which session to stream; null streams only the list. */
-  | { kind: 'watch'; target: string | null; terminal: boolean }
+  /**
+   * Which session to stream; null streams only the list. The raw terminal streams when
+   * `terminal`; the chat streams when `chat`, which defaults to `!terminal` so a phone that never
+   * sends it gets one or the other as before. Both at once is the split view. An agent older than
+   * `chat` drops the field and streams only the terminal, so no protocol bump is needed.
+   */
+  | { kind: 'watch'; target: string | null; terminal: boolean; chat?: boolean }
   | { kind: 'prompt'; target: string; text: string }
   | { kind: 'keys'; target: string; keys: string[] }
   | { kind: 'image'; target: string; id: string }
@@ -271,7 +276,13 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
     case 'watch':
       if (value['target'] !== null && !isText(value['target'])) return null;
       if (typeof value['terminal'] !== 'boolean') return null;
-      return { kind: 'watch', target: value['target'], terminal: value['terminal'] };
+      if (value['chat'] !== undefined && typeof value['chat'] !== 'boolean') return null;
+      return {
+        kind: 'watch',
+        target: value['target'],
+        terminal: value['terminal'],
+        ...(value['chat'] === undefined ? {} : { chat: value['chat'] }),
+      };
     case 'prompt':
       if (!isText(value['target']) || !isText(value['text'])) return null;
       return { kind: 'prompt', target: value['target'], text: value['text'] };

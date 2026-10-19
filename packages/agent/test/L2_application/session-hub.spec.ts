@@ -411,6 +411,44 @@ describe('SessionHub', () => {
     expect(phone.of('terminal')).toHaveLength(2);
   });
 
+  it('streams both the chat and the raw terminal to a phone that asks for both', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: true, chat: true });
+    expect(phone.of('terminal')).toEqual([{ type: 'terminal', target: 'p1', output: 'prompt> ' }]);
+    expect(phone.of('chat')).toEqual([
+      { type: 'chat', target: 'p1', messages: [text('a:0', 'hola')], note: null },
+    ]);
+
+    transcripts.messages.push(text('b:0', 'listo'));
+    transcripts.onChange?.();
+    mux.terminal = 'prompt> done';
+    await vi.advanceTimersByTimeAsync(TERMINAL_MS);
+    expect(phone.of('chat')).toHaveLength(2);
+    expect(phone.of('terminal')).toHaveLength(2);
+  });
+
+  it('sends no chat to a phone that watches only the raw terminal', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: true });
+    transcripts.onChange?.();
+    await settle();
+    expect(phone.of('chat')).toEqual([]);
+  });
+
+  it('sends no terminal to a phone that watches only the chat', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: false });
+    await vi.advanceTimersByTimeAsync(TERMINAL_MS * 2);
+    expect(phone.of('terminal')).toEqual([]);
+    expect(mux.reads).toEqual([]);
+  });
+
   it('sends prompts and keys to a known session', async () => {
     const phone = new FakeConnection();
     hub.open(phone);
@@ -798,6 +836,16 @@ describe('SessionHub', () => {
       await hub.request(phone, { kind: 'watch', target: 'p1', terminal: true });
       await settleSession('done');
       expect(heard).toEqual(['p1 done']);
+    });
+
+    it('does not notify while a phone has that chat open next to its terminal', async () => {
+      const { heard } = withNotifier();
+      const phone = new FakeConnection();
+      hub.open(phone);
+      await settle();
+      await hub.request(phone, { kind: 'watch', target: 'p1', terminal: true, chat: true });
+      await settleSession('done');
+      expect(heard).toEqual([]);
     });
 
     it('notifies again once the phone looks away', async () => {

@@ -154,6 +154,30 @@ describe('client messages', () => {
     }
   });
 
+  it('keeps the chat switch of a watch, refuses one that is not a boolean, and leaves it absent when absent', () => {
+    const watch = (fields: Record<string, unknown>) =>
+      decodeClientMessage(
+        raw({
+          type: 'request',
+          id: 1,
+          request: { kind: 'watch', target: 'p1', terminal: true, ...fields },
+        }),
+      );
+    expect(watch({ chat: true })).toEqual({
+      type: 'request',
+      id: 1,
+      request: { kind: 'watch', target: 'p1', terminal: true, chat: true },
+    });
+    for (const chat of ['yes', 1, null]) expect(watch({ chat })).toBeNull();
+    const old = watch({});
+    expect(old).toEqual({
+      type: 'request',
+      id: 1,
+      request: { kind: 'watch', target: 'p1', terminal: true },
+    });
+    expect(old?.type === 'request' && 'chat' in old.request).toBe(false);
+  });
+
   it('accepts only the agents it knows for a new-session, so nothing else reaches the CLI', () => {
     for (const agent of ['rm -rf', '', 5, null, 'Claude']) {
       const message = { kind: 'new-session', space: 'w5', shell: false, agent };

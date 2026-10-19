@@ -49,8 +49,10 @@ export interface HubOptions {
   log?: (message: string) => void;
 }
 
+/** What one phone looks at: the chat, the raw terminal, or both side by side (split view). */
 interface Viewer {
   target: string | null;
+  chat: boolean;
   terminal: boolean;
 }
 
@@ -97,7 +99,7 @@ export class SessionHub implements ConnectionEvents {
   // ---- ConnectionEvents ----
 
   open(connection: Connection): void {
-    this.viewers.set(connection, { target: null, terminal: false });
+    this.viewers.set(connection, { target: null, chat: false, terminal: false });
     if (this.monitor.known()) {
       connection.send({ type: 'sessions', sessions: this.reachable() });
     }
@@ -115,7 +117,12 @@ export class SessionHub implements ConnectionEvents {
   async request(connection: Connection, request: Request): Promise<unknown> {
     switch (request.kind) {
       case 'watch':
-        return this.watch(connection, request.target, request.terminal);
+        return this.watch(
+          connection,
+          request.target,
+          request.terminal,
+          request.chat ?? !request.terminal,
+        );
       case 'prompt':
         return this.options.multiplexer.sendPrompt(
           this.requireSession(request.target),
@@ -166,10 +173,16 @@ export class SessionHub implements ConnectionEvents {
 
   // ---- requests ----
 
-  private async watch(connection: Connection, target: string | null, terminal: boolean) {
+  private async watch(
+    connection: Connection,
+    target: string | null,
+    terminal: boolean,
+    chat: boolean,
+  ) {
     const viewer = this.viewers.get(connection);
     if (!viewer) return;
     viewer.target = target;
+    viewer.chat = chat;
     viewer.terminal = terminal;
     this.reconcile();
     if (!target) return;
@@ -180,8 +193,8 @@ export class SessionHub implements ConnectionEvents {
       const output = await this.options.multiplexer.readTerminal(this.requireSession(target));
       this.terminals.set(target, output);
       connection.send({ type: 'terminal', target, output });
-      return;
     }
+    if (!chat) return;
 
     const watch = this.chats.get(target);
     if (!watch) return;
@@ -238,7 +251,7 @@ export class SessionHub implements ConnectionEvents {
 
   private isChatWatched(target: string): boolean {
     for (const viewer of this.viewers.values()) {
-      if (viewer.target === target && !viewer.terminal) return true;
+      if (viewer.target === target && viewer.chat) return true;
     }
     return false;
   }
@@ -278,7 +291,7 @@ export class SessionHub implements ConnectionEvents {
     for (const viewer of this.viewers.values()) {
       if (!viewer.target) continue;
       if (viewer.terminal) terminalWanted = true;
-      else chatTargets.add(viewer.target);
+      if (viewer.chat) chatTargets.add(viewer.target);
     }
 
     for (const target of [...this.chats.keys()]) {
@@ -396,7 +409,7 @@ export class SessionHub implements ConnectionEvents {
 
   private sendChat(target: string, chat: Chat, note: string | null): void {
     this.broadcast((c, viewer) => {
-      if (viewer.target === target && !viewer.terminal) c.send(chatFrame(target, chat, note));
+      if (viewer.target === target && viewer.chat) c.send(chatFrame(target, chat, note));
     });
   }
 
