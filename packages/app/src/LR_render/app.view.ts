@@ -1257,6 +1257,9 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   state = store.state;
   // Everything below reads `state`, which exists only from here on: drawing at load would
   // crash the page before the first screen.
+  // The unread counts come from storage, so the tab shows them before the first session list,
+  // which never arrives while the computer is unreachable.
+  document.title = pageTitle(store.unreadTotal());
   startPalette(store);
   startSpeeds(store);
   drawStyles();

@@ -23,6 +23,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- The tab title left out the unread count until the computer sent its first session list, so it
+  stayed bare while connecting or offline: now it shows the saved count as the page opens.
 - The **New session** sheet offered **Console** while consoles were turned off in **Settings**:
   now it offers it only while they are on, and a picked Console falls back to Claude Code.
 - One damaged reply style in the phone's storage threw away every style you had written and
