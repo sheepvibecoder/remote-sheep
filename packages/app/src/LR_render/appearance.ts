@@ -13,9 +13,12 @@ function applyTheme(name: string): void {
   $('theme-value').textContent = name === 'dark' ? 'Dark' : 'Light';
 }
 
-$('toggle-theme').addEventListener('click', () => {
+function flipTheme(): void {
   applyTheme(document.documentElement.dataset['theme'] === 'dark' ? 'light' : 'dark');
-});
+}
+$('toggle-theme').addEventListener('click', flipTheme);
+// The moon at the top of a wide window's list does the same.
+$('side-theme').addEventListener('click', flipTheme);
 applyTheme(localStorage.getItem('theme') || 'light');
 
 let sizeStep = Number(localStorage.getItem('size') || 1) % SIZES.length;

@@ -8,6 +8,11 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Changed
 
+- A wide window follows `web.html`: the left column carries the logo, a theme button, the gear
+  and the computer's name, the search with a **Ctrl K** hint, the tabs as pills and a **New
+  session** button at the bottom; the header sits over the open session only, and a status bar
+  recalls **Alt ↓** and **Ctrl K**. On a phone the **+ New** button no longer covers the tabs.
+
 - Settings follows the mockup: a big title, grouped rounded cards (Computers, Reply styles, Quick
   replies, Voice, General, About), a **Default** badge on the style a chat sends with, and switches
   and segmented controls instead of buttons. A tap on a style or a quick reply opens it to edit or

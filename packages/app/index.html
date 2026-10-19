@@ -13,18 +13,10 @@
     <title>RemoteSheep</title>
   </head>
   <body>
-    <div id="gate">
-      <p id="gate-text"></p>
-      <button id="gate-scan" class="hidden">Scan QR code</button>
-      <div id="gate-profiles"></div>
-    </div>
-
-    <header id="head" class="hidden">
-      <button id="back" class="icon hidden" title="back">&larr;</button>
-      <span class="dot" id="dot"></span>
-      <span class="av hidden" id="head-av"></span>
+    <!-- Drawings used in more than one place. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
       <!-- The Face logo; it follows the accent the person picks. -->
-      <svg id="brand" class="hidden" viewBox="0 0 32 32" aria-hidden="true">
+      <symbol id="logo" viewBox="0 0 32 32">
         <rect width="32" height="32" rx="9" fill="var(--accent)" />
         <ellipse cx="8.6" cy="15" rx="3.2" ry="1.7" fill="#1f1d1b" transform="rotate(-18 8.6 15)" />
         <ellipse
@@ -41,6 +33,28 @@
         <circle cx="20.4" cy="10.4" r="3.4" fill="#fff" />
         <circle cx="13.7" cy="17" r="1.15" fill="#fff" />
         <circle cx="18.3" cy="17" r="1.15" fill="#fff" />
+      </symbol>
+      <symbol id="gear-icon" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.2 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+          />
+        </g>
+      </symbol>
+    </svg>
+    <div id="gate">
+      <p id="gate-text"></p>
+      <button id="gate-scan" class="hidden">Scan QR code</button>
+      <div id="gate-profiles"></div>
+    </div>
+
+    <header id="head" class="hidden">
+      <button id="back" class="icon hidden" title="back">&larr;</button>
+      <span class="dot" id="dot"></span>
+      <span class="av hidden" id="head-av"></span>
+      <svg id="brand" class="hidden" viewBox="0 0 32 32" aria-hidden="true">
+        <use href="#logo" />
       </svg>
       <span class="name" id="name">Sessions <span class="sub" id="sub"></span></span>
       <!-- Chat or raw terminal: a switch of two, like the mockup, rather than a toggle. -->
@@ -74,14 +88,7 @@
         </button>
       </div>
       <button id="gear" class="icon hidden" title="settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3.2 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
-            />
-          </g>
-        </svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gear-icon" /></svg>
       </button>
       <button id="menu-open" class="icon" title="menu">&#8942;</button>
       <div id="menu" class="hidden">
@@ -98,8 +105,32 @@
       </div>
     </header>
 
+    <!-- A wide window keeps the home's top in the left column, as web.html does. -->
+    <div id="side-top" class="hidden">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><use href="#logo" /></svg>
+        <span>RemoteSheep</span>
+      </div>
+      <button id="side-theme" class="icon" title="theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <button id="side-gear" class="icon" title="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gear-icon" /></svg>
+      </button>
+      <button id="side-host" class="host"></button>
+    </div>
+
     <div id="home" class="hidden">
       <input id="search" type="search" placeholder="Search" autocomplete="off" />
+      <kbd class="search-key">Ctrl K</kbd>
       <button id="space-leave" class="pill on hidden" title="show every session"></button>
       <p id="home-error" class="hidden"></p>
     </div>
@@ -153,7 +184,7 @@
           stroke-width="2.4"
           stroke-linecap="round"
         /></svg
-      >New
+      ><span>New<span class="wide-word">&nbsp;session</span></span>
     </button>
     <div id="sheet" class="hidden">
       <div class="sheet-box">
@@ -303,6 +334,13 @@
       <div id="flash"></div>
     </footer>
     <div id="version"></div>
+    <!-- The keys worth knowing on a computer, and what keeps the link private. -->
+    <div id="statusbar" class="hidden">
+      <span><kbd>Alt &darr;</kbd> next that needs you</span>
+      <span><kbd>Ctrl K</kbd> search</span>
+      <span class="sp"></span>
+      <span>end-to-end encrypted</span>
+    </div>
 
     <div id="toast" class="hidden"></div>
 

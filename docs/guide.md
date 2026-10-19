@@ -82,7 +82,9 @@ block with a **Copy** button.
 
 On a window 900 px wide or more, the list stays on the left and the open chat or terminal fills
 the right, so you can move between sessions without going back. The open session is highlighted in
-the list.
+the list. The left column keeps the home's top (the logo, a moon to switch the theme, the gear and
+the computer's name), the tabs as pills under the search and a **New session** button at the
+bottom; a bar under the right side recalls the shortcuts.
 
 Shortcuts: **Ctrl K** goes to the search, and **Alt ↓** opens the next session that waits for an
 answer, wrapping around. The tab title shows how many sessions have something unread, for example

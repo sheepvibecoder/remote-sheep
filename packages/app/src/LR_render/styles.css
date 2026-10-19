@@ -1236,23 +1236,46 @@ header .name.home .sub {
   background: var(--soft);
 }
 @media (min-width: 900px) {
+  /* Two columns, as web.html draws them: the home on the left from its brand down to the New
+     button, the open session on the right from its header down to the status bar. */
   body {
     display: grid;
     grid-template-columns: 380px 1fr;
-    grid-template-rows: auto auto 1fr auto auto;
+    grid-template-rows: auto auto auto 1fr auto auto;
   }
   header {
-    grid-column: 1 / -1;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  body.at-home header {
+    display: none;
+  }
+  #side-top {
+    grid-column: 1;
+    grid-row: 1;
   }
   #home {
     grid-column: 1;
     grid-row: 2;
   }
-  #list {
+  #tabs {
     grid-column: 1;
     grid-row: 3;
-    border-right: 1px solid var(--line);
+  }
+  /* The list runs to the bottom; the version and the New button sit over its foot, so the
+     column never leaves a gap beside the message box. */
+  #list {
+    grid-column: 1;
+    grid-row: 4 / 7;
     min-height: 0;
+    padding-bottom: 64px;
+  }
+  #side-top,
+  #home,
+  #tabs,
+  #list,
+  #version {
+    border-right: 1px solid var(--line);
   }
   #empty.on,
   #chat,
@@ -1261,8 +1284,22 @@ header .name.home .sub {
   #computers,
   #settings {
     grid-column: 2;
-    grid-row: 2 / 4;
+    grid-row: 1 / 5;
     min-height: 0;
+  }
+  /* Below a header when there is one. */
+  body:not(.at-home) #chat,
+  body:not(.at-home) #term,
+  body:not(.at-home) #devices,
+  body:not(.at-home) #computers,
+  body:not(.at-home) #settings {
+    grid-row: 2 / 5;
+  }
+  /* With no message box the screen runs down to the status bar. */
+  body:has(footer.hidden) #devices,
+  body:has(footer.hidden) #computers,
+  body:has(footer.hidden) #settings {
+    grid-row: 2 / 6;
   }
   #empty.on {
     display: flex;
@@ -1273,22 +1310,31 @@ header .name.home .sub {
   }
   footer {
     grid-column: 2;
-    grid-row: 4;
-  }
-  #version {
-    grid-column: 1 / -1;
     grid-row: 5;
   }
-  #tabs {
-    grid-column: 1;
-    grid-row: 4;
-    border-right: 1px solid var(--line);
+  #statusbar {
+    grid-column: 2;
+    grid-row: 6;
+  }
+  #version {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 379px;
+    text-align: left;
+    padding: 24px 18px;
+    background: linear-gradient(transparent, var(--bg) 40%);
   }
   button.round#new-session {
     position: fixed;
-    left: 250px;
-    right: auto;
-    bottom: 110px;
+    left: auto;
+    right: calc(100% - 380px + 16px);
+    bottom: 12px;
+    height: 40px;
+    padding: 0 16px 0 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    box-shadow: none;
   }
 }
 
@@ -1382,7 +1428,7 @@ header button.icon svg {
   border-radius: 18px;
   font-size: 15px;
   font-weight: 600;
-  bottom: calc(86px + env(safe-area-inset-bottom));
+  bottom: calc(112px + env(safe-area-inset-bottom));
   box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 #new-session svg {
@@ -1589,5 +1635,145 @@ header .sub.needs {
   #settings,
   body:not(.pane) footer {
     padding-inline: max(16px, calc((100% - 760px) / 2));
+  }
+}
+
+/* ---- wide window: the home's top in the left column, pill tabs, a status bar ---- */
+#side-top,
+#statusbar,
+.search-key,
+.wide-word {
+  display: none;
+}
+@media (min-width: 900px) {
+  #side-top {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 2px 6px;
+    padding: 14px 12px 4px 18px;
+    background: var(--panel);
+  }
+  #side-top.hidden,
+  #statusbar.hidden {
+    display: none;
+  }
+  #side-top .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #side-top .brand svg {
+    width: 30px;
+    height: 30px;
+  }
+  #side-top .brand span {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 21px;
+  }
+  #side-top button.icon svg {
+    width: 19px;
+    height: 19px;
+  }
+  #side-top .host {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    padding: 0 0 6px 40px;
+    border: none;
+    background: none;
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  #side-top .host:empty {
+    display: none;
+  }
+  #side-top .host::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--done);
+  }
+  #side-top .host::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    margin-left: 2px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+  }
+  #home {
+    position: relative;
+  }
+  .search-key {
+    display: block;
+    position: absolute;
+    top: 50%;
+    right: 26px;
+    transform: translateY(-50%);
+    padding: 2px 6px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text-3);
+    font: 11px var(--sans);
+    pointer-events: none;
+  }
+  .wide-word {
+    display: inline;
+  }
+  /* The tabs move up under the search as pills; the icons stay for the phone's bottom bar. */
+  #tabs {
+    gap: 4px;
+    padding: 4px 14px 6px;
+    border-top: none;
+    background: var(--panel);
+  }
+  #tabs button {
+    flex: none;
+    flex-direction: row;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  #tabs svg {
+    display: none;
+  }
+  #tabs button.on {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  #tabs .badge {
+    position: static;
+    width: 6px;
+    height: 6px;
+  }
+  #statusbar {
+    display: flex;
+    gap: 18px;
+    padding: 6px 16px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text-3);
+    font-size: 11.5px;
+  }
+  #statusbar kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text-2);
+    font: 10.5px var(--sans);
+  }
+  #statusbar .sp {
+    flex: 1;
   }
 }

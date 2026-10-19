@@ -241,6 +241,8 @@ function applyView(): void {
   $('settings').classList.toggle('on', view === 'settings');
   // The gear is the home's way into Settings; a chat has its own ⋮ menu instead.
   $('gear').classList.toggle('hidden', view !== 'list');
+  // On a wide window the left column carries the home's top, so the right has no header to show.
+  document.body.classList.toggle('at-home', view === 'list');
   $('menu-open').classList.toggle('hidden', view !== 'chat');
   $('tabs').classList.toggle('hidden', !listShown());
   foot.classList.toggle('hidden', view !== 'chat');
@@ -353,6 +355,7 @@ $('version').textContent = 'RemoteSheep v' + __VERSION__;
 
 function renderHeader(): void {
   const { view } = state;
+  $('side-host').textContent = store.activeProfileName() ?? '';
   const current = store.currentSession();
   const status = view === 'chat' ? current?.status || '' : '';
   dot.className = 'dot ' + (state.link === 'open' ? status : 'unknown');
@@ -609,6 +612,9 @@ sub.addEventListener('click', () => {
   if (state.view === 'list') store.openComputers();
 });
 $('gear').addEventListener('click', () => store.openSettings());
+// A wide window keeps the home's top in the left column: the same gear and host picker.
+$('side-gear').addEventListener('click', () => store.openSettings());
+$('side-host').addEventListener('click', () => store.openComputers());
 gateScan.addEventListener('click', () => void scanToPair());
 
 const REACH_TEXT = {
@@ -1110,6 +1116,8 @@ function renderGate(): void {
   const reason = state.gate;
   gate.classList.toggle('on', reason !== null);
   head.classList.toggle('hidden', reason !== null);
+  $('side-top').classList.toggle('hidden', reason !== null);
+  $('statusbar').classList.toggle('hidden', reason !== null);
   if (reason === null) {
     applyView();
     renderHeader();
