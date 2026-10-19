@@ -6,6 +6,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-19
+
 ### Added
 
 - A **Consoles** switch in Settings. Consoles are now on from the start and the choice is kept on the computer in `settings.json`; the `REMOTE_SHEEP_SHELLS` variable is gone. A settings file that cannot be read turns them off rather than on.
