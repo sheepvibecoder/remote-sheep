@@ -10,7 +10,12 @@ import { AvatarComponent } from './avatar.component';
   imports: [AvatarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button class="card" [class.unread]="row().unread > 0" (click)="open.emit(row().key)">
+    <button
+      class="card"
+      [class.sel]="selected()"
+      [class.unread]="row().unread > 0"
+      (click)="open.emit(row().key)"
+    >
       <app-avatar [label]="row().avatar" [ring]="row().ring" [shell]="row().shell" />
       <span class="who">
         <span class="l1">
@@ -37,5 +42,7 @@ import { AvatarComponent } from './avatar.component';
 })
 export class SessionRowComponent {
   readonly row = input.required<ListRow>();
+  /** Open beside the list, on a wide window. */
+  readonly selected = input(false);
   readonly open = output<string>();
 }

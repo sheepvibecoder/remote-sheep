@@ -1102,3 +1102,62 @@ header .name.home .sub {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+
+/* ---- wide window: the list on the left, the open session on the right ---- */
+#empty {
+  display: none;
+}
+.card.sel {
+  background: var(--soft);
+}
+@media (min-width: 900px) {
+  body {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: auto auto 1fr auto auto;
+  }
+  header {
+    grid-column: 1 / -1;
+  }
+  #home {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  #list {
+    grid-column: 1;
+    grid-row: 3 / 5;
+    border-right: 1px solid var(--line);
+    min-height: 0;
+  }
+  #empty.on,
+  #chat,
+  #term,
+  #devices,
+  #computers,
+  #settings {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    min-height: 0;
+  }
+  #empty.on {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    background: var(--thread);
+  }
+  footer {
+    grid-column: 2;
+    grid-row: 4;
+  }
+  #version {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+  button.round#new-session {
+    position: fixed;
+    left: 304px;
+    right: auto;
+    bottom: 40px;
+  }
+}

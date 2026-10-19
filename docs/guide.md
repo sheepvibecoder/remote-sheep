@@ -69,6 +69,12 @@ box. **Quick replies** in the chat's **⋮** hides or shows them. In **Settings*
 (up to eight), edit or delete any of them, and **Reset replies** brings these four back. Code in a reply appears in a dark
 block with a **Copy** button.
 
+### On a computer
+
+On a window 900 px wide or more, the list stays on the left and the open chat or terminal fills
+the right, so you can move between sessions without going back. The open session is highlighted in
+the list.
+
 ### Consoles
 
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any

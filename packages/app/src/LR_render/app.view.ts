@@ -60,6 +60,11 @@ window.addEventListener('unhandledrejection', (event) => {
   alert('Unhandled error (' + __VERSION__ + ')\n\n' + (reason?.message || String(event.reason)));
 });
 
+// On a wide window the list stays on the left and the open session fills the right, like a
+// messaging app on the web; on a phone each screen takes the whole window in turn.
+const wideQuery = window.matchMedia('(min-width: 900px)');
+const listShown = () => state.view === 'list' || wideQuery.matches;
+
 const gate = $('gate');
 const gateText = $('gate-text');
 const head = $('head');
@@ -152,8 +157,8 @@ function onChange(change: Change): void {
       renderHeader();
       renderKeys();
       // The Consoles tab shows up with the first console the agent lists.
-      if (state.view === 'list') renderHome();
-      if (state.view === 'list') renderList();
+      if (listShown()) renderHome();
+      if (listShown()) renderList();
       return;
     case 'home':
       renderHome();
@@ -163,7 +168,7 @@ function onChange(change: Change): void {
     case 'view':
       applyView();
       renderHeader();
-      if (state.view === 'list') renderList();
+      if (listShown()) renderList();
       if (state.view === 'devices') renderDevices();
       if (state.view === 'computers') {
         renderComputers();
@@ -216,10 +221,13 @@ function onChange(change: Change): void {
 
 function applyView(): void {
   const { view, showTerm } = state;
-  list.classList.toggle('on', view === 'list');
-  home.classList.toggle('hidden', view !== 'list');
-  newSession.classList.toggle('hidden', view !== 'list');
-  if (view !== 'list') sheet.classList.add('hidden');
+  const wide = wideQuery.matches;
+  list.classList.toggle('on', listShown());
+  home.classList.toggle('hidden', !listShown());
+  newSession.classList.toggle('hidden', !listShown());
+  if (!listShown()) sheet.classList.add('hidden');
+  // Nothing open on a wide window: the right side says so instead of staying blank.
+  $('empty').classList.toggle('on', wide && view === 'list');
   chat.classList.toggle('on', view === 'chat' && !showTerm);
   term.classList.toggle('on', view === 'chat' && showTerm);
   devices.classList.toggle('on', view === 'devices');
@@ -228,7 +236,8 @@ function applyView(): void {
   // Always one tap away on the home screen, like switching accounts in a messaging app.
   profileOpen.classList.toggle('hidden', view !== 'list' || !state.profiles.length);
   foot.classList.toggle('hidden', view !== 'chat');
-  back.classList.toggle('hidden', view === 'list');
+  // The list is already on screen beside an open chat, so there is nowhere to go back to.
+  back.classList.toggle('hidden', view === 'list' || (wide && view === 'chat'));
   // In a chat the ⋮ holds what changes that chat; elsewhere the settings of the app.
   $('chat-menu').classList.toggle('hidden', view !== 'chat');
   $('app-menu').classList.toggle('hidden', view === 'chat');
@@ -476,6 +485,7 @@ let listView: ComponentRef<SessionListComponent> | null = null;
 
 function renderList(): void {
   listView?.setInput('rows', store.listedRows());
+  listView?.setInput('selected', state.view === 'chat' ? state.target : null);
   listView?.setInput('hint', emptyHint());
 }
 
@@ -1260,3 +1270,12 @@ $('quick-reset').addEventListener('click', () => {
   store.resetQuick();
 });
 renderQuickSettings();
+
+wideQuery.addEventListener('change', () => {
+  applyView();
+  renderHeader();
+  if (listShown()) {
+    renderHome();
+    renderList();
+  }
+});

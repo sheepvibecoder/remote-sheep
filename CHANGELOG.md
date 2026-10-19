@@ -8,6 +8,7 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Added
 
+- A wide window (900 px and up) shows the list on the left and the open session on the right, with the open row highlighted and "Pick a session to start" when none is open. A phone keeps one screen at a time.
 - The **+** sheet asks what to start (Claude Code, Codex or Console) before the workspace. The phone sends an optional `agent` in `new-session` (`claude` or `codex`, nothing else is accepted); older phones do not send it and get Claude Code as before.
 - The reading speed of replies read aloud (Slow, Normal, Fast, Faster) in Settings, which also holds the profiles and linked devices that used to sit in the menu.
 - Quick replies you write yourself: in Settings you add up to eight, edit or delete any of them and reset the list.
