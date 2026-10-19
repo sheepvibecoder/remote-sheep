@@ -6,6 +6,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-19
+
 ### Changed
 
 - A wide window follows `web.html`: the left column carries the logo, a theme button, the gear

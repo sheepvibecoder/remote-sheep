@@ -1,6 +1,6 @@
 {
   "name": "@remote-sheep/relay",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "license": "UNLICENSED",
   "private": true,
   "type": "module",
