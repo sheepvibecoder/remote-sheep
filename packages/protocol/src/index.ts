@@ -55,6 +55,12 @@ export interface Session {
   project: string;
   /** Id of the Herdr workspace the pane lives in; empty when Herdr does not say. */
   space: string;
+  /**
+   * The coding agent Herdr detected in the pane (`claude`, `codex`, …), as Herdr names it.
+   * Optional rather than null so an agent of the same protocol from before it existed still
+   * fits; absent for a shell or when Herdr does not say.
+   */
+  agent?: string;
 }
 
 /** A Herdr workspace: where the phone can open a new session. */

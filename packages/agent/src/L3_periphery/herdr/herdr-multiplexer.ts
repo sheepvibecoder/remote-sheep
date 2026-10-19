@@ -55,6 +55,7 @@ function toSession(pane: HerdrPane, kind: SessionKind): Session {
     cwd,
     project: lastSegment(cwd),
     space: pane.workspace_id ?? '',
+    ...(pane.agent ? { agent: pane.agent } : {}),
   };
 }
 

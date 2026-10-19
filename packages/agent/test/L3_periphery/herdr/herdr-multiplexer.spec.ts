@@ -19,6 +19,7 @@ describe('parseAgentList', () => {
             agent_status: 'blocked',
             workspace_id: 'w5',
             cwd: 'C:\\work\\app\\',
+            agent: 'codex',
           },
           { pane_id: 'w1:p3', agent_status: 'mystery', cwd: '' },
         ],
@@ -33,6 +34,7 @@ describe('parseAgentList', () => {
         cwd: 'C:\\work\\app\\',
         project: 'app',
         space: 'w5',
+        agent: 'codex',
       },
       {
         target: 'w1:p3',
