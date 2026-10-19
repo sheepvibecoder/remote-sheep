@@ -1,27 +1,54 @@
-// Theme, accent and text size, remembered per phone. The accent lives in the store; the theme and
-// the size are still kept here.
+// Theme, accent and text size, remembered per phone. The theme and the accent live in the store;
+// the size is still kept here.
 
 import { DEFAULT_PALETTE, PALETTES } from '../L1_domain/palette';
+import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
 import type { Store } from '../L2_application/app.store';
 import { $, must } from './dom';
 
 const SIZES = ['15px', '17px', '20px', '23px'];
 
-function applyTheme(name: string): void {
-  document.documentElement.dataset['theme'] = name;
-  localStorage.setItem('theme', name);
+const deviceDark = matchMedia('(prefers-color-scheme: dark)');
+
+function paintTheme(dark: boolean): void {
+  document.documentElement.dataset['theme'] = dark ? 'dark' : 'light';
   const meta = document.querySelector<HTMLMetaElement>('meta[name=theme-color]');
-  if (meta) meta.content = name === 'dark' ? '#262624' : '#faf9f5';
-  $('theme-value').textContent = name === 'dark' ? 'Dark' : 'Light';
+  if (meta) meta.content = dark ? '#262624' : '#faf9f5';
 }
 
-function flipTheme(): void {
-  applyTheme(document.documentElement.dataset['theme'] === 'dark' ? 'light' : 'dark');
+// The store starts only after Angular's first render; painting the stored theme now, as the
+// bundle loads, keeps a dark phone from flashing light first. Only read here: the store saves.
+paintTheme(isDark(themeChoice(localStorage.getItem(THEME_KEY)), deviceDark.matches));
+
+/** Paints the theme the store decided and marks the picked option. */
+export function drawTheme(theme: ThemeChoice, dark: boolean): void {
+  paintTheme(dark);
+  for (const option of $('themes').children) {
+    option.classList.toggle('on', (option as HTMLElement).dataset['theme'] === theme);
+  }
 }
-$('toggle-theme').addEventListener('click', flipTheme);
-// The moon at the top of a wide window's list does the same.
-$('side-theme').addEventListener('click', flipTheme);
-applyTheme(localStorage.getItem('theme') || 'light');
+
+/** Builds the theme options, hands the store the device's preference as it changes, and paints. */
+export function startTheme(store: Store): void {
+  for (const theme of THEMES) {
+    const option = document.createElement('button');
+    option.dataset['theme'] = theme.id;
+    option.textContent = theme.label;
+    option.addEventListener('click', () => {
+      store.setTheme(theme.id);
+    });
+    $('themes').append(option);
+  }
+  // The moon at the top of a wide window's list flips to the other of Light and Dark.
+  $('side-theme').addEventListener('click', () => {
+    store.toggleTheme();
+  });
+  deviceDark.addEventListener('change', () => {
+    store.setDeviceDark(deviceDark.matches);
+  });
+  store.setDeviceDark(deviceDark.matches);
+  drawTheme(store.state.theme, store.state.dark);
+}
 
 let sizeStep = Number(localStorage.getItem('size') || 1) % SIZES.length;
 

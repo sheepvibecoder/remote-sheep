@@ -46,7 +46,8 @@ times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. The **gear** at the top of the list opens **Settings**, grouped in cards: **Computers**
 (the paired computers, a tap switches, and **Add a computer**), **Reply styles**, **Quick replies**,
 **Voice** (the reading speed), **General** (consoles, text size, the accent colour with five to choose
-from, the theme and linked devices) and **About** (**Check for updates**). The style a chat sends with
+from, the theme, **Auto**, **Light** or **Dark**, where Auto follows the device and switches with it, and linked
+devices) and **About** (**Check for updates**). The style a chat sends with
 carries a **Default** badge. The computer's name under the app name, with a
 green dot, opens the list of computers.
 Every screen shows the version at the bottom; **Check for updates** compares it

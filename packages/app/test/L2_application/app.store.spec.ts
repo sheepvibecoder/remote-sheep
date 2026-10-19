@@ -1215,6 +1215,74 @@ describe('Store', () => {
     store.setPalette('green');
     expect(store.state.palette).toBe('watermelon');
   });
+
+  it('starts on the theme the phone stored, under the old key', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('theme', 'dark');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    expect(store.state.theme).toBe('dark');
+    expect(store.state.dark).toBe(true);
+  });
+
+  it('saves a picked theme for the whole phone, so a new store starts on it', () => {
+    const profile = new MemoryStorage();
+    const phone = new MemoryStorage();
+    const store = new Store(profile, new FakePush(), Date.now, phone);
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setTheme('dark');
+    expect(changes).toEqual(['appearance']);
+    expect(phone.getItem('theme')).toBe('dark');
+    expect(profile.values.size).toBe(0);
+    expect(new Store(profile, new FakePush(), Date.now, phone).state.theme).toBe('dark');
+    store.setTheme('auto');
+    expect(phone.getItem('theme')).toBe('auto');
+    expect(new Store(profile, new FakePush(), Date.now, phone).state.theme).toBe('auto');
+  });
+
+  it('follows the device on Auto, and switches when the device does', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('theme', 'auto');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    const changes: Change[] = [];
+    store.subscribe((change) => changes.push(change));
+    store.setDeviceDark(true);
+    expect(store.state.dark).toBe(true);
+    store.setDeviceDark(false);
+    expect(store.state.dark).toBe(false);
+    expect(changes).toEqual(['appearance', 'appearance']);
+    // A picked Light or Dark ignores the device.
+    store.setTheme('light');
+    changes.length = 0;
+    store.setDeviceDark(true);
+    expect(store.state.dark).toBe(false);
+    expect(changes).toEqual([]);
+  });
+
+  it('toggles to the other of Light and Dark from what is on screen, Auto included', () => {
+    const phone = new MemoryStorage();
+    phone.setItem('theme', 'auto');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    store.setDeviceDark(true);
+    store.toggleTheme();
+    expect(store.state.theme).toBe('light');
+    expect(store.state.dark).toBe(false);
+    store.toggleTheme();
+    expect(store.state.theme).toBe('dark');
+    expect(phone.getItem('theme')).toBe('dark');
+  });
+
+  it('starts on Light when no theme or an unknown one is stored, and ignores an unknown pick', () => {
+    expect(new Store(new MemoryStorage(), new FakePush()).state.theme).toBe('light');
+    const phone = new MemoryStorage();
+    phone.setItem('theme', 'sepia');
+    const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+    expect(store.state.theme).toBe('light');
+    expect(store.state.dark).toBe(false);
+    store.setTheme('sepia');
+    expect(store.state.theme).toBe('light');
+    expect(phone.getItem('theme')).toBe('sepia');
+  });
 });
 
 describe('Store split view', () => {

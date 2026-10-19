@@ -4,7 +4,7 @@
 // in L2_application; this layer only touches the DOM, so a redesign replaces it
 // alone. The connection arrives from the composition root as a port.
 
-import { drawPalette, startPalette } from './appearance';
+import { drawPalette, drawTheme, startPalette, startTheme } from './appearance';
 import {
   createComponent,
   type ApplicationRef,
@@ -225,6 +225,7 @@ function onChange(change: Change): void {
       return;
     case 'appearance':
       drawPalette(state.palette);
+      drawTheme(state.theme, state.dark);
       drawSpeed(state.speechRate);
       return;
   }
@@ -1253,7 +1254,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
     dependencies.agent,
     Date.now(),
   );
-  // The accent and the reading speed belong to the phone, under the plain keys it always used.
+  // The accent, the reading speed and the theme belong to the phone, under the plain keys it always used.
   store = new Store(
     profilePreferences(localStorage, profile),
     dependencies.push,
@@ -1279,6 +1280,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   // which never arrives while the computer is unreachable.
   document.title = pageTitle(store.unreadTotal());
   startPalette(store);
+  startTheme(store);
   startSpeeds(store);
   drawStyles();
   drawQuick();

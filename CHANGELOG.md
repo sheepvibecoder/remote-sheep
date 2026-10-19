@@ -8,6 +8,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Added
 
+- **Auto** next to **Light** and **Dark** in the theme setting: the app follows the device's light
+  or dark mode and switches when it does. A phone that never picked stays on Light.
 - A **+ Claude** button on each space starts Claude Code there in one tap, without the **+**
   sheet; the kind picked in the sheet stays as it was.
 - **↑** and **↓** next to each quick reply in **Settings** move it one place up or down; the chips

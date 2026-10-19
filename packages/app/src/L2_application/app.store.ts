@@ -33,6 +33,7 @@ import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
 import { PALETTES, paletteId } from '../L1_domain/palette';
 import { speechRate } from '../L1_domain/speech-rate';
+import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
 import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
@@ -128,6 +129,10 @@ export interface AppState {
   palette: string;
   /** How fast replies are read aloud, kept for the whole phone. */
   speechRate: number;
+  /** The theme picked in Settings, kept for the whole phone. */
+  theme: ThemeChoice;
+  /** Whether the page is drawn dark: the picked theme, or the device's on Auto. */
+  dark: boolean;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -218,13 +223,16 @@ export class Store {
   private wide = false;
   /** What Ctrl+\ goes back to when it leaves Split. */
   private beforeSplit: Layout = 'chat';
+  /** Whether the device is set to dark; the view reports it, the light default until it does. */
+  private deviceDark = false;
 
   constructor(
     private readonly preferences: Preferences,
     private readonly push: PushSubscriptions,
     private readonly now: () => number = () => Date.now(),
     /**
-     * What belongs to the phone rather than to one computer (the accent, the reading speed):
+     * What belongs to the phone rather than to one computer (the accent, the reading speed,
+     * the theme):
      * kept under the plain keys every phone already has, so no choice is lost to the profiles.
      */
     private readonly phone: Preferences = preferences,
@@ -233,6 +241,7 @@ export class Store {
     this.unreadCounts = readMap(preferences, 'unread', isCount);
     this.changeTimes = readMap(preferences, 'changed', isCount);
     const styles = readStyles(preferences.getItem('replyStyles'));
+    const theme = themeChoice(phone.getItem(THEME_KEY));
     this.state = {
       link: 'closed',
       gate: null,
@@ -262,6 +271,8 @@ export class Store {
       quickList: readQuickReplies(preferences.getItem('quickList')),
       palette: paletteId(phone.getItem('palette')),
       speechRate: speechRate(phone.getItem('rate')),
+      theme,
+      dark: isDark(theme, false),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -730,6 +741,31 @@ export class Store {
   setSpeechRate(rate: number): void {
     this.state.speechRate = speechRate(String(rate));
     this.phone.setItem('rate', String(this.state.speechRate));
+    this.emit('appearance');
+  }
+
+  /** Picks a theme; one that is not on offer changes nothing. */
+  setTheme(id: string): void {
+    const theme = THEMES.find((candidate) => candidate.id === id);
+    if (!theme) return;
+    this.state.theme = theme.id;
+    this.phone.setItem(THEME_KEY, theme.id);
+    this.drawTheme();
+  }
+
+  /** Flips to the other of Light and Dark from what is on screen, leaving Auto. */
+  toggleTheme(): void {
+    this.setTheme(this.state.dark ? 'light' : 'dark');
+  }
+
+  /** What the device asks for (`prefers-color-scheme`), which Auto follows as it changes. */
+  setDeviceDark(dark: boolean): void {
+    this.deviceDark = dark;
+    if (isDark(this.state.theme, dark) !== this.state.dark) this.drawTheme();
+  }
+
+  private drawTheme(): void {
+    this.state.dark = isDark(this.state.theme, this.deviceDark);
     this.emit('appearance');
   }
 
