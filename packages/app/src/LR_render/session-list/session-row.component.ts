@@ -16,7 +16,12 @@ import { AvatarComponent } from './avatar.component';
       [class.unread]="row().unread > 0"
       (click)="open.emit(row().key)"
     >
-      <app-avatar [label]="row().avatar" [ring]="row().ring" [shell]="row().shell" />
+      <app-avatar
+        [label]="row().avatar"
+        [ring]="row().ring"
+        [shell]="row().shell"
+        [folder]="row().folder"
+      />
       <span class="who">
         <span class="l1">
           <span class="t">{{ row().title }}</span>

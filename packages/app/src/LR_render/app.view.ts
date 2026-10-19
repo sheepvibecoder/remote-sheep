@@ -14,7 +14,7 @@ import {
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
-import { initials, pageTitle } from '../L1_domain/home';
+import { pageTitle } from '../L1_domain/home';
 import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
@@ -387,8 +387,9 @@ function renderHeader(): void {
     title.textContent = '';
     sub.textContent = '';
   } else if (view === 'computers') {
-    title.textContent = 'Profiles ';
-    sub.textContent = state.profiles.length + ' paired';
+    // The page carries its own big title, like Settings.
+    title.textContent = '';
+    sub.textContent = '';
   } else {
     title.textContent = (current ? current.title : 'gone') + ' ';
     sub.textContent = badge ? badge.line : '';
@@ -440,18 +441,25 @@ sheet.addEventListener('click', (event) => {
 });
 
 // What the sheet starts: an agent of the pick, or a plain console.
-const KINDS: { kind: NewKind; label: string }[] = [
-  { kind: 'claude', label: 'Claude Code' },
-  { kind: 'codex', label: 'Codex' },
-  { kind: 'shell', label: 'Console' },
+const KINDS: { kind: NewKind; label: string; shows: string }[] = [
+  { kind: 'claude', label: 'Claude Code', shows: 'chat' },
+  { kind: 'codex', label: 'Codex', shows: 'terminal' },
+  { kind: 'shell', label: 'Console', shows: 'shell' },
 ];
-for (const { kind, label } of KINDS) {
+for (const { kind, label, shows } of KINDS) {
   const option = document.createElement('button');
   option.dataset['kind'] = kind;
   option.textContent = label;
+  const small = document.createElement('small');
+  small.textContent = shows;
+  option.append(small);
   option.addEventListener('click', () => store.setNewKind(kind));
   $('sheet-kinds').append(option);
 }
+
+// A fixed drawing, never built from data, so it is safe as markup.
+const FOLDER_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>';
 
 function renderSheet(): void {
   for (const option of $('sheet-kinds').children) {
@@ -470,16 +478,19 @@ function renderSheet(): void {
     line.className = 'sheet-line';
     const row = document.createElement('button');
     row.className = 'card';
-    const avatar = document.createElement('span');
-    avatar.className = 'av idle';
-    avatar.textContent = initials(space.label);
+    const folder = document.createElement('span');
+    folder.className = 'av sq';
+    folder.innerHTML = FOLDER_ICON;
     const who = document.createElement('span');
     who.className = 'who';
     const title = document.createElement('span');
     title.className = 't';
     title.textContent = space.label;
     who.append(title);
-    row.append(avatar, who);
+    const chevron = document.createElement('span');
+    chevron.className = 'chev';
+    chevron.textContent = '›';
+    row.append(folder, who, chevron);
     row.addEventListener('click', () => void startIn(space.id, space.label));
     line.append(row);
     sheetList.append(line);
@@ -630,20 +641,31 @@ function reachText(profile: Profile): string {
 
 function renderComputers(): void {
   computers.textContent = '';
-  if (canScan()) {
-    const scan = document.createElement('button');
-    scan.textContent = 'Scan a QR code to add a computer';
-    scan.addEventListener('click', () => void scanToPair());
-    computers.append(scan);
-  }
+  const heading = document.createElement('h1');
+  heading.className = 'h-title';
+  heading.textContent = 'Computers';
+  const card = document.createElement('div');
+  card.className = 'list';
+  computers.append(heading, card);
   for (const profile of state.profiles) {
     // The whole row switches, like picking a chat; the current one is marked.
-    const row = document.createElement('button');
-    row.className = 'profile' + (profile.active ? ' on' : '');
-    row.textContent = (profile.active ? '✓ ' : '') + profile.name + ' - ' + reachText(profile);
-    row.addEventListener('click', () => starter?.switchTo(profile.id));
-    const actions = document.createElement('p');
-    actions.className = 'actions';
+    const row = document.createElement('div');
+    row.className = 'item';
+    const pick = document.createElement('button');
+    pick.className = 'tx';
+    pick.textContent = profile.name;
+    const reach = document.createElement('small');
+    reach.textContent = reachText(profile);
+    pick.append(reach);
+    pick.addEventListener('click', () => starter?.switchTo(profile.id));
+    const actions = document.createElement('span');
+    actions.className = 'end';
+    if (profile.active) {
+      const mark = document.createElement('span');
+      mark.className = 'ok';
+      mark.textContent = '✓';
+      actions.append(mark);
+    }
     const rename = document.createElement('button');
     rename.textContent = 'Rename';
     rename.addEventListener('click', () => {
@@ -659,13 +681,24 @@ function renderComputers(): void {
       // Failures reach the page through the starter's error hook.
       void starter?.remove(profile.id);
     });
+    rename.className = 'link';
+    remove.className = 'link';
     actions.append(rename, remove);
-    computers.append(row, actions);
+    row.append(pick, actions);
+    card.append(row);
+  }
+  if (canScan()) {
+    const scan = document.createElement('button');
+    scan.className = 'item add';
+    scan.textContent = 'Add a computer';
+    scan.addEventListener('click', () => void scanToPair());
+    card.append(scan);
   }
   const hint = document.createElement('p');
+  hint.className = 'group-hint';
   hint.textContent =
     (canScan() ? '' : 'To add a computer, scan its QR code with the phone camera. ') +
-    'Profiles share this list only when the app is opened through the relay.';
+    'Computers share this list only when the app is opened through the relay.';
   computers.append(hint);
 }
 

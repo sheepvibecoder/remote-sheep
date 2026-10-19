@@ -34,19 +34,19 @@ function session(
 
 describe('initials', () => {
   it('takes the first letter of the first two words, upper-cased', () => {
-    expect(initials('odyssey-docker context')).toBe('OC');
-    expect(initials('Perfil desktop mockup')).toBe('PD');
+    expect(initials('globex-api context')).toBe('GC');
+    expect(initials('Pagos del checkout')).toBe('PD');
   });
 
   it('takes two letters from a single word and a placeholder from nothing', () => {
-    expect(initials('odyssey')).toBe('OD');
+    expect(initials('globex')).toBe('GL');
     expect(initials('  ')).toBe('?');
   });
 });
 
 describe('matches', () => {
   it('finds a text that contains the query, ignoring case and accents', () => {
-    expect(matches('Continuación del proyecto', 'continuacion')).toBe(true);
+    expect(matches('Revisión del carrito', 'revision')).toBe(true);
     expect(matches('remote-sheep', 'REMOTE')).toBe(true);
     expect(matches('remote-sheep', 'acme')).toBe(false);
   });
@@ -67,20 +67,30 @@ describe('groupSpaces', () => {
       ],
       [
         { id: 'w5', label: 'acme' },
-        { id: 'w8', label: 'OdysseyRepo' },
+        { id: 'w8', label: 'GlobexRepo' },
         { id: 'wF', label: 'remote-sheep' },
       ],
     );
     expect(spaces).toEqual([
-      { id: 'w5', label: 'acme', count: 1, status: 'done' },
-      { id: 'w8', label: 'OdysseyRepo', count: 0, status: 'idle' },
-      { id: 'wF', label: 'remote-sheep', count: 3, status: 'blocked' },
+      { id: 'w5', label: 'acme', count: 1, consoles: 0, status: 'done' },
+      { id: 'w8', label: 'GlobexRepo', count: 0, consoles: 0, status: 'idle' },
+      { id: 'wF', label: 'remote-sheep', count: 3, consoles: 0, status: 'blocked' },
+    ]);
+  });
+
+  it('counts the consoles of a workspace apart, and they never set its status', () => {
+    const shell: Session = { ...session('s', 'acme', 'blocked', 'w5'), kind: 'shell' };
+    expect(groupSpaces([session('a', 'acme', 'done', 'w5'), shell], [])).toEqual([
+      { id: 'w5', label: 'acme', count: 1, consoles: 1, status: 'done' },
+    ]);
+    expect(groupSpaces([shell], [{ id: 'w5', label: 'acme' }])).toEqual([
+      { id: 'w5', label: 'acme', count: 0, consoles: 1, status: 'idle' },
     ]);
   });
 
   it('names a workspace the list does not know yet after its first session', () => {
     expect(groupSpaces([session('a', 'remote-sheep', 'idle', 'wF')], [])).toEqual([
-      { id: 'wF', label: 'remote-sheep', count: 1, status: 'idle' },
+      { id: 'wF', label: 'remote-sheep', count: 1, consoles: 0, status: 'idle' },
     ]);
   });
 });
@@ -165,7 +175,7 @@ describe('sessionBadge', () => {
     });
     const shell: Session = { ...session('zsh', 'acme', 'unknown'), kind: 'shell' };
     expect(sessionBadge(shell)).toEqual({
-      avatar: '$',
+      avatar: '>_',
       ring: 'idle',
       shell: true,
       line: 'Console',
@@ -185,6 +195,7 @@ describe('sessionRow', () => {
       avatar: 'FL',
       ring: 'needs',
       shell: false,
+      folder: false,
       title: 'Fix login',
       time: '09:05',
       line: 'Needs your answer',
@@ -205,26 +216,34 @@ describe('sessionRow', () => {
 
   it('draws a console as a terminal that never asks, whatever its status', () => {
     const row = sessionRow({ ...session('pwsh', 'acme', 'blocked'), kind: 'shell' }, seen);
-    expect(row).toMatchObject({ avatar: '$', shell: true, line: 'Console', asks: false });
+    expect(row).toMatchObject({ avatar: '>_', shell: true, line: 'Console', asks: false });
   });
 });
 
 describe('spaceRow', () => {
   it('shows a workspace with its session count, its most urgent ring and no time', () => {
-    expect(spaceRow({ id: 'w5', label: 'acme', count: 1, status: 'working' })).toEqual({
-      key: 'w5',
-      avatar: 'AC',
-      ring: 'work',
-      shell: false,
-      title: 'acme',
-      time: '',
-      line: '1 session',
-      asks: false,
-      place: '',
-      agent: null,
-      unread: 0,
-    });
-    expect(spaceRow({ id: 'w6', label: 'b', count: 3, status: 'idle' }).line).toBe('3 sessions');
+    expect(spaceRow({ id: 'w5', label: 'acme', count: 1, consoles: 0, status: 'working' })).toEqual(
+      {
+        key: 'w5',
+        avatar: 'AC',
+        ring: 'work',
+        shell: false,
+        folder: true,
+        title: 'acme',
+        time: '',
+        line: '1 session',
+        asks: false,
+        place: '',
+        agent: null,
+        unread: 0,
+      },
+    );
+    const line = (count: number, consoles: number) =>
+      spaceRow({ id: 'w6', label: 'b', count, consoles, status: 'idle' }).line;
+    expect(line(3, 0)).toBe('3 sessions');
+    expect(line(2, 1)).toBe('2 sessions · 1 console');
+    expect(line(0, 2)).toBe('2 consoles');
+    expect(line(0, 0)).toBe('Nothing running');
   });
 });
 

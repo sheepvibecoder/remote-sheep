@@ -6,6 +6,14 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The remaining screens follow the mockup: a space is a folder that says what runs in it
+  (**2 sessions · 1 console**, or **Nothing running**), and its consoles no longer count as
+  sessions; a console's avatar is a **>\_** prompt; the **New session** sheet has a serif title,
+  what each kind shows (chat, terminal, shell) and folder rows; the computers screen is a card
+  with **Rename**, **Remove** and **Add a computer**.
+
 ## [0.8.0] — 2026-10-19
 
 ### Changed

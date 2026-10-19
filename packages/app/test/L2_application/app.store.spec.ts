@@ -461,7 +461,7 @@ describe('Store', () => {
       ready.store.receive({
         type: 'sessions',
         sessions: [
-          { ...session('p1'), title: 'odyssey', project: 'acme', space: 'w5' },
+          { ...session('p1'), title: 'globex', project: 'acme', space: 'w5' },
           { ...session('p2', 'blocked'), title: 'relay', project: 'remote-sheep', space: 'wF' },
           { ...session('p3'), title: 'docs', project: 'remote-sheep', space: 'wF' },
         ],
@@ -472,7 +472,7 @@ describe('Store', () => {
 
     const WORKSPACES = [
       { id: 'w5', label: 'acme' },
-      { id: 'w8', label: 'OdysseyRepo' },
+      { id: 'w8', label: 'GlobexRepo' },
       { id: 'wF', label: 'remote-sheep' },
     ];
 
@@ -493,10 +493,10 @@ describe('Store', () => {
       store.setHome('spaces');
       expect(store.listedSpaces().map((s) => [s.label, s.count])).toEqual([
         ['acme', 1],
-        ['OdysseyRepo', 0],
+        ['GlobexRepo', 0],
         ['remote-sheep', 2],
       ]);
-      store.setQuery('odyssey');
+      store.setQuery('globex');
       expect(store.listedSpaces().map((s) => s.id)).toEqual(['w8']);
     });
 

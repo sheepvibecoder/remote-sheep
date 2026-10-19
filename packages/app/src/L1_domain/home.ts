@@ -8,8 +8,10 @@ import { dateOf, dayOf, hourOf } from './clock';
 export interface Space {
   id: string;
   label: string;
+  /** Its coding agents; its consoles are counted apart. */
   count: number;
-  /** The status most worth a look among its sessions. */
+  consoles: number;
+  /** The status most worth a look among its coding agents. */
   status: AgentStatus;
 }
 
@@ -68,6 +70,8 @@ export interface ListRow {
   ring: Ring;
   /** A console, drawn as a terminal rather than as an agent. */
   shell: boolean;
+  /** A workspace, drawn as a folder rather than as a session. */
+  folder: boolean;
   title: string;
   /** The time of the last change seen, or empty. */
   time: string;
@@ -112,7 +116,8 @@ export function sessionBadge(session: Session): Badge {
   const shell = session.kind === 'shell';
   const ring = ringOf(session.status);
   return {
-    avatar: shell ? '$' : initials(session.title),
+    // A prompt, like the one the console shows.
+    avatar: shell ? '>_' : initials(session.title),
     ring,
     shell,
     line: shell ? 'Console' : STATUS_LINES[session.status],
@@ -127,6 +132,7 @@ export function sessionRow(session: Session, seen: Seen): ListRow {
     avatar: badge.avatar,
     ring: badge.ring,
     shell: badge.shell,
+    folder: false,
     title: session.title,
     time: rowTime(seen.changedAt, seen.now),
     line: badge.line,
@@ -143,14 +149,25 @@ export function spaceRow(space: Space): ListRow {
     avatar: initials(space.label),
     ring: ringOf(space.status),
     shell: false,
+    folder: true,
     title: space.label,
     time: '',
-    line: String(space.count) + (space.count === 1 ? ' session' : ' sessions'),
+    line: spaceLine(space),
     asks: false,
     place: '',
     agent: null,
     unread: 0,
   };
+}
+
+const counted = (n: number, one: string) => String(n) + ' ' + one + (n === 1 ? '' : 's');
+
+/** What runs in a workspace: its sessions, then its consoles, or that nothing does. */
+function spaceLine({ count, consoles }: Space): string {
+  const parts: string[] = [];
+  if (count > 0) parts.push(counted(count, 'session'));
+  if (consoles > 0) parts.push(counted(consoles, 'console'));
+  return parts.length ? parts.join(' · ') : 'Nothing running';
 }
 
 /** The letters on a row's avatar. */
@@ -184,17 +201,23 @@ export function groupSpaces(
 ): Space[] {
   const spaces = new Map<string, Space>();
   for (const { id, label } of workspaces) {
-    spaces.set(id, { id, label, count: 0, status: 'idle' });
+    spaces.set(id, { id, label, count: 0, consoles: 0, status: 'idle' });
   }
   for (const session of sessions) {
-    const space = spaces.get(session.space);
+    let space = spaces.get(session.space);
     if (!space) {
-      spaces.set(session.space, {
+      space = {
         id: session.space,
         label: session.project || session.space,
-        count: 1,
-        status: session.status,
-      });
+        count: 0,
+        consoles: 0,
+        status: 'idle',
+      };
+      spaces.set(session.space, space);
+    }
+    // A console has no status worth a look: Herdr cannot tell what a shell is doing.
+    if (session.kind === 'shell') {
+      space.consoles++;
       continue;
     }
     const first = space.count === 0;

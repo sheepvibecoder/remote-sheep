@@ -38,8 +38,8 @@ computer running Herdr, and the phone is paired.
 
 The app looks like a messaging app. The home screen lists the sessions as
 chats; the tabs at the bottom (**Sessions**, **Consoles** when there are any, and **Spaces**) switch between them and the Herdr
-workspaces, and the search box narrows either by name. Tapping a space shows
-only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
+workspaces, and the search box narrows either by name. Each space is a folder with what runs in
+it, such as **2 sessions · 1 console**, or **Nothing running**; tapping one shows only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
 workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it opens on its terminal. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. The **gear** at the top of the list opens **Settings**, grouped in cards: **Computers**
@@ -95,7 +95,7 @@ answer, wrapping around. The tab title shows how many sessions have something un
 A console is a Herdr pane running a plain shell, with no Claude Code in it. It runs any
 command on the computer, so you can turn consoles off in **Settings**, under **Consoles**; they start
 on, and the choice is kept on the computer in `settings.json`. When they are on, a **Consoles** tab next to **Sessions** lists them,
-each with a dark **$** avatar, so they never mix with the Claude Code chats; and **Console** in the **+** sheet starts one in the workspace you pick. A
+each with a dark **>\_** avatar, so they never mix with the Claude Code chats; and **Console** in the **+** sheet starts one in the workspace you pick. A
 console opens on its terminal: what you send runs as a command, followed by Enter, and the
 keys above the message box reach the shell.
 
