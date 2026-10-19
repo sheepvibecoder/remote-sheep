@@ -9,6 +9,7 @@ import {
   nextToAnswer,
   pageTitle,
   ringOf,
+  readsChat,
   rowTime,
   sessionBadge,
   sessionRow,
@@ -105,6 +106,15 @@ describe('ringOf', () => {
 
   it('rings a status Herdr cannot tell as idle, never as one that asks for a look', () => {
     expect(ringOf('unknown')).toBe('idle');
+  });
+});
+
+describe('readsChat', () => {
+  it('reads the chat of Claude Code only, and of a session Herdr names no agent for', () => {
+    expect(readsChat('claude')).toBe(true);
+    expect(readsChat(undefined)).toBe(true);
+    expect(readsChat('codex')).toBe(false);
+    expect(readsChat('aider')).toBe(false);
   });
 });
 

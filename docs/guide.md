@@ -40,7 +40,7 @@ The app looks like a messaging app. The home screen lists the sessions as
 chats; the tabs at the bottom (**Sessions**, **Consoles** when there are any, and **Spaces**) switch between them and the Herdr
 workspaces, and the search box narrows either by name. Each space is a folder with what runs in
 it, such as **2 sessions · 1 console**, or **Nothing running**; tapping one shows only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
-workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it opens on its terminal. A number on a session counts how many
+workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it always opens on its terminal, with a note that says so. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
 the chat clears it. The **gear** at the top of the list opens **Settings**, grouped in cards: **Computers**
 (the paired computers, a tap switches, and **Add a computer**), **Reply styles**, **Quick replies**,

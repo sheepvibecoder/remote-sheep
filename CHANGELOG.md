@@ -14,6 +14,12 @@ All notable changes to remote-sheep are recorded here. The format follows
   what each kind shows (chat, terminal, shell) and folder rows; the computers screen is a card
   with **Rename**, **Remove** and **Add a computer**.
 
+### Fixed
+
+- A Codex session opened from the list showed an empty chat with "no session index for pid 1": it
+  now opens on its terminal, like one started from the **+** sheet, with a note that its chat view
+  is not available yet and no chat/terminal switch.
+
 ## [0.8.0] — 2026-10-19
 
 ### Changed

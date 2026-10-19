@@ -42,6 +42,14 @@ export function agentLabel(agent: string | undefined): string | null {
 }
 
 /**
+ * Whether the phone can read an agent's chat: only Claude Code's transcript is read. A session
+ * Herdr names no agent for is taken as Claude Code, as before agents were named.
+ */
+export function readsChat(agent: string | undefined): boolean {
+  return agent === undefined || agent === 'claude';
+}
+
+/**
  * The order of the list: a session waiting for an answer first, like an unread chat, then
  * the latest change first. `changedAt` is when the phone saw the status change, null when it
  * has seen none; ties keep the order Herdr gave, so rows do not jump between polls.

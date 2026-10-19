@@ -1846,3 +1846,16 @@ header .sub.needs {
   font-size: 20px;
   padding-right: 6px;
 }
+
+/* ---- an agent whose chat cannot be read yet: a note above its terminal ---- */
+#term[data-note]::before {
+  content: attr(data-note);
+  display: block;
+  margin: 2px 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--term-key);
+  color: var(--term-muted);
+  font: 13px/1.45 var(--sans);
+  white-space: normal;
+}

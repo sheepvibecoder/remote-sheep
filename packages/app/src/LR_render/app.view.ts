@@ -14,7 +14,7 @@ import {
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
-import { pageTitle } from '../L1_domain/home';
+import { agentLabel, pageTitle } from '../L1_domain/home';
 import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
@@ -252,8 +252,18 @@ function applyView(): void {
   if (view === 'chat') renderStyles();
   // The Default badge follows the style a chat picked, so the list is redrawn on the way in.
   if (view === 'settings') renderStyleSettings();
-  // A shell has no chat to switch back to.
-  $('toggle-term').classList.toggle('hidden', view !== 'chat' || store.isShell());
+  // A shell, or an agent whose chat cannot be read, has no chat to switch back to.
+  $('toggle-term').classList.toggle('hidden', view !== 'chat' || !store.hasChat());
+  // The note rides on the terminal itself, whose rows are redrawn from the pane text.
+  const agentName = agentLabel(store.currentSession()?.agent) ?? 'this agent';
+  if (store.chatUnavailable()) {
+    term.dataset['note'] =
+      'Chat view isn’t available for ' +
+      agentName +
+      ' yet. You see its terminal; what you type or dictate goes straight to it.';
+  } else {
+    delete term.dataset['note'];
+  }
   $('to-chat').classList.toggle('on', !showTerm);
   $('to-term').classList.toggle('on', showTerm);
   // With the terminal up the whole screen goes dark and the box types into the pane.

@@ -17,6 +17,7 @@ import {
   groupSpaces,
   matches,
   nextToAnswer,
+  readsChat,
   sessionBadge,
   sessionRow,
   spaceRow,
@@ -245,8 +246,9 @@ export class Store {
         state.sessions = message.sessions;
         this.countSettled(message.sessions);
         this.emit('sessions');
-        // A shell reopened before the first list was opened as a chat; it has only a terminal.
-        if (state.view === 'chat' && !state.showTerm && this.isShell()) {
+        // A session reopened before the first list was opened as a chat; it may have only a
+        // terminal.
+        if (state.view === 'chat' && !state.showTerm && this.currentSession() && !this.hasChat()) {
           state.showTerm = true;
           this.emit('view');
         }
@@ -303,8 +305,8 @@ export class Store {
     state.target = target;
     this.preferences.setItem('target', target);
     state.view = 'chat';
-    // A shell has no transcript, so its terminal is all there is to show.
-    if (this.isShell()) state.showTerm = true;
+    // A shell, or an agent whose transcript cannot be read, has only its terminal to show.
+    if (this.currentSession() && !this.hasChat()) state.showTerm = true;
     this.clearThread();
     this.emit('view');
   }
@@ -384,8 +386,8 @@ export class Store {
       const { target } = await agent.request(request);
       this.state.homeError = null;
       this.openChat(target);
-      // Not listed yet, so openChat could not tell it is a shell.
-      if (shell && !this.state.showTerm) this.toggleTerminal();
+      // Not listed yet, so openChat could not tell it has no chat to read.
+      if ((shell || !readsChat(kind)) && !this.state.showTerm) this.toggleTerminal();
     } catch (error) {
       this.state.homeError = describe(error);
       this.emit('home');
@@ -516,7 +518,8 @@ export class Store {
   }
 
   toggleTerminal(): void {
-    if (this.state.showTerm && this.isShell()) return;
+    // Unlisted yet, the session may still turn out to have a chat, so the way back stays open.
+    if (this.state.showTerm && this.currentSession() && !this.hasChat()) return;
     this.state.showTerm = !this.state.showTerm;
     this.state.terminal = '';
     this.emit('view');
@@ -630,6 +633,18 @@ export class Store {
 
   currentSession(): Session | undefined {
     return this.state.sessions.find((s) => s.target === this.state.target);
+  }
+
+  /** Whether the open session has a chat to show: a coding agent whose transcript is read. */
+  hasChat(): boolean {
+    const current = this.currentSession();
+    return current?.kind === 'agent' && readsChat(current.agent);
+  }
+
+  /** An agent whose chat cannot be read yet: its terminal is shown, and the page says why. */
+  chatUnavailable(): boolean {
+    const current = this.currentSession();
+    return this.state.view === 'chat' && current?.kind === 'agent' && !this.hasChat();
   }
 
   /** Whether the open session is a plain shell rather than a coding agent. */

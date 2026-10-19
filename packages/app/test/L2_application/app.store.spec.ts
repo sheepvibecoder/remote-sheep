@@ -138,6 +138,55 @@ describe('Store', () => {
     expect(store.state.showTerm).toBe(false);
   });
 
+  it('opens Codex on its terminal, since its chat cannot be read yet, and says so', () => {
+    const { store } = setup();
+    const codex: Session = { ...session('c1', 'working'), agent: 'codex' };
+    const shell: Session = { ...session('w1:s1'), kind: 'shell', status: 'unknown' };
+    store.receive({ type: 'sessions', sessions: [session('p1'), codex, shell] });
+    store.openChat('c1');
+    expect(store.state.showTerm).toBe(true);
+    expect(store.hasChat()).toBe(false);
+    expect(store.chatUnavailable()).toBe(true);
+    expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'c1', terminal: true });
+    store.toggleTerminal();
+    expect(store.state.showTerm).toBe(true);
+    store.back();
+    store.openChat('p1');
+    expect(store.state.showTerm).toBe(false);
+    expect(store.hasChat()).toBe(true);
+    expect(store.chatUnavailable()).toBe(false);
+    // Claude Code named as such by Herdr has its chat too.
+    store.receive({
+      type: 'sessions',
+      sessions: [{ ...session('p1'), agent: 'claude' }, codex, shell],
+    });
+    expect(store.state.showTerm).toBe(false);
+    expect(store.hasChat()).toBe(true);
+    expect(store.chatUnavailable()).toBe(false);
+    // A console is a terminal by nature: nothing is missing, so there is nothing to say.
+    store.back();
+    store.openChat('w1:s1');
+    expect(store.hasChat()).toBe(false);
+    expect(store.chatUnavailable()).toBe(false);
+  });
+
+  it('lets the terminal of a session not listed yet be turned off again', () => {
+    const { store } = setup();
+    store.openChat('p9');
+    store.toggleTerminal();
+    expect(store.state.showTerm).toBe(true);
+    store.toggleTerminal();
+    expect(store.state.showTerm).toBe(false);
+  });
+
+  it('turns Codex reopened before the first list to its terminal once the list arrives', () => {
+    const { store } = setup();
+    store.openChat('c1');
+    expect(store.state.showTerm).toBe(false);
+    store.receive({ type: 'sessions', sessions: [{ ...session('c1'), agent: 'codex' }] });
+    expect(store.state.showTerm).toBe(true);
+  });
+
   it('turns a shell reopened before the first list to its terminal once the list arrives', () => {
     const { store } = setup();
     store.openChat('w1:s1');
@@ -524,6 +573,7 @@ describe('Store', () => {
       ]);
       expect(store.state.view).toBe('chat');
       expect(store.state.target).toBe('w8:p9');
+      expect(store.state.showTerm).toBe(false);
       expect(store.state.homeError).toBeNull();
     });
 
@@ -570,7 +620,8 @@ describe('Store', () => {
       expect(agent.asked).toEqual([
         { kind: 'new-session', space: 'w8', shell: false, agent: 'codex' },
       ]);
-      expect(store.state.showTerm).toBe(false);
+      // Not listed yet, but Codex has no chat to read: it opens on its terminal.
+      expect(store.state.showTerm).toBe(true);
     });
 
     it('reads and switches whether consoles are allowed, keeping the answer of the agent', async () => {
