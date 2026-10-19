@@ -26,6 +26,9 @@ All notable changes to remote-sheep are recorded here. The format follows
   is not available yet and no chat/terminal switch.
 - Text typed in one chat stayed in the box after switching to another (Alt+↓ or a click on the
   list), and Enter sent it there. Each chat now keeps its own unsent text.
+- A terminal ending in a plain numbered list ("1. Instalar dependencias / 2. Correr los tests")
+  offered answer buttons although nobody asked anything, and a tap typed "1": the answers now show
+  only while the session waits for an answer.
 
 ## [0.8.0] — 2026-10-19
 

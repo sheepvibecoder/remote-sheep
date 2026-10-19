@@ -302,6 +302,23 @@ describe('Store', () => {
     expect(store.paneChoices()).toEqual([]);
   });
 
+  it('offers no answers for a numbered list in the terminal of a session that is not waiting', () => {
+    const { store } = setup();
+    const list = {
+      type: 'terminal',
+      target: 'p1',
+      output: 'Next steps:\n1. Instalar dependencias\n2. Correr los tests\n',
+    } as const;
+    for (const status of ['working', 'idle', 'done'] as const) {
+      store.receive({ type: 'sessions', sessions: [session('p1', status)] });
+      store.openChat('p1');
+      if (!store.state.showTerm) store.toggleTerminal();
+      store.receive(list);
+      expect(store.paneChoices()).toEqual([]);
+      store.back();
+    }
+  });
+
   it('opens the settings screen from any view and leaves it for the list', () => {
     const { store } = setup();
     store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });

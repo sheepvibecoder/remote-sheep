@@ -683,10 +683,15 @@ export class Store {
     return this.state.showTerm || this.currentSession()?.status === 'blocked';
   }
 
-  /** The numbered answers the open terminal is asking for, to offer as buttons. */
+  /**
+   * The numbered answers the open terminal is asking for, to offer as buttons. Only while the
+   * session waits for an answer: a plain numbered list in a console or an output is no question,
+   * and a tap on it would type a stray digit into the pane.
+   */
   paneChoices(): PaneChoice[] {
     const { view, showTerm, terminal } = this.state;
-    return view === 'chat' && showTerm ? paneChoices(terminal) : [];
+    const asks = this.currentSession()?.status === 'blocked';
+    return view === 'chat' && showTerm && asks ? paneChoices(terminal) : [];
   }
 
   /** The top of an open chat: its session's badge, kept quiet while the link is down. */
