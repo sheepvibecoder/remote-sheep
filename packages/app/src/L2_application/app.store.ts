@@ -633,11 +633,14 @@ export class Store {
   /**
    * A locked or backgrounded page keeps its socket, so the agent would still count
    * its chat as open on screen and hold back the notification (S2). Hidden means
-   * watching nothing; the view re-sends the watch on the 'view' change.
+   * watching nothing; the view re-sends the watch on the 'view' change. What the open
+   * chat settled while hidden is on screen again once the page shows, so it is read.
    */
   setVisible(visible: boolean): void {
     if (this.visible === visible) return;
     this.visible = visible;
+    const { view, target } = this.state;
+    if (visible && view === 'chat' && this.unreadCounts.delete(target)) this.saveCounts();
     this.emit('view');
   }
 

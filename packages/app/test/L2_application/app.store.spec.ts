@@ -471,6 +471,37 @@ describe('Store', () => {
       expect(store.unread('p1')).toBe(1);
     });
 
+    it('counts the open chat as read when the hidden page shows it again', () => {
+      const { store, storage, changes } = setup();
+      store.openChat('p1');
+      store.receive({
+        type: 'sessions',
+        sessions: [session('p1', 'working'), session('p2', 'working')],
+      });
+      store.setVisible(false);
+      store.receive({ type: 'sessions', sessions: [session('p1', 'done'), session('p2', 'done')] });
+      expect(store.unread('p1')).toBe(1);
+      changes.length = 0;
+      store.setVisible(true);
+      expect(store.unread('p1')).toBe(0);
+      expect(store.unread('p2')).toBe(1);
+      expect(changes).toContain('view');
+      const reopened = new Store(storage, new FakePush());
+      expect(reopened.unread('p1')).toBe(0);
+      expect(reopened.unread('p2')).toBe(1);
+    });
+
+    it('clears nothing when the hidden page shows the list again', () => {
+      const { store } = setup();
+      store.openChat('p1');
+      store.back();
+      store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });
+      store.setVisible(false);
+      store.receive({ type: 'sessions', sessions: [session('p1', 'done')] });
+      store.setVisible(true);
+      expect(store.unread('p1')).toBe(1);
+    });
+
     it('remembers statuses and counts across visits, so a reopened app sees what settled', () => {
       const first = setup();
       first.store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });

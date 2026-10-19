@@ -21,6 +21,9 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ### Fixed
 
+- A chat that finished while the page was hidden (another tab, screen off) kept its unread count
+  in the tab title and its row after you came back to it: the open chat now counts as read when
+  the page shows again.
 - A Codex session opened from the list showed an empty chat with "no session index for pid 1": it
   now opens on its terminal, like one started from the **+** sheet, with a note that its chat view
   is not available yet and no chat/terminal switch.
