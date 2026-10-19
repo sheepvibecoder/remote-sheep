@@ -10,6 +10,7 @@ import {
   pageTitle,
   ringOf,
   rowTime,
+  sessionBadge,
   sessionRow,
   spaceRow,
 } from '../../src/L1_domain/home';
@@ -150,6 +151,26 @@ describe('rowTime', () => {
 
   it('shows nothing when no change was seen', () => {
     expect(rowTime(null, now)).toBe('');
+  });
+});
+
+describe('sessionBadge', () => {
+  it('gives a chat header the avatar, ring and line its row shows', () => {
+    expect(sessionBadge(session('Fix login', 'acme', 'blocked'))).toEqual({
+      avatar: 'FL',
+      ring: 'needs',
+      shell: false,
+      line: 'Needs your answer',
+      asks: true,
+    });
+    const shell: Session = { ...session('zsh', 'acme', 'unknown'), kind: 'shell' };
+    expect(sessionBadge(shell)).toEqual({
+      avatar: '$',
+      ring: 'idle',
+      shell: true,
+      line: 'Console',
+      asks: false,
+    });
   });
 });
 

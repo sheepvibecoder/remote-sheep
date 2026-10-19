@@ -17,8 +17,10 @@ import {
   groupSpaces,
   matches,
   nextToAnswer,
+  sessionBadge,
   sessionRow,
   spaceRow,
+  type Badge,
   type ListRow,
   type Space,
 } from '../L1_domain/home';
@@ -648,6 +650,15 @@ export class Store {
   paneChoices(): PaneChoice[] {
     const { view, showTerm, terminal } = this.state;
     return view === 'chat' && showTerm ? paneChoices(terminal) : [];
+  }
+
+  /** The top of an open chat: its session's badge, kept quiet while the link is down. */
+  headerBadge(): Badge | null {
+    const current = this.state.view === 'chat' ? this.currentSession() : null;
+    if (!current) return null;
+    const badge = sessionBadge(current);
+    // Nobody knows the status with the link down, so the ring must not call for attention.
+    return this.state.link === 'open' ? badge : { ...badge, ring: 'idle', asks: false };
   }
 
   /** With the raw terminal up, the box types into the pane: keystrokes, not a chat order. */

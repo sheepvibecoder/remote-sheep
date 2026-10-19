@@ -1,6 +1,6 @@
 // Light markdown, built as nodes so nothing is ever injected as html.
 
-import { splitCode } from '../L1_domain/code-fence';
+import { languageName, splitCode } from '../L1_domain/code-fence';
 import { say } from './dom';
 
 const BT = String.fromCharCode(96);
@@ -39,7 +39,7 @@ function codeBlock(language: string, code: string): HTMLElement {
   block.className = 'code';
   const header = document.createElement('header');
   const name = document.createElement('span');
-  name.textContent = language || 'code';
+  name.textContent = languageName(language);
   const copy = document.createElement('button');
   copy.textContent = 'Copy';
   copy.addEventListener('click', (event) => {

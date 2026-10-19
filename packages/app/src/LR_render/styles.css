@@ -86,10 +86,6 @@ button.icon.on {
   color: var(--accent);
   background: transparent;
 }
-#toggle-term {
-  font-family: var(--mono);
-  font-weight: 700;
-}
 #menu {
   position: absolute;
   top: 100%;
@@ -508,6 +504,7 @@ app-session-row {
 }
 .bubble.user {
   align-self: flex-end;
+  max-width: 82%;
   background: var(--sunk);
   color: var(--text);
   border-radius: 18px;
@@ -736,6 +733,11 @@ button.round {
   gap: 6px;
   margin-bottom: 6px;
   overflow-x: auto;
+  /* The chips scroll sideways with a swipe; a scrollbar under them only adds a line. */
+  scrollbar-width: none;
+}
+.quick::-webkit-scrollbar {
+  display: none;
 }
 .quick button {
   flex: none;
@@ -1380,5 +1382,92 @@ body.pane .keygroup button:active {
   body.pane #version {
     background: var(--term-bg);
     color: var(--term-faint);
+  }
+}
+
+/* ---- chat header: the session's avatar and status line, and the chat/terminal switch ---- */
+header .av {
+  --s: 34px;
+  margin: 0 4px;
+  font-size: 12px;
+}
+header .av::before,
+header .av::after {
+  inset: -3.5px;
+}
+header .name.chat {
+  font-size: 15px;
+  font-weight: 600;
+}
+header .name.chat .sub {
+  display: block;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+header .sub.needs {
+  color: var(--needs);
+}
+.switch {
+  flex: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--sunk);
+}
+.switch.hidden {
+  display: none;
+}
+.switch button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+}
+.switch button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.switch svg {
+  width: 17px;
+  height: 17px;
+}
+@media (max-width: 899px) {
+  body.pane .switch {
+    background: var(--term-key);
+  }
+  body.pane .switch button {
+    color: var(--term-muted);
+  }
+  body.pane .switch button.on {
+    background: var(--term-key-on);
+    color: var(--term);
+  }
+}
+/* The phone shows icons only; a wide window has room to name both sides, as web.html does. */
+.switch span {
+  display: none;
+}
+@media (min-width: 900px) {
+  .switch button {
+    display: flex;
+    gap: 6px;
+    width: auto;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .switch span {
+    display: inline;
+  }
+  /* A long line is hard to read: the chat and its box keep to a column in the middle. */
+  #chat,
+  body:not(.pane) footer {
+    padding-inline: max(16px, calc((100% - 760px) / 2));
   }
 }

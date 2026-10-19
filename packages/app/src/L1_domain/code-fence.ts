@@ -36,3 +36,21 @@ export function splitCode(raw: string): Piece[] {
   flushProse();
   return pieces;
 }
+
+// Fences name languages by their file extension; the block's label spells the common ones out.
+const LANGUAGES: Readonly<Record<string, string>> = {
+  ts: 'typescript',
+  js: 'javascript',
+  py: 'python',
+  sh: 'shell',
+  bash: 'shell',
+  rb: 'ruby',
+  md: 'markdown',
+  yml: 'yaml',
+};
+
+/** The label of a code block: its language, spelled out, or plain code when the fence names none. */
+export function languageName(tag: string): string {
+  const name = tag.toLowerCase();
+  return LANGUAGES[name] ?? (name || 'code');
+}

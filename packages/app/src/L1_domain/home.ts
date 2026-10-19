@@ -97,19 +97,40 @@ export interface Seen {
   now: number;
 }
 
-export function sessionRow(session: Session, seen: Seen): ListRow {
+/** How a session looks wherever it is named: in its row and at the top of its chat. */
+export interface Badge {
+  avatar: string;
+  ring: Ring;
+  shell: boolean;
+  line: string;
+  /** The line asks the person for an answer, so it stands out. */
+  asks: boolean;
+}
+
+export function sessionBadge(session: Session): Badge {
   // A console has no agent to answer through: its prompts are typed in its terminal.
   const shell = session.kind === 'shell';
   const ring = ringOf(session.status);
   return {
-    key: session.target,
     avatar: shell ? '$' : initials(session.title),
     ring,
     shell,
-    title: session.title,
-    time: rowTime(seen.changedAt, seen.now),
     line: shell ? 'Console' : STATUS_LINES[session.status],
     asks: !shell && ring === 'needs',
+  };
+}
+
+export function sessionRow(session: Session, seen: Seen): ListRow {
+  const badge = sessionBadge(session);
+  return {
+    key: session.target,
+    avatar: badge.avatar,
+    ring: badge.ring,
+    shell: badge.shell,
+    title: session.title,
+    time: rowTime(seen.changedAt, seen.now),
+    line: badge.line,
+    asks: badge.asks,
     place: session.project,
     agent: agentLabel(session.agent),
     unread: seen.unread,

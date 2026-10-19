@@ -178,6 +178,18 @@ describe('Store', () => {
     expect(store.typesIntoPane()).toBe(false);
   });
 
+  it('tops an open chat with its badge, quiet while the link is down', () => {
+    const { store } = setup();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });
+    expect(store.headerBadge()).toBeNull();
+    store.openChat('p1');
+    store.setLink('open');
+    expect(store.headerBadge()).toMatchObject({ avatar: 'P1', ring: 'needs', asks: true });
+    // Nobody knows the status with the link down, so the ring must not call for attention.
+    store.setLink('closed');
+    expect(store.headerBadge()).toMatchObject({ ring: 'idle', asks: false });
+  });
+
   it('offers the answer keys only while the open session waits for one or the terminal is up', () => {
     const { store } = setup();
     store.receive({ type: 'sessions', sessions: [session('p1', 'working')] });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { splitCode } from '../../src/L1_domain/code-fence';
+import { languageName, splitCode } from '../../src/L1_domain/code-fence';
 
 const FENCE = '```';
 
@@ -35,5 +35,17 @@ describe('splitCode', () => {
     expect(splitCode(FENCE + '\nnpm test')).toEqual([
       { kind: 'code', language: '', code: 'npm test' },
     ]);
+  });
+});
+
+describe('languageName', () => {
+  it('names a code block by its language, spelled out, and plain code when the fence names none', () => {
+    expect(languageName('ts')).toBe('typescript');
+    expect(languageName('TSX')).toBe('tsx');
+    expect(languageName('js')).toBe('javascript');
+    expect(languageName('py')).toBe('python');
+    expect(languageName('sh')).toBe('shell');
+    expect(languageName('rust')).toBe('rust');
+    expect(languageName('')).toBe('code');
   });
 });

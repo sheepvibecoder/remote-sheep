@@ -86,6 +86,7 @@ const gateProfiles = $('gate-profiles');
 const gateScan = $('gate-scan');
 const toast = $('toast');
 const dot = $('dot');
+const headAv = $('head-av');
 // An <svg>, which `$` would refuse as not an HTMLElement.
 const brand = must(document.querySelector<SVGSVGElement>('svg#brand'), 'svg#brand');
 const nameEl = $('name');
@@ -246,10 +247,10 @@ function applyView(): void {
   back.classList.toggle('hidden', view === 'list' || (wide && view === 'chat'));
   $('chat-menu').classList.toggle('hidden', view !== 'chat');
   if (view === 'chat') renderStyles();
-  const termButton = $('toggle-term');
   // A shell has no chat to switch back to.
-  termButton.classList.toggle('hidden', view !== 'chat' || store.isShell());
-  termButton.classList.toggle('on', showTerm);
+  $('toggle-term').classList.toggle('hidden', view !== 'chat' || store.isShell());
+  $('to-chat').classList.toggle('on', !showTerm);
+  $('to-term').classList.toggle('on', showTerm);
   // With the terminal up the whole screen goes dark and the box types into the pane.
   const pane = store.typesIntoPane();
   document.body.classList.toggle('pane', pane);
@@ -331,11 +332,18 @@ function openChat(next: string): void {
 
 back.addEventListener('click', () => store.back());
 
-$('toggle-term').addEventListener('click', () => {
+// Each side of the switch only acts when it is not the one already showing.
+$('to-chat').addEventListener('click', () => {
+  if (state.showTerm) switchView();
+});
+$('to-term').addEventListener('click', () => {
+  if (!state.showTerm) switchView();
+});
+function switchView(): void {
   term.textContent = '';
   store.toggleTerminal();
   say(state.showTerm ? 'raw terminal' : 'chat');
-});
+}
 
 // Every view shows the version at the bottom, so a stale page is told apart at a glance.
 $('version').textContent = 'RemoteSheep v' + __VERSION__;
@@ -345,10 +353,20 @@ function renderHeader(): void {
   const current = store.currentSession();
   const status = view === 'chat' ? current?.status || '' : '';
   dot.className = 'dot ' + (state.link === 'open' ? status : 'unknown');
+  // A chat wears its session's avatar, ring and status line, the same as its row.
+  const badge = store.headerBadge();
+  headAv.classList.toggle('hidden', !badge);
+  dot.classList.toggle('hidden', view === 'list' || badge !== null);
+  nameEl.classList.toggle('chat', badge !== null);
+  sub.classList.toggle('needs', badge?.asks === true);
+  if (badge) {
+    headAv.textContent = badge.avatar;
+    headAv.className = 'av ' + badge.ring;
+    headAv.classList.toggle('sh', badge.shell);
+  }
   const title = must(nameEl.firstChild, '#name title');
   // The list is the home: it carries the app's name, and says which computer it shows below.
   brand.classList.toggle('hidden', view !== 'list');
-  dot.classList.toggle('hidden', view === 'list');
   nameEl.classList.toggle('home', view === 'list');
   sub.classList.toggle('host', view === 'list');
   if (view === 'list') {
@@ -366,7 +384,7 @@ function renderHeader(): void {
     sub.textContent = state.profiles.length + ' paired';
   } else {
     title.textContent = (current ? current.title : 'gone') + ' ';
-    sub.textContent = current ? (current.kind === 'shell' ? 'console' : status) : '';
+    sub.textContent = badge ? badge.line : '';
     // A chat says which computer it runs on, so two profiles never look alike.
     const profile = store.activeProfileName();
     if (profile) sub.textContent += (sub.textContent ? '  ·  ' : '') + profile;

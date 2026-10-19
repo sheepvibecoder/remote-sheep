@@ -50,7 +50,8 @@ Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 
 In a chat, type or dictate with the microphone, attach a photo from the gallery with the clip or take one with the camera,
-and open the raw terminal with **$**. While a session waits for an answer, or
+and switch to the raw terminal with the chat/terminal switch at the top. The top of a chat shows the
+session's avatar with its status ring and a line such as **Needs your answer**. While a session waits for an answer, or
 the terminal is open, **esc**, **tab**, **↑**, **↓** and **⏎** appear above the message box, with
 **Stop** (Ctrl+C) apart from them: they answer Claude Code's menus. When the terminal shows a
 numbered question ("1. Yes 2. No"), each answer is a button of its own above the keys.
