@@ -6,6 +6,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-19
+
 ### Added
 
 - **Auto** next to **Light** and **Dark** in the theme setting: the app follows the device's light

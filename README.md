@@ -9,7 +9,7 @@
 <p align="center">Chat with the Claude Code sessions running in <a href="https://herdr.dev">Herdr</a> — by text, voice or photo.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.8.0-7c3aed?style=flat-square" alt="version 0.8.0">
+  <img src="https://img.shields.io/badge/version-0.9.0-7c3aed?style=flat-square" alt="version 0.9.0">
   <img src="https://img.shields.io/badge/TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Cloudflare-f38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare">
   <img src="https://img.shields.io/badge/E2E-encrypted-10b981?style=flat-square" alt="end-to-end encrypted">
