@@ -2,7 +2,7 @@
 // line of what the session is doing, and the folder with the agent that runs there.
 
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import type { ListRow } from '../../L1_domain/home';
+import type { SessionListRow } from '../../L2_application/app.store';
 import { AvatarComponent } from './avatar.component';
 
 @Component({
@@ -40,6 +40,9 @@ import { AvatarComponent } from './avatar.component';
           @if (row().agent; as agent) {
             · <span class="agent-tag" [attr.data-agent]="agent"><i></i>{{ agent }}</span>
           }
+          @if (row().context; as context) {
+            · <span class="ctx-tag">{{ context }}</span>
+          }
         </span>
       </span>
     </button>
@@ -50,7 +53,7 @@ import { AvatarComponent } from './avatar.component';
   `,
 })
 export class SessionRowComponent {
-  readonly row = input.required<ListRow>();
+  readonly row = input.required<SessionListRow>();
   /** Open beside the list, on a wide window. */
   readonly selected = input(false);
   readonly open = output<string>();

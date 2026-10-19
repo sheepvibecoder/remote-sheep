@@ -6,6 +6,15 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Context %** of a Claude Code session: next to the model in the message box (`Opus 5.5 · 12%`,
+  amber from 70 %, red from 90 %), as a tag on the list row once a session is filling up, and in
+  the chat menu as "124k of 200k tokens" with a bar. **Settings** picks the window: **Auto**,
+  **200k** or **1M**; Auto counts 1M for Opus 5.5 and Sonnet 5.5, as Claude Code does, and 200k
+  for the rest, moving to 1M on its own once a session holds more. It needs the
+  agent from this version; an older agent sends no tokens and nothing is shown.
+
 ### Changed
 
 - With a keyboard and mouse, **Enter** sends the message and **Shift+Enter** starts a new line, as

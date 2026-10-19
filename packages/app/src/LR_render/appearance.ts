@@ -1,6 +1,7 @@
-// Theme, accent, text size and typeface, remembered per phone. The store decides and saves them;
+// Theme, accent, text size, typeface and context window size, remembered per phone. The store decides and saves them;
 // this file only paints them and builds their controls.
 
+import { CONTEXT_WINDOWS, type ContextWindowChoice } from '../L1_domain/context-window';
 import { DEFAULT_PALETTE, PALETTES } from '../L1_domain/palette';
 import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
 import type { Store } from '../L2_application/app.store';
@@ -11,7 +12,7 @@ import {
   typefaceChoice,
   type TypefaceChoice,
 } from '../L1_domain/typeface';
-import { $ } from './dom';
+import { $, must } from './dom';
 
 const deviceDark = matchMedia('(prefers-color-scheme: dark)');
 
@@ -127,4 +128,38 @@ export function startPalette(store: Store): void {
     $('swatches').append(swatch);
   }
   drawPalette(store.state.palette);
+}
+
+/** Marks the picked context window size. */
+export function drawContextWindow(choice: ContextWindowChoice): void {
+  for (const option of $('context-windows').children) {
+    option.classList.toggle('on', (option as HTMLElement).dataset['window'] === choice);
+  }
+}
+
+/**
+ * Builds the context window row under the typeface one, each option handing its pick to the
+ * store. The page markup has no slot for it, so it is made here.
+ */
+export function startContextWindow(store: Store): void {
+  const row = document.createElement('div');
+  row.className = 'item';
+  const name = document.createElement('span');
+  name.className = 'tx';
+  name.textContent = 'Context window';
+  const options = document.createElement('div');
+  options.className = 'seg';
+  options.id = 'context-windows';
+  for (const choice of CONTEXT_WINDOWS) {
+    const option = document.createElement('button');
+    option.dataset['window'] = choice.id;
+    option.textContent = choice.label;
+    option.addEventListener('click', () => {
+      store.setContextWindow(choice.id);
+    });
+    options.append(option);
+  }
+  row.append(name, options);
+  must($('typefaces').closest('.item'), 'the typeface row').after(row);
+  drawContextWindow(store.state.contextWindow);
 }

@@ -4,6 +4,7 @@ import type {
   LinkedDevice,
   PushSubscription,
   Request,
+  ServerMessage,
   Session,
 } from '@remote-sheep/protocol';
 import type { PushSubscriptions, PushSupport } from '../../src/L1_domain/ports/push-subscriptions';
@@ -941,6 +942,102 @@ describe('Store', () => {
     store.back();
     store.openChat('p2');
     expect(store.state.model).toBeNull();
+  });
+
+  describe('context window', () => {
+    const chat = (target: string, usedTokens?: number): ServerMessage => ({
+      type: 'chat',
+      target,
+      messages: [],
+      note: null,
+      model: 'claude-haiku-4-5',
+      ...(usedTokens === undefined ? {} : { usedTokens }),
+    });
+
+    it('shows how full the open chat is, from the tokens its latest frame names', () => {
+      const { store } = setup();
+      store.openChat('p1');
+      expect(store.contextFill()).toBeNull();
+      store.receive(chat('p1', 24_000));
+      expect(store.contextFill()).toMatchObject({ percent: 12, level: 'ok' });
+    });
+
+    it('keeps the tokens per session, so another chat starts with its own', () => {
+      const { store } = setup();
+      store.openChat('p1');
+      store.receive(chat('p1', 24_000));
+      store.back();
+      store.openChat('p2');
+      expect(store.contextFill()).toBeNull();
+      store.receive(chat('p2', 180_000));
+      expect(store.contextFill()).toMatchObject({ percent: 90, level: 'hot' });
+      store.back();
+      store.openChat('p1');
+      expect(store.contextFill()).toMatchObject({ percent: 12 });
+    });
+
+    it('shows no percent once a frame for that chat comes without tokens', () => {
+      const { store } = setup();
+      store.openChat('p1');
+      store.receive(chat('p1', 24_000));
+      store.receive(chat('p1'));
+      expect(store.contextFill()).toBeNull();
+    });
+
+    it('still names the model as before when the frame has no tokens', () => {
+      const { store } = setup();
+      store.openChat('p1');
+      store.receive(chat('p1'));
+      expect(store.state.model).toBe('claude-haiku-4-5');
+      expect(store.contextFill()).toBeNull();
+    });
+
+    it('tags a list row only while its session is filling up', () => {
+      const { store } = setup();
+      store.receive({ type: 'sessions', sessions: [session('p1'), session('p2'), session('p3')] });
+      store.openChat('p1');
+      store.receive(chat('p1', 168_900));
+      store.back();
+      store.openChat('p2');
+      store.receive(chat('p2', 100_000));
+      store.back();
+      const tags = Object.fromEntries(store.listedRows().map((row) => [row.key, row.context]));
+      expect(tags).toEqual({ p1: '84%', p2: null, p3: null });
+      store.setHome('spaces');
+      expect(store.listedRows()).toEqual([expect.objectContaining({ context: null })]);
+    });
+
+    it('saves the window picked in Settings for the whole phone and measures against it', () => {
+      const profile = new MemoryStorage();
+      const phone = new MemoryStorage();
+      const store = new Store(profile, new FakePush(), Date.now, phone);
+      store.setLink('open');
+      expect(store.state.contextWindow).toBe('auto');
+      store.openChat('p1');
+      store.receive(chat('p1', 124_000));
+      expect(store.contextFill()).toMatchObject({ percent: 62 });
+      const changes: Change[] = [];
+      store.subscribe((change) => changes.push(change));
+      store.setContextWindow('1m');
+      expect(store.state.contextWindow).toBe('1m');
+      expect(store.contextFill()).toMatchObject({ percent: 12, label: '124k of 1M tokens' });
+      expect(changes).toEqual(['appearance']);
+      expect(phone.getItem('contextWindow')).toBe('1m');
+      expect(profile.getItem('contextWindow')).toBeNull();
+      expect(new Store(profile, new FakePush(), Date.now, phone).state.contextWindow).toBe('1m');
+    });
+
+    it('starts on Auto for an unknown stored window and ignores an unknown pick', () => {
+      const phone = new MemoryStorage();
+      phone.setItem('contextWindow', '2m');
+      const store = new Store(new MemoryStorage(), new FakePush(), Date.now, phone);
+      expect(store.state.contextWindow).toBe('auto');
+      const changes: Change[] = [];
+      store.subscribe((change) => changes.push(change));
+      store.setContextWindow('2m');
+      expect(store.state.contextWindow).toBe('auto');
+      expect(changes).toEqual([]);
+    });
   });
 
   it('keeps the reply style picked for this computer, one line until one is picked', () => {

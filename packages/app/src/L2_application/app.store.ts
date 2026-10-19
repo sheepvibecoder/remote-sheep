@@ -41,6 +41,14 @@ import {
   typefaceChoice,
   type TypefaceChoice,
 } from '../L1_domain/typeface';
+import {
+  CONTEXT_WINDOW_KEY,
+  CONTEXT_WINDOWS,
+  contextFill,
+  contextWindowChoice,
+  type ContextFill,
+  type ContextWindowChoice,
+} from '../L1_domain/context-window';
 import { composeOrder, type Order, type ReplyStyle } from '../L1_domain/order';
 import {
   DEFAULT_QUICK_REPLIES,
@@ -144,6 +152,8 @@ export interface AppState {
   textSize: number;
   /** The family the reading text is drawn in, kept for the whole phone. */
   typeface: TypefaceChoice;
+  /** The context window size picked in Settings, kept for the whole phone; Auto reads the table. */
+  contextWindow: ContextWindowChoice;
   /** The phones paired with the agent, this one marked `current`. */
   devices: LinkedDevice[];
   /** Why the last device request failed; null once one works. */
@@ -167,6 +177,12 @@ export type Side = 'chat' | 'term';
 
 /** What the New sheet can start. */
 export type NewKind = AgentKind | 'shell';
+
+/** A list row with how full its session's context is, shown only while it is filling up. */
+export type SessionListRow = ListRow & {
+  /** `84%` once the session warns; null while it is calm or the phone never saw its tokens. */
+  context: string | null;
+};
 
 /** Which part of the state moved, so the page redraws only that. */
 export type Change =
@@ -236,6 +252,11 @@ export class Store {
   private beforeSplit: Layout = 'chat';
   /** Whether the device is set to dark; the view reports it, the light default until it does. */
   private deviceDark = false;
+  /**
+   * The last used tokens and model each session's chat frame named. The agent reads them only for
+   * the open chat, so a list row shows the last value this phone saw for that session.
+   */
+  private readonly contexts = new Map<string, { used: number; model: string | null }>();
 
   constructor(
     private readonly preferences: Preferences,
@@ -286,6 +307,7 @@ export class Store {
       dark: isDark(theme, false),
       textSize: textSize(phone.getItem(TEXT_SIZE_KEY)),
       typeface: typefaceChoice(phone.getItem(TYPEFACE_KEY)),
+      contextWindow: contextWindowChoice(phone.getItem(CONTEXT_WINDOW_KEY)),
       devices: [],
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
@@ -323,6 +345,14 @@ export class Store {
         this.emit('devices');
         return;
       case 'chat': {
+        // Kept whatever chat is on screen: the frame names its own session, and a frame without
+        // tokens means the agent no longer knows them, so the old value would mislead.
+        if (message.usedTokens === undefined) this.contexts.delete(message.target);
+        else
+          this.contexts.set(message.target, {
+            used: message.usedTokens,
+            model: message.model ?? null,
+          });
         if (message.target !== state.target || state.view !== 'chat' || state.showTerm) return;
         state.messages = message.messages;
         state.note = message.note;
@@ -790,6 +820,22 @@ export class Store {
     this.emit('appearance');
   }
 
+  /** Picks the context window size; one that is not on offer changes nothing. */
+  setContextWindow(id: string): void {
+    const choice = CONTEXT_WINDOWS.find((candidate) => candidate.id === id);
+    if (!choice) return;
+    this.state.contextWindow = choice.id;
+    this.phone.setItem(CONTEXT_WINDOW_KEY, choice.id);
+    this.emit('appearance');
+  }
+
+  /** How full a session's context window is (the open chat's by default); null when unknown. */
+  contextFill(target: string = this.state.target): ContextFill | null {
+    const context = this.contexts.get(target);
+    if (!context) return null;
+    return contextFill(context.used, context.model, this.state.contextWindow);
+  }
+
   /** Picks a typeface; one that is not on offer changes nothing. */
   setTypeface(id: string): void {
     const typeface = TYPEFACES.find((candidate) => candidate.id === id);
@@ -952,16 +998,25 @@ export class Store {
   }
 
   /** The rows of the open tab, with what this phone saw of each session. */
-  listedRows(): ListRow[] {
-    if (this.state.home === 'spaces') return this.listedSpaces().map(spaceRow);
+  listedRows(): SessionListRow[] {
+    if (this.state.home === 'spaces') {
+      return this.listedSpaces().map((space) => ({ ...spaceRow(space), context: null }));
+    }
     const now = this.now();
-    return this.listedSessions().map((session) =>
-      sessionRow(session, {
+    return this.listedSessions().map((session) => ({
+      ...sessionRow(session, {
         changedAt: this.changedAt(session.target),
         unread: this.unread(session.target),
         now,
       }),
-    );
+      context: this.contextTag(session.target),
+    }));
+  }
+
+  /** The list tag: only a session that is filling up gets one, so a calm list stays quiet. */
+  private contextTag(target: string): string | null {
+    const fill = this.contextFill(target);
+    return fill && fill.level !== 'ok' ? String(fill.percent) + '%' : null;
   }
 
   /** How many sessions have something unread, for the tab title. */

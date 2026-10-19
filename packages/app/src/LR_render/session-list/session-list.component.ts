@@ -2,7 +2,7 @@
 // one session redraws that row only and the list never flashes.
 
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import type { ListRow } from '../../L1_domain/home';
+import type { SessionListRow } from '../../L2_application/app.store';
 import { SessionRowComponent } from './session-row.component';
 
 @Component({
@@ -24,7 +24,7 @@ import { SessionRowComponent } from './session-row.component';
 })
 export class SessionListComponent {
   // Empty until the view hands the first rows over, right after it mounts the list.
-  readonly rows = input<readonly ListRow[]>([]);
+  readonly rows = input<readonly SessionListRow[]>([]);
   /** What an empty list says instead. */
   readonly hint = input('');
   /** The session open beside the list on a wide window. */

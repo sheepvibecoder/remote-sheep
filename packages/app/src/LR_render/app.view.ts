@@ -11,6 +11,8 @@ import {
   startPalette,
   startTheme,
   startTypography,
+  drawContextWindow,
+  startContextWindow,
 } from './appearance';
 import {
   createComponent,
@@ -21,6 +23,7 @@ import {
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
+import type { ContextFill } from '../L1_domain/context-window';
 import { enterSends } from '../L1_domain/enter-sends';
 import { agentLabel, pageTitle } from '../L1_domain/home';
 import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
@@ -110,6 +113,22 @@ let shownChoices = '';
 const mic = $('mic', HTMLButtonElement);
 const model = $('model');
 const menuModel = $('menu-model');
+// The context detail of the chat menu: how many tokens of the window, and a bar.
+const menuContext = document.createElement('div');
+menuContext.className = 'ctx-detail hidden';
+const menuContextLabel = document.createElement('span');
+const menuContextPercent = document.createElement('span');
+const menuContextBar = document.createElement('i');
+{
+  const line = document.createElement('div');
+  line.className = 'ctx-line';
+  line.append(menuContextLabel, menuContextPercent);
+  const bar = document.createElement('div');
+  bar.className = 'ctxbar';
+  bar.append(menuContextBar);
+  menuContext.append(line, bar);
+  menuModel.after(menuContext);
+}
 const menu = $('menu');
 
 // Built by `startApp`, which is where the browser's push port arrives.
@@ -205,6 +224,8 @@ function onChange(change: Change): void {
       return;
     case 'chat':
       onChat();
+      // The list beside a wide chat tags this session once it fills up.
+      renderList();
       return;
     case 'shells':
       renderShells();
@@ -235,7 +256,11 @@ function onChange(change: Change): void {
       drawPalette(state.palette);
       drawTheme(state.theme, state.dark);
       drawTypography(state.textSize, state.typeface);
+      drawContextWindow(state.contextWindow);
       drawSpeed(state.speechRate);
+      // The picked window changes every percent shown.
+      if (state.view === 'chat') renderModel();
+      renderList();
       return;
   }
 }
@@ -868,12 +893,26 @@ function ticks(delivery: 'delivered' | 'received'): SVGSVGElement {
   return svg;
 }
 
+function drawPercent(percent: HTMLElement, fill: ContextFill): HTMLElement {
+  percent.className = 'ctx ' + fill.level;
+  percent.textContent = String(fill.percent) + '%';
+  return percent;
+}
+
 function renderModel(): void {
   const name = modelLabel(state.model);
+  const fill = store.contextFill();
   model.textContent = name ?? '';
+  if (name && fill) model.append(' · ', drawPercent(document.createElement('span'), fill));
   model.classList.toggle('hidden', !name);
-  menuModel.textContent = name ? 'Model · ' + name : '';
+  menuModel.textContent = name ? (fill ? 'Context · ' : 'Model · ') + name : '';
   menuModel.classList.toggle('hidden', !name);
+  menuContext.classList.toggle('hidden', !fill);
+  if (fill) {
+    menuContextLabel.textContent = fill.label;
+    drawPercent(menuContextPercent, fill);
+    menuContextBar.style.width = String(fill.fraction * 100) + '%';
+  }
   renderStyles();
 }
 
@@ -1301,6 +1340,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   startPalette(store);
   startTheme(store);
   startTypography(store);
+  startContextWindow(store);
   startSpeeds(store);
   drawStyles();
   drawQuick();
