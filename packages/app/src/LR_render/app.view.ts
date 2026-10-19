@@ -880,7 +880,6 @@ function drawStyles(): void {
   );
   renderStyles();
 }
-drawStyles();
 
 // The chip says which style every order carries; tapping it opens the menu to change it.
 styleChip.addEventListener('click', (event) => {
@@ -1014,7 +1013,6 @@ function drawQuick(): void {
   );
   renderStyles();
 }
-drawQuick();
 toggleQuick.addEventListener('click', () => store.setQuickReplies(!state.quickReplies));
 
 async function sendOrder(): Promise<void> {
@@ -1149,6 +1147,13 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   listView.instance.open.subscribe(openRow);
   updates = dependencies.updates;
   state = store.state;
+  // Everything below reads `state`, which exists only from here on: drawing at load would
+  // crash the page before the first screen.
+  drawStyles();
+  drawQuick();
+  renderStyleSettings();
+  renderQuickSettings();
+  renderShells();
   store.subscribe(onChange);
   document.addEventListener('visibilitychange', () => {
     store.setVisible(document.visibilityState === 'visible');
@@ -1229,7 +1234,6 @@ $('style-reset').addEventListener('click', () => {
   clearStyleForm();
   store.resetStyles();
 });
-renderStyleSettings();
 
 // ---- settings: the quick replies the person writes ----
 
@@ -1275,7 +1279,6 @@ $('quick-reset').addEventListener('click', () => {
   clearQuickForm();
   store.resetQuick();
 });
-renderQuickSettings();
 
 wideQuery.addEventListener('change', () => {
   applyView();
@@ -1319,4 +1322,3 @@ function renderShells(): void {
 toggleShells.addEventListener('click', () => {
   if (state.shells !== null) void store.setShells(agent, !state.shells);
 });
-renderShells();
