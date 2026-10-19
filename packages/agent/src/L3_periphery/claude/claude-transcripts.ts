@@ -19,7 +19,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import type { ChatMessage, ImageResult, Role } from '@remote-sheep/protocol';
-import type { Located, TranscriptSource } from '../../L1_domain/ports/transcript';
+import type { Chat, Located, TranscriptSource } from '../../L1_domain/ports/transcript';
 
 export interface ClaudeOptions {
   sessionsDir: string;
@@ -71,8 +71,13 @@ interface Entry {
   isMeta?: boolean;
   isCompactSummary?: boolean;
   toolUseResult?: unknown;
-  message?: { content?: unknown };
+  /** ISO time the line was written. */
+  timestamp?: string;
+  message?: { content?: unknown; model?: string };
 }
+
+// What Claude Code writes as the model of a reply it made up itself, such as an API error.
+const SYNTHETIC = '<synthetic>';
 
 function parse(line: string): Entry | null {
   if (!line.trim()) return null;
@@ -107,8 +112,9 @@ export class ClaudeTranscripts implements TranscriptSource {
     return { file };
   }
 
-  read(file: string): ChatMessage[] {
+  read(file: string): Chat {
     const messages: ChatMessage[] = [];
+    let model: string | null = null;
     for (const line of this.tail(file)) {
       const entry = parse(line);
       if (!entry || (entry.type !== 'user' && entry.type !== 'assistant')) continue;
@@ -117,22 +123,27 @@ export class ClaudeTranscripts implements TranscriptSource {
         continue;
       }
       const role: Role = entry.type;
+      const named = entry.message?.model;
+      if (role === 'assistant' && named && named !== SYNTHETIC) model = named;
+      const time = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
+      const at = Number.isFinite(time) ? { at: time } : {};
       // The id is uuid:index, so it points straight back at its block when the
       // image bytes are asked for later.
       const uuid = entry.uuid || entry.messageId || '';
       blocksOf(entry).forEach((block, i) => {
         const id = uuid + ':' + i;
         if (block?.type === 'image' && block.source?.data) {
-          messages.push({ id, role, kind: 'image', media: block.source.media_type || 'image/png' });
+          const media = block.source.media_type || 'image/png';
+          messages.push({ id, role, kind: 'image', media, ...at });
           return;
         }
         // Skips thinking, tool_use and tool_result in one condition.
         if (block?.type !== 'text' || typeof block.text !== 'string') return;
         const text = stripEnvelopes(block.text);
-        if (text) messages.push({ id, role, kind: 'text', text });
+        if (text) messages.push({ id, role, kind: 'text', text, ...at });
       });
     }
-    return messages.slice(-this.options.maxMessages);
+    return { messages: messages.slice(-this.options.maxMessages), model };
   }
 
   image(file: string, id: string): ImageResult | null {

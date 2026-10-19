@@ -71,11 +71,16 @@ export interface Workspace {
 
 export type Role = 'user' | 'assistant';
 
+/**
+ * `at` is when the message was written (epoch ms), as the transcript dates it. Optional rather
+ * than null so a phone or agent from before it existed still fits; absent when the line carries
+ * no readable time.
+ */
 export type ChatMessage =
-  | { id: string; role: Role; kind: 'text'; text: string }
+  | { id: string; role: Role; kind: 'text'; text: string; at?: number }
   // The bytes stay out of the chat payload: one screenshot is tens of
   // kilobytes, so the phone asks for it only when it scrolls into view.
-  | { id: string; role: Role; kind: 'image'; media: string };
+  | { id: string; role: Role; kind: 'image'; media: string; at?: number };
 
 /** A phone paired with the agent, as the phone's "linked devices" list shows it. */
 export interface LinkedDevice {
@@ -176,7 +181,8 @@ export type ServerMessage =
   /** device: the phone's id (`publicKeyId` of its identity key) as the agent stores it. */
   | { type: 'ready'; protocol: number; version: string; device: string }
   | { type: 'sessions'; sessions: Session[] }
-  | { type: 'chat'; target: string; messages: ChatMessage[]; note: string | null }
+  /** model: the model of the latest reply, as the transcript names it; absent when unknown. */
+  | { type: 'chat'; target: string; messages: ChatMessage[]; note: string | null; model?: string }
   | { type: 'terminal'; target: string; output: string }
   /** Why the agent cannot reach Herdr; null once it can again. */
   | { type: 'status'; herdrError: string | null }

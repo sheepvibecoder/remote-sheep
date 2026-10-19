@@ -87,13 +87,14 @@ class FakeMultiplexer implements Multiplexer {
 class FakeTranscripts implements TranscriptSource {
   located: Located = { file: '/t/p1.jsonl' };
   messages: ChatMessage[] = [text('a:0', 'hola')];
+  model: string | null = null;
   onChange: (() => void) | null = null;
   stopped = 0;
   async locate() {
     return this.located;
   }
   read() {
-    return this.messages.map((m) => ({ ...m }));
+    return { messages: this.messages.map((m) => ({ ...m })), model: this.model };
   }
   image(_file: string, id: string) {
     return id === 'a:1' ? { media: 'image/png', data: new Uint8Array([1, 2]) } : null;
@@ -269,6 +270,35 @@ describe('SessionHub', () => {
     await settle();
     expect(phone.of('chat')).toHaveLength(2);
     expect(phone.of('chat')[1]?.messages).toHaveLength(2);
+  });
+
+  it('names the model of the chat, and sends again when only the model changed', async () => {
+    transcripts.model = 'claude-sonnet-5-5';
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await settle();
+    await hub.request(phone, { kind: 'watch', target: 'p1', terminal: false });
+    expect(phone.of('chat')).toEqual([
+      {
+        type: 'chat',
+        target: 'p1',
+        messages: [text('a:0', 'hola')],
+        note: null,
+        model: 'claude-sonnet-5-5',
+      },
+    ]);
+
+    transcripts.model = 'claude-opus-5-5';
+    transcripts.onChange?.();
+    await settle();
+    expect(phone.of('chat').at(-1)?.model).toBe('claude-opus-5-5');
+
+    // A phone that starts watching later gets the same chat from the cache.
+    const late = new FakeConnection();
+    hub.open(late);
+    await settle();
+    await hub.request(late, { kind: 'watch', target: 'p1', terminal: false });
+    expect(late.of('chat').at(-1)?.model).toBe('claude-opus-5-5');
   });
 
   it('follows the session to a new transcript after /clear', async () => {

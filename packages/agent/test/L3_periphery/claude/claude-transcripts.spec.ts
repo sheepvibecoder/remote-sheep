@@ -107,11 +107,66 @@ describe('ClaudeTranscripts', () => {
         'not json\n' +
         user('u6', [image]),
     );
-    expect(transcripts.read(file)).toEqual([
+    expect(transcripts.read(file).messages).toEqual([
       { id: 'u1:0', role: 'user', kind: 'text', text: 'hola' },
       { id: 'a1:1', role: 'assistant', kind: 'text', text: 'hola, que hago?' },
       { id: 'u6:0', role: 'user', kind: 'image', media: 'image/jpeg' },
     ]);
+  });
+
+  it('dates each message and names the model of the latest reply', () => {
+    const file = transcriptPath('s1');
+    const reply = (uuid: string, model: string, extra: object = {}) =>
+      line({
+        type: 'assistant',
+        uuid,
+        timestamp: '2026-10-18T14:33:00.000Z',
+        message: { role: 'assistant', model, content: [{ type: 'text', text: uuid }] },
+        ...extra,
+      });
+    writeFileSync(
+      file,
+      user('u1', 'hola', { timestamp: '2026-10-18T14:32:00.000Z' }) +
+        reply('a1', 'claude-sonnet-5-5') +
+        reply('a2', 'claude-opus-5-5') +
+        // Neither a subagent's model nor the CLI's own stand-in reply is the session's.
+        reply('a3', 'claude-haiku-4-5', { isSidechain: true }) +
+        reply('a4', '<synthetic>') +
+        user('u2', 'sin hora', { timestamp: 'not a date' }),
+    );
+    const chat = transcripts.read(file);
+    expect(chat.model).toBe('claude-opus-5-5');
+    expect(chat.messages).toEqual([
+      { id: 'u1:0', role: 'user', kind: 'text', text: 'hola', at: Date.UTC(2026, 9, 18, 14, 32) },
+      {
+        id: 'a1:0',
+        role: 'assistant',
+        kind: 'text',
+        text: 'a1',
+        at: Date.UTC(2026, 9, 18, 14, 33),
+      },
+      {
+        id: 'a2:0',
+        role: 'assistant',
+        kind: 'text',
+        text: 'a2',
+        at: Date.UTC(2026, 9, 18, 14, 33),
+      },
+      {
+        id: 'a4:0',
+        role: 'assistant',
+        kind: 'text',
+        text: 'a4',
+        at: Date.UTC(2026, 9, 18, 14, 33),
+      },
+      { id: 'u2:0', role: 'user', kind: 'text', text: 'sin hora' },
+    ]);
+  });
+
+  it('names no model when no reply says which', () => {
+    const file = transcriptPath('s1');
+    writeFileSync(file, user('u1', 'hola') + assistant('a1', 'hi'));
+    expect(transcripts.read(file).model).toBeNull();
   });
 
   it('returns only the most recent messages', () => {
@@ -119,7 +174,7 @@ describe('ClaudeTranscripts', () => {
     let body = '';
     for (let i = 0; i < 50; i++) body += user('u' + i, 'm' + i);
     writeFileSync(file, body);
-    const messages = transcripts.read(file);
+    const { messages } = transcripts.read(file);
     expect(messages).toHaveLength(40);
     expect(messages[39]).toMatchObject({ id: 'u49:0' });
   });

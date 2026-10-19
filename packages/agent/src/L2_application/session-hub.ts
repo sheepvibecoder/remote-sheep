@@ -5,9 +5,9 @@
 // hub watches the transcript of each session somebody is looking at. A phone
 // hears about a change only when something actually changed.
 
-import type { ChatMessage, ImageResult, Request, Session } from '@remote-sheep/protocol';
+import type { ImageResult, Request, ServerMessage, Session } from '@remote-sheep/protocol';
 import type { Multiplexer } from '../L1_domain/ports/multiplexer';
-import type { TranscriptSource } from '../L1_domain/ports/transcript';
+import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
 import type { Notifier } from '../L1_domain/ports/notifier';
 import type { UploadStore } from '../L1_domain/ports/upload-store';
@@ -54,7 +54,7 @@ interface ChatWatch {
   timer: ReturnType<typeof setTimeout> | null;
   /** Set while the file is being looked for, so two phones do not both look. */
   attaching: Promise<void> | null;
-  last: { messages: ChatMessage[]; json: string } | null;
+  last: { chat: Chat; json: string } | null;
 }
 
 export class SessionHub implements ConnectionEvents {
@@ -175,9 +175,9 @@ export class SessionHub implements ConnectionEvents {
     if (watch.attaching) return watch.attaching;
     if (!watch.file && !watch.note) return this.attach(target, watch);
     if (watch.last) {
-      connection.send({ type: 'chat', target, messages: watch.last.messages, note: null });
+      connection.send(chatFrame(target, watch.last.chat, null));
     } else if (watch.note) {
-      connection.send({ type: 'chat', target, messages: [], note: watch.note });
+      connection.send(chatFrame(target, { messages: [], model: null }, watch.note));
     }
   }
 
@@ -338,7 +338,7 @@ export class SessionHub implements ConnectionEvents {
   private setNote(target: string, watch: ChatWatch, note: string): void {
     if (watch.note === note) return;
     watch.note = note;
-    this.sendChat(target, [], note);
+    this.sendChat(target, { messages: [], model: null }, note);
   }
 
   private schedule(target: string): void {
@@ -354,24 +354,22 @@ export class SessionHub implements ConnectionEvents {
   private pushChat(target: string): void {
     const watch = this.chats.get(target);
     if (!watch?.file) return;
-    let messages: ChatMessage[];
+    let chat: Chat;
     try {
-      messages = this.options.transcripts.read(watch.file);
+      chat = this.options.transcripts.read(watch.file);
     } catch (err) {
       this.options.log?.('reading transcript failed: ' + (err as Error).message);
       return;
     }
-    const json = JSON.stringify(messages);
+    const json = JSON.stringify(chat);
     if (watch.last?.json === json) return;
-    watch.last = { messages, json };
-    this.sendChat(target, messages, null);
+    watch.last = { chat, json };
+    this.sendChat(target, chat, null);
   }
 
-  private sendChat(target: string, messages: ChatMessage[], note: string | null): void {
+  private sendChat(target: string, chat: Chat, note: string | null): void {
     this.broadcast((c, viewer) => {
-      if (viewer.target === target && !viewer.terminal) {
-        c.send({ type: 'chat', target, messages, note });
-      }
+      if (viewer.target === target && !viewer.terminal) c.send(chatFrame(target, chat, note));
     });
   }
 
@@ -431,4 +429,16 @@ export class SessionHub implements ConnectionEvents {
   private broadcast(send: (connection: Connection, viewer: Viewer) => void): void {
     for (const [connection, viewer] of this.viewers) send(connection, viewer);
   }
+}
+
+// The model is left out rather than sent as null, so a phone from before it existed sees the
+// same frame it always did.
+function chatFrame(target: string, chat: Chat, note: string | null): ServerMessage {
+  return {
+    type: 'chat',
+    target,
+    messages: chat.messages,
+    note,
+    ...(chat.model ? { model: chat.model } : {}),
+  };
 }
