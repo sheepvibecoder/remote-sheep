@@ -1859,3 +1859,21 @@ header .sub.needs {
   font: 13px/1.45 var(--sans);
   white-space: normal;
 }
+
+/* ---- a space's shortcut: start Claude Code there without the New sheet ---- */
+app-session-row:has(.quick-start) {
+  display: flex;
+  align-items: center;
+  padding-right: 14px;
+}
+.quick-start {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 600;
+}

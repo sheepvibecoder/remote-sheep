@@ -6,6 +6,11 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A **+ Claude** button on each space starts Claude Code there in one tap, without the **+**
+  sheet; the kind picked in the sheet stays as it was.
+
 ### Changed
 
 - The remaining screens follow the mockup: a space is a folder that says what runs in it

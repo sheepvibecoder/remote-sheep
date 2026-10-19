@@ -1224,6 +1224,10 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   });
   angular.appRef.attachView(listView.hostView);
   listView.instance.open.subscribe(openRow);
+  listView.instance.start.subscribe((space) => {
+    // Failures land in homeError, which the home shows; nothing else waits for it.
+    void store.newSession(agent, space, 'claude');
+  });
   updates = dependencies.updates;
   state = store.state;
   // Everything below reads `state`, which exists only from here on: drawing at load would

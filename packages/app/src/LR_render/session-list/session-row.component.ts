@@ -43,6 +43,10 @@ import { AvatarComponent } from './avatar.component';
         </span>
       </span>
     </button>
+    @if (row().folder) {
+      <!-- A shortcut past the New sheet, beside the row rather than inside it. -->
+      <button class="quick-start" (click)="start.emit(row().key)">+ Claude</button>
+    }
   `,
 })
 export class SessionRowComponent {
@@ -50,4 +54,6 @@ export class SessionRowComponent {
   /** Open beside the list, on a wide window. */
   readonly selected = input(false);
   readonly open = output<string>();
+  /** Starts Claude Code in this workspace, for a folder row. */
+  readonly start = output<string>();
 }

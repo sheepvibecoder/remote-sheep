@@ -11,7 +11,12 @@ import { SessionRowComponent } from './session-row.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (row of rows(); track row.key) {
-      <app-session-row [row]="row" [selected]="row.key === selected()" (open)="open.emit($event)" />
+      <app-session-row
+        [row]="row"
+        [selected]="row.key === selected()"
+        (open)="open.emit($event)"
+        (start)="start.emit($event)"
+      />
     } @empty {
       <div class="hint">{{ hint() }}</div>
     }
@@ -25,4 +30,5 @@ export class SessionListComponent {
   /** The session open beside the list on a wide window. */
   readonly selected = input<string | null>(null);
   readonly open = output<string>();
+  readonly start = output<string>();
 }

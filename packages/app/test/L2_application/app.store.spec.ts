@@ -624,6 +624,19 @@ describe('Store', () => {
       expect(store.state.showTerm).toBe(true);
     });
 
+    it('starts Claude Code straight from a space, keeping the kind picked in the sheet', async () => {
+      const { store } = withSessions();
+      store.setNewKind('codex');
+      const agent = new FakeAgent({ target: 'w8:p9' });
+      await store.newSession(agent, 'w8', 'claude');
+      expect(agent.asked).toEqual([
+        { kind: 'new-session', space: 'w8', shell: false, agent: 'claude' },
+      ]);
+      expect(store.state.target).toBe('w8:p9');
+      expect(store.state.showTerm).toBe(false);
+      expect(store.state.newKind).toBe('codex');
+    });
+
     it('reads and switches whether consoles are allowed, keeping the answer of the agent', async () => {
       const { store } = withSessions();
       expect(store.state.shells).toBeNull();

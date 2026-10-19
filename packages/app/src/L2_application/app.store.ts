@@ -375,9 +375,8 @@ export class Store {
     this.emit('home');
   }
 
-  /** Starts what the sheet picked (an agent or a console) in this workspace and opens it. */
-  async newSession(agent: Agent, space: string): Promise<void> {
-    const kind = this.state.newKind;
+  /** Starts the kind picked in the sheet, or the one a shortcut names (not remembered), and opens it. */
+  async newSession(agent: Agent, space: string, kind = this.state.newKind): Promise<void> {
     const shell = kind === 'shell';
     try {
       const request: Extract<Request, { kind: 'new-session' }> = shell
