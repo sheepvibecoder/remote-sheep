@@ -168,38 +168,92 @@
     <div id="devices"></div>
     <div id="computers"></div>
     <div id="settings">
-      <div class="lbl">Accent</div>
-      <div id="swatches"></div>
-      <div class="lbl">Reply styles</div>
-      <div id="style-list"></div>
-      <input id="style-name" placeholder="Name" autocomplete="off" />
-      <input
-        id="style-prompt"
-        placeholder="What to ask, e.g. responde en 3 viñetas"
-        autocomplete="off"
-      />
-      <button id="style-save">Add style</button>
-      <button id="style-reset">Reset styles</button>
-      <div class="lbl">Quick replies</div>
-      <div id="quick-list"></div>
-      <input id="quick-words" placeholder="One-tap order" autocomplete="off" />
-      <button id="quick-save">Add reply</button>
-      <button id="quick-reset">Reset replies</button>
-      <div class="lbl">Reading speed</div>
-      <div id="speeds"></div>
-      <div class="lbl">Consoles</div>
-      <button id="toggle-shells">Consoles</button>
-      <p class="hint" id="shells-hint">A console runs any command on your computer.</p>
-      <div class="lbl">Computers</div>
-      <button id="computers-open">Profiles</button>
-      <button id="devices-open">Linked devices</button>
-      <div class="lbl">App</div>
-      <button id="check-update" title="check for updates">Check for updates</button>
-      <div class="lbl">Look</div>
-      <button id="toggle-theme" title="theme">Dark theme</button>
-      <button id="toggle-size" title="text size">Text size</button>
-    </div>
+      <h1 class="h-title">Settings</h1>
+      <div class="group">Computers</div>
+      <div class="list">
+        <div id="computer-list"></div>
+        <button class="item add" id="computers-open">Add a computer</button>
+      </div>
 
+      <div class="group">Reply styles</div>
+      <div class="list">
+        <div id="style-list"></div>
+        <div class="form hidden" id="style-form">
+          <input id="style-name" placeholder="Name" autocomplete="off" />
+          <input
+            id="style-prompt"
+            placeholder="What to ask, e.g. responde en 3 viñetas"
+            autocomplete="off"
+          />
+          <div class="form-acts">
+            <button id="style-delete" class="line hidden">Delete</button>
+            <button id="style-cancel" class="line">Cancel</button>
+            <button id="style-save" class="fill">Add style</button>
+          </div>
+        </div>
+        <button class="item add" id="style-new">New style</button>
+      </div>
+      <p class="group-hint">
+        A style is added to every message you send. Change it per chat from the ⋮ menu.
+        <button class="link" id="style-reset">Reset styles</button>
+      </p>
+
+      <div class="group">Quick replies</div>
+      <div class="list">
+        <div id="quick-list"></div>
+        <div class="form hidden" id="quick-form">
+          <input id="quick-words" placeholder="One-tap order" autocomplete="off" />
+          <div class="form-acts">
+            <button id="quick-delete" class="line hidden">Delete</button>
+            <button id="quick-cancel" class="line">Cancel</button>
+            <button id="quick-save" class="fill">Add reply</button>
+          </div>
+        </div>
+        <button class="item add" id="quick-new">Add quick reply</button>
+      </div>
+      <p class="group-hint">
+        One tap sends them as they are. They show above the message box.
+        <button class="link" id="quick-reset">Reset replies</button>
+      </p>
+
+      <div class="group">Voice</div>
+      <div class="list">
+        <div class="item">
+          <span class="tx">Speed</span>
+          <div class="seg" id="speeds"></div>
+        </div>
+      </div>
+
+      <div class="group">General</div>
+      <div class="list">
+        <button class="item" id="toggle-shells">
+          <span class="tx"
+            >Consoles<small id="shells-hint"
+              >A console runs any command on your computer.</small
+            ></span
+          >
+          <span class="tg"></span>
+        </button>
+        <button class="item" id="toggle-size" title="text size">
+          <span class="tx">Text size</span><span class="end" id="size-value"></span>
+        </button>
+        <div class="item">
+          <span class="tx">Accent colour</span>
+          <div id="swatches"></div>
+        </div>
+        <button class="item" id="toggle-theme" title="theme">
+          <span class="tx">Theme</span><span class="end" id="theme-value"></span>
+        </button>
+        <button class="item" id="devices-open">
+          <span class="tx">Linked devices</span><span class="end">&rsaquo;</span>
+        </button>
+      </div>
+
+      <div class="group">About</div>
+      <div class="list">
+        <button class="item" id="check-update" title="check for updates">Check for updates</button>
+      </div>
+    </div>
     <footer id="foot" class="hidden">
       <div class="choices hidden" id="choices"></div>
       <div class="keys hidden" id="keys">

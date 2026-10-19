@@ -6,6 +6,14 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Settings follows the mockup: a big title, grouped rounded cards (Computers, Reply styles, Quick
+  replies, Voice, General, About), a **Default** badge on the style a chat sends with, and switches
+  and segmented controls instead of buttons. A tap on a style or a quick reply opens it to edit or
+  delete; **New style** and **Add quick reply** open an empty one. The paired computers are listed
+  there and a tap switches to one.
+
 ## [0.7.0] — 2026-10-19
 
 ### Added

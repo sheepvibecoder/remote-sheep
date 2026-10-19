@@ -10,7 +10,7 @@ function applyTheme(name: string): void {
   localStorage.setItem('theme', name);
   const meta = document.querySelector<HTMLMetaElement>('meta[name=theme-color]');
   if (meta) meta.content = name === 'dark' ? '#262624' : '#faf9f5';
-  $('toggle-theme').textContent = name === 'dark' ? 'Light theme' : 'Dark theme';
+  $('theme-value').textContent = name === 'dark' ? 'Dark' : 'Light';
 }
 
 $('toggle-theme').addEventListener('click', () => {
@@ -23,7 +23,7 @@ let sizeStep = Number(localStorage.getItem('size') || 1) % SIZES.length;
 function applySize(): void {
   document.documentElement.style.setProperty('--chat', must(SIZES[sizeStep], 'text size'));
   localStorage.setItem('size', String(sizeStep));
-  $('toggle-size').textContent = 'Text size A' + '+'.repeat(sizeStep);
+  $('size-value').textContent = 'A' + '+'.repeat(sizeStep);
 }
 
 $('toggle-size').addEventListener('click', () => {

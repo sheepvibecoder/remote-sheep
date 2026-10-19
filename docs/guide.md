@@ -42,9 +42,11 @@ workspaces, and the search box narrows either by name. Tapping a space shows
 only its sessions. The **+** button opens a sheet where you pick **Claude Code**, **Codex** or **Console**, then the
 workspace: it starts that in a new tab and opens it. Codex has no chat yet, so it opens on its terminal. A number on a session counts how many
 times it finished or stopped to ask while its chat was not on screen; opening
-the chat clears it. The **gear** at the top of the list opens **Settings**: the accent colour, with five to choose
-from, your reply styles and quick replies, the reading speed, consoles, profiles, linked devices, the
-theme, the text size and **Check for updates**. The computer's name under the app name, with a
+the chat clears it. The **gear** at the top of the list opens **Settings**, grouped in cards: **Computers**
+(the paired computers, a tap switches, and **Add a computer**), **Reply styles**, **Quick replies**,
+**Voice** (the reading speed), **General** (consoles, text size, the accent colour with five to choose
+from, the theme and linked devices) and **About** (**Check for updates**). The style a chat sends with
+carries a **Default** badge. The computer's name under the app name, with a
 green dot, opens the list of computers.
 Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
@@ -72,7 +74,8 @@ picked shows as a chip next to the microphone; tap it to change it. It is kept f
 Above the message box, the quick replies (at first **Continúa**, **Corre los tests**, **Haz commit**
 and **Explícame el cambio**) send that order with one tap, with the reply style, and leave what you were typing in the
 box. **Quick replies** in the chat's **⋮** hides or shows them. In **Settings** you write your own
-(up to eight), edit or delete any of them, and **Reset replies** brings these four back. Code in a reply appears in a dark
+(up to eight): **Add quick reply** opens a box to write one, a tap on a reply opens it to edit or
+delete, and **Reset replies** brings these four back. Code in a reply appears in a dark
 block with a **Copy** button.
 
 ### On a computer
@@ -101,7 +104,7 @@ office: each is a profile, and their sessions, badges and chats never mix. The h
 screen is titled with the profile it shows, and a chat names it next to its status;
 after a switch the app says **Now on …**.
 
-The computer's name at the top of the home screen (or **Settings → Profiles**) lists them with whether
+The computer's name at the top of the home screen (or **Add a computer** in **Settings**) lists them with whether
 each answers right now (**online** or **offline**, for example when `pnpm start` is
 not running at the office); tapping one switches to it. **Scan a QR code to add a
 computer** opens the camera inside the app, as the scan screen does, so a new computer

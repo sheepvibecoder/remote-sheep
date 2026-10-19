@@ -184,6 +184,7 @@ function onChange(change: Change): void {
       renderHeader();
       announceProfile();
       if (state.view === 'computers') renderComputers();
+      renderComputerSettings();
       if (state.gate) renderGateProfiles();
       return;
     case 'devices':
@@ -247,6 +248,8 @@ function applyView(): void {
   back.classList.toggle('hidden', view === 'list' || (wide && view === 'chat'));
   $('chat-menu').classList.toggle('hidden', view !== 'chat');
   if (view === 'chat') renderStyles();
+  // The Default badge follows the style a chat picked, so the list is redrawn on the way in.
+  if (view === 'settings') renderStyleSettings();
   // A shell has no chat to switch back to.
   $('toggle-term').classList.toggle('hidden', view !== 'chat' || store.isShell());
   $('to-chat').classList.toggle('on', !showTerm);
@@ -377,7 +380,8 @@ function renderHeader(): void {
     title.textContent = 'Devices ';
     sub.textContent = state.devices.length + ' linked';
   } else if (view === 'settings') {
-    title.textContent = 'Settings ';
+    // The page carries its own big title, as in the mockup.
+    title.textContent = '';
     sub.textContent = '';
   } else if (view === 'computers') {
     title.textContent = 'Profiles ';
@@ -1177,6 +1181,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   drawQuick();
   renderStyleSettings();
   renderQuickSettings();
+  renderComputerSettings();
   renderShells();
   store.subscribe(onChange);
   document.addEventListener('visibilitychange', () => {
@@ -1206,50 +1211,66 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
 }
 
 // ---- settings: the reply styles the person writes ----
+// Each style is a row; tapping one opens the form in its card to edit or delete it.
 
 const styleList = $('style-list');
+const styleForm = $('style-form');
 const styleName = $('style-name', HTMLInputElement);
 const stylePrompt = $('style-prompt', HTMLInputElement);
 const styleSave = $('style-save');
+const styleDelete = $('style-delete');
 let editingStyle: string | null = null;
 
 function renderStyleSettings(): void {
   styleList.replaceChildren(
     ...state.styles.map((style) => {
-      const row = document.createElement('div');
-      row.className = 'style-row';
+      const fixed = isFixedStyle(style);
+      const row = document.createElement(fixed ? 'div' : 'button');
+      row.className = 'item';
       const name = document.createElement('span');
+      name.className = 'tx';
       name.textContent = style.label;
-      const prompt = document.createElement('small');
+      const prompt = document.createElement('span');
+      prompt.className = 'prompt';
       prompt.textContent = promptOf(style.suffix);
       name.append(prompt);
       row.append(name);
-      if (!isFixedStyle(style)) {
-        const edit = document.createElement('button');
-        edit.textContent = 'Edit';
-        edit.addEventListener('click', () => {
-          editingStyle = style.id;
-          styleName.value = style.label;
-          stylePrompt.value = promptOf(style.suffix);
-          styleSave.textContent = 'Save';
-        });
-        const remove = document.createElement('button');
-        remove.textContent = 'Delete';
-        remove.addEventListener('click', () => store.removeStyle(style.id));
-        row.append(edit, remove);
+      // The style every order carries until a chat picks another.
+      if (style.id === state.replyStyle.id) {
+        const badge = document.createElement('span');
+        badge.className = 'def';
+        badge.textContent = 'Default';
+        row.append(badge);
       }
+      if (!fixed) row.addEventListener('click', () => openStyleForm(style.id));
       return row;
     }),
   );
+}
+
+function openStyleForm(id: string | null): void {
+  const style = state.styles.find((s) => s.id === id);
+  editingStyle = style ? style.id : null;
+  styleName.value = style ? style.label : '';
+  stylePrompt.value = style ? promptOf(style.suffix) : '';
+  styleSave.textContent = style ? 'Save' : 'Add style';
+  styleDelete.classList.toggle('hidden', !style);
+  styleForm.classList.remove('hidden');
+  styleName.focus();
 }
 
 function clearStyleForm(): void {
   editingStyle = null;
   styleName.value = '';
   stylePrompt.value = '';
-  styleSave.textContent = 'Add style';
+  styleForm.classList.add('hidden');
 }
 
+$('style-new').addEventListener('click', () => openStyleForm(null));
+$('style-cancel').addEventListener('click', clearStyleForm);
+styleDelete.addEventListener('click', () => {
+  if (editingStyle) store.removeStyle(editingStyle);
+});
 styleSave.addEventListener('click', () => {
   if (store.saveStyle(editingStyle, styleName.value, stylePrompt.value)) clearStyleForm();
   else say('A style needs a name and a prompt.', true);
@@ -1262,39 +1283,51 @@ $('style-reset').addEventListener('click', () => {
 // ---- settings: the quick replies the person writes ----
 
 const quickSettings = $('quick-list');
+const quickForm = $('quick-form');
 const quickWords = $('quick-words', HTMLInputElement);
 const quickSave = $('quick-save');
+const quickDelete = $('quick-delete');
 let editingQuick: number | null = null;
 
 function renderQuickSettings(): void {
   quickSettings.replaceChildren(
     ...state.quickList.map((reply, place) => {
-      const row = document.createElement('div');
-      row.className = 'style-row';
+      const row = document.createElement('button');
+      row.className = 'item';
       const name = document.createElement('span');
+      name.className = 'tx';
       name.textContent = reply;
-      const edit = document.createElement('button');
-      edit.textContent = 'Edit';
-      edit.addEventListener('click', () => {
-        editingQuick = place;
-        quickWords.value = reply;
-        quickSave.textContent = 'Save';
-      });
-      const remove = document.createElement('button');
-      remove.textContent = 'Delete';
-      remove.addEventListener('click', () => store.removeQuick(place));
-      row.append(name, edit, remove);
+      const more = document.createElement('span');
+      more.className = 'end';
+      more.textContent = '⋮';
+      row.append(name, more);
+      row.addEventListener('click', () => openQuickForm(place));
       return row;
     }),
   );
 }
 
+function openQuickForm(place: number | null): void {
+  const reply = place === null ? undefined : state.quickList[place];
+  editingQuick = reply === undefined ? null : place;
+  quickWords.value = reply ?? '';
+  quickSave.textContent = reply === undefined ? 'Add reply' : 'Save';
+  quickDelete.classList.toggle('hidden', reply === undefined);
+  quickForm.classList.remove('hidden');
+  quickWords.focus();
+}
+
 function clearQuickForm(): void {
   editingQuick = null;
   quickWords.value = '';
-  quickSave.textContent = 'Add reply';
+  quickForm.classList.add('hidden');
 }
 
+$('quick-new').addEventListener('click', () => openQuickForm(null));
+$('quick-cancel').addEventListener('click', clearQuickForm);
+quickDelete.addEventListener('click', () => {
+  if (editingQuick !== null) store.removeQuick(editingQuick);
+});
 quickSave.addEventListener('click', () => {
   if (store.saveQuick(editingQuick, quickWords.value)) clearQuickForm();
   else say('That reply is empty, already there, or the list is full.', true);
@@ -1303,6 +1336,34 @@ $('quick-reset').addEventListener('click', () => {
   clearQuickForm();
   store.resetQuick();
 });
+
+// ---- settings: the computers this phone is paired with ----
+// A row switches, like on the computers screen; adding, renaming and removing live there.
+
+function renderComputerSettings(): void {
+  $('computer-list').replaceChildren(
+    ...state.profiles.map((profile) => {
+      const row = document.createElement('button');
+      row.className = 'item';
+      const name = document.createElement('span');
+      name.className = 'tx';
+      name.textContent = profile.name;
+      const reach = document.createElement('small');
+      reach.textContent = reachText(profile);
+      name.append(reach);
+      row.append(name);
+      if (profile.active) {
+        const mark = document.createElement('span');
+        mark.className = 'ok';
+        mark.textContent = '✓';
+        row.append(mark);
+      } else {
+        row.addEventListener('click', () => starter?.switchTo(profile.id));
+      }
+      return row;
+    }),
+  );
+}
 
 wideQuery.addEventListener('change', () => {
   applyView();
@@ -1336,9 +1397,10 @@ document.addEventListener('keydown', (event) => {
 const toggleShells = $('toggle-shells', HTMLButtonElement);
 
 function renderShells(): void {
-  toggleShells.textContent =
-    state.shells === null ? 'Consoles' : state.shells ? 'Consoles: on' : 'Consoles: off';
-  toggleShells.classList.toggle('on', state.shells === true);
+  must(toggleShells.querySelector('.tg'), 'consoles switch').classList.toggle(
+    'on',
+    state.shells === true,
+  );
   toggleShells.disabled = state.shells === null;
   if (state.homeError && state.view === 'settings') say(state.homeError, true);
 }
