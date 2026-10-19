@@ -21,6 +21,7 @@ import {
 import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
+import { enterSends } from '../L1_domain/enter-sends';
 import { agentLabel, pageTitle } from '../L1_domain/home';
 import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
@@ -1119,6 +1120,15 @@ for (const input of [photoInput, cameraInput]) {
 // ---- sending ----
 
 send.addEventListener('click', () => void sendOrder());
+
+// A fine pointer that can hover is a mouse: there Enter sends; a touch screen keeps Enter for
+// new lines. Asked on each press, so a tablet that gets a mouse plugged in follows along.
+const keyboardAndMouse = window.matchMedia('(hover: hover) and (pointer: fine)');
+text.addEventListener('keydown', (event) => {
+  if (!enterSends(event, keyboardAndMouse.matches)) return;
+  event.preventDefault();
+  if (!send.disabled) void sendOrder();
+});
 
 const quick = $('quick');
 const toggleQuick = $('toggle-quick');

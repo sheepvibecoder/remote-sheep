@@ -6,6 +6,11 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- With a keyboard and mouse, **Enter** sends the message and **Shift+Enter** starts a new line, as
+  in WhatsApp. On a touch screen Enter still starts a new line and the button sends.
+
 ### Fixed
 
 - The unread dot on the **Sessions** tab is round again instead of a stretched oval.
