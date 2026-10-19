@@ -56,6 +56,7 @@ export default tseslint.config(
       '**/.angular/**',
       '.atl/**',
       '.codegraph/**',
+      'odd/**',
     ],
   },
   eslint.configs.recommended,
