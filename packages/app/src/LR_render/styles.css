@@ -1342,6 +1342,23 @@ header .name.home .sub {
     grid-column: 2;
     grid-row: 6;
   }
+  /* Split, as web.html draws it: the chat and the raw terminal in two equal columns, under one
+     header and above one message box. */
+  body.split {
+    grid-template-columns: 380px 1fr 1fr;
+  }
+  body.split header,
+  body.split footer,
+  body.split #statusbar {
+    grid-column: 2 / 4;
+  }
+  body.split #term {
+    grid-column: 3;
+    min-width: 0;
+  }
+  body.split #chat {
+    min-width: 0;
+  }
   #version {
     position: fixed;
     left: 0;

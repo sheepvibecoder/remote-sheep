@@ -104,7 +104,12 @@ export interface AppState {
   homeError: string | null;
   /** The session the chat view shows. */
   target: string;
+  /** The Terminal view is up: the raw pane alone, which the box types into. */
   showTerm: boolean;
+  /** Split was picked: chat and terminal side by side while the window is wide. Kept per phone. */
+  split: boolean;
+  /** The half of Split the box serves: a chat order, or keystrokes into the pane. */
+  side: Side;
   messages: ChatMessage[];
   note: string | null;
   /** The model of the open chat, as the agent names it; null when it does not say. */
@@ -137,6 +142,12 @@ export type UpdateCheck =
   | { status: 'idle' | 'checking' }
   | { status: 'latest' | 'available'; version: string }
   | { status: 'failed'; error: string };
+
+/** How an open session is shown: its chat, chat and terminal side by side, or its terminal. */
+export type Layout = 'chat' | 'split' | 'term';
+
+/** One half of the Split view. */
+export type Side = 'chat' | 'term';
 
 /** What the New sheet can start. */
 export type NewKind = AgentKind | 'shell';
@@ -203,6 +214,10 @@ export class Store {
    * switch carried the text over and Enter sent it to the wrong session.
    */
   private readonly drafts = new Map<string, string>();
+  /** Whether the window has room for Split; the view says so. */
+  private wide = false;
+  /** What Ctrl+\ goes back to when it leaves Split. */
+  private beforeSplit: Layout = 'chat';
 
   constructor(
     private readonly preferences: Preferences,
@@ -234,6 +249,8 @@ export class Store {
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
+      split: phone.getItem('layout') === 'split',
+      side: 'chat',
       messages: [],
       note: null,
       model: null,
@@ -298,7 +315,7 @@ export class Store {
         return;
       }
       case 'terminal':
-        if (message.target !== state.target || state.view !== 'chat' || !state.showTerm) return;
+        if (message.target !== state.target || !this.termShown()) return;
         state.terminal = message.output;
         this.emit('terminal');
         return;
@@ -327,6 +344,7 @@ export class Store {
     state.view = 'chat';
     // A shell, or an agent whose transcript cannot be read, has only its terminal to show.
     if (this.currentSession() && !this.hasChat()) state.showTerm = true;
+    state.side = 'chat';
     this.clearThread();
     this.emit('view');
   }
@@ -571,6 +589,59 @@ export class Store {
     this.emit('view');
   }
 
+  /** The window got wide enough for Split, or too narrow for it: a narrow one shows the chat. */
+  setWide(wide: boolean): void {
+    if (this.wide === wide) return;
+    const before = this.termShown();
+    this.wide = wide;
+    if (this.termShown() !== before) this.state.terminal = '';
+    this.emit('view');
+  }
+
+  /** Whether the open session can be shown in Split: a wide window and a chat to show. */
+  offersSplit(): boolean {
+    return this.wide && this.state.view === 'chat' && this.mayHaveChat();
+  }
+
+  /** What the open session shows; Split falls back to the chat while it cannot be offered. */
+  layout(): Layout {
+    if (this.state.showTerm) return 'term';
+    return this.state.split && this.offersSplit() ? 'split' : 'chat';
+  }
+
+  /**
+   * Picks the layout from the switch. Split is refused where it is not offered, and the chat of
+   * a session without one, like the toggle refuses it; only Split is remembered, for the phone.
+   */
+  setLayout(layout: Layout): void {
+    const state = this.state;
+    if (layout === 'split' && !this.offersSplit()) return;
+    if (layout === 'chat' && !this.mayHaveChat()) return;
+    const was = this.layout();
+    if (layout === was) return;
+    if (layout === 'split') {
+      this.beforeSplit = was;
+      state.side = 'chat';
+    }
+    state.split = layout === 'split';
+    this.phone.setItem('layout', state.split ? 'split' : 'chat');
+    state.showTerm = layout === 'term';
+    state.terminal = '';
+    this.emit('view');
+  }
+
+  /** Ctrl+\: into Split, or back to the layout it was entered from. */
+  toggleSplit(): void {
+    this.setLayout(this.layout() === 'split' ? this.beforeSplit : 'split');
+  }
+
+  /** A tap on one half of Split: the box then serves that half. */
+  setSide(side: Side): void {
+    if (this.layout() !== 'split' || this.state.side === side) return;
+    this.state.side = side;
+    this.emit('view');
+  }
+
   beginSend(spoken: string): void {
     this.state.pending = {
       id: 'pending',
@@ -694,11 +765,10 @@ export class Store {
     const state = this.state;
     if (state.link !== 'open') return null;
     if (!this.visible) return { kind: 'watch', target: null, terminal: false };
-    return {
-      kind: 'watch',
-      target: state.view === 'chat' ? state.target : null,
-      terminal: state.showTerm,
-    };
+    const target = state.view === 'chat' ? state.target : null;
+    // Only Split names the chat: an agent from before it reads the terminal flag alone.
+    if (this.layout() === 'split') return { kind: 'watch', target, terminal: true, chat: true };
+    return { kind: 'watch', target, terminal: state.showTerm };
   }
 
   currentSession(): Session | undefined {
@@ -717,6 +787,17 @@ export class Store {
     return this.state.view === 'chat' && current?.kind === 'agent' && !this.hasChat();
   }
 
+  /** Unlisted yet, the session may still turn out to have a chat. */
+  private mayHaveChat(): boolean {
+    return !this.currentSession() || this.hasChat();
+  }
+
+  /** Whether the raw terminal is on screen: the Terminal view, or the right half of Split. */
+  private termShown(): boolean {
+    const layout = this.layout();
+    return this.state.view === 'chat' && layout !== 'chat';
+  }
+
   /** Whether the open session is a plain shell rather than a coding agent. */
   isShell(): boolean {
     return this.currentSession()?.kind === 'shell';
@@ -728,7 +809,7 @@ export class Store {
    */
   showsKeys(): boolean {
     if (this.state.view !== 'chat') return false;
-    return this.state.showTerm || this.currentSession()?.status === 'blocked';
+    return this.typesIntoPane() || this.currentSession()?.status === 'blocked';
   }
 
   /**
@@ -737,9 +818,8 @@ export class Store {
    * and a tap on it would type a stray digit into the pane.
    */
   paneChoices(): PaneChoice[] {
-    const { view, showTerm, terminal } = this.state;
     const asks = this.currentSession()?.status === 'blocked';
-    return view === 'chat' && showTerm && asks ? paneChoices(terminal) : [];
+    return this.typesIntoPane() && asks ? paneChoices(this.state.terminal) : [];
   }
 
   /** The top of an open chat: its session's badge, kept quiet while the link is down. */
@@ -751,9 +831,16 @@ export class Store {
     return this.state.link === 'open' ? badge : { ...badge, ring: 'idle', asks: false };
   }
 
-  /** With the raw terminal up, the box types into the pane: keystrokes, not a chat order. */
+  /**
+   * With the raw terminal up, or the terminal half of Split picked, the box types into the pane:
+   * keystrokes, not a chat order.
+   */
   typesIntoPane(): boolean {
-    return this.state.view === 'chat' && this.state.showTerm;
+    const layout = this.layout();
+    return (
+      this.state.view === 'chat' &&
+      (layout === 'term' || (layout === 'split' && this.state.side === 'term'))
+    );
   }
 
   /**
@@ -775,12 +862,12 @@ export class Store {
 
   /** The one-tap orders, in the chat of a coding agent: a console takes commands, not replies. */
   showsQuickReplies(): boolean {
-    const { quickReplies, view, showTerm } = this.state;
+    const { quickReplies, view } = this.state;
     return (
       quickReplies &&
       this.state.quickList.length > 0 &&
       view === 'chat' &&
-      !showTerm &&
+      !this.typesIntoPane() &&
       !this.isShell()
     );
   }

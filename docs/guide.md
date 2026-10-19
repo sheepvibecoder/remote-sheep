@@ -88,6 +88,12 @@ the list. The left column keeps the home's top (the logo, a moon to switch the t
 the computer's name), the tabs as pills under the search and a **New session** button at the
 bottom; a bar under the right side recalls the shortcuts.
 
+There the switch at the top of a chat also offers **Split** (or press Ctrl+\ to turn it on and
+off): the chat on the left and the raw terminal on the right. Tap a side to pick what the box
+does: the chat side sends a chat order, the terminal side types into the pane, with the keys of
+the Terminal view. The phone remembers Split for every chat; a narrow window shows the chat, and a
+console or Codex keeps its terminal alone.
+
 Shortcuts: **Ctrl K** goes to the search, and **Alt ↓** opens the next session that waits for an
 answer, wrapping around. The tab title shows how many sessions have something unread, for example
 `(2) RemoteSheep`.

@@ -1216,3 +1216,188 @@ describe('Store', () => {
     expect(store.state.palette).toBe('watermelon');
   });
 });
+
+describe('Store split view', () => {
+  /** A wide window with a listed Claude Code chat open. */
+  function wideChat() {
+    const ctx = setup();
+    ctx.store.setWide(true);
+    ctx.store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });
+    ctx.store.openChat('p1');
+    return ctx;
+  }
+
+  it('asks for the chat and the terminal at once in Split', () => {
+    const { store } = wideChat();
+    store.setLayout('split');
+    expect(store.layout()).toBe('split');
+    expect(store.watchRequest()).toEqual({
+      kind: 'watch',
+      target: 'p1',
+      terminal: true,
+      chat: true,
+    });
+  });
+
+  it('keeps both the chat and the terminal frames in Split', () => {
+    const { store } = wideChat();
+    store.setLayout('split');
+    store.receive({ type: 'chat', target: 'p1', messages: [said('a', 'user', 'x')], note: null });
+    store.receive({ type: 'terminal', target: 'p1', output: 'prompt> ' });
+    expect(store.thread()).toEqual([said('a', 'user', 'x')]);
+    expect(store.state.terminal).toBe('prompt> ');
+  });
+
+  it('starts Split on the chat side, which orders the chat like the Chat view', () => {
+    const { store } = wideChat();
+    store.setLayout('split');
+    expect(store.state.side).toBe('chat');
+    expect(store.typesIntoPane()).toBe(false);
+    expect(store.showsQuickReplies()).toBe(true);
+    store.receive({ type: 'terminal', target: 'p1', output: 'Proceed?\n ❯ 1. Yes\n   2. No\n' });
+    expect(store.paneChoices()).toEqual([]);
+    expect(store.orderFor('hola', null)?.order).not.toBe('hola');
+  });
+
+  it('types into the pane from the terminal side of Split, like the Terminal view', () => {
+    const { store, changes } = wideChat();
+    store.receive({ type: 'sessions', sessions: [session('p1', 'idle')] });
+    store.setLayout('split');
+    expect(store.showsKeys()).toBe(false);
+    changes.length = 0;
+    store.setSide('term');
+    expect(changes).toEqual(['view']);
+    expect(store.typesIntoPane()).toBe(true);
+    expect(store.showsKeys()).toBe(true);
+    expect(store.showsQuickReplies()).toBe(false);
+    expect(store.orderFor(' ls ', 'up/a.png')).toEqual({
+      spoken: 'ls',
+      order: 'ls',
+      usesPhoto: false,
+    });
+    store.receive({ type: 'sessions', sessions: [session('p1', 'blocked')] });
+    store.receive({ type: 'terminal', target: 'p1', output: 'Proceed?\n ❯ 1. Yes\n   2. No\n' });
+    expect(store.paneChoices().map((choice) => choice.key)).toEqual(['1', '2']);
+    store.setSide('chat');
+    expect(store.typesIntoPane()).toBe(false);
+    store.setLayout('chat');
+    store.setLayout('split');
+    expect(store.state.side).toBe('chat');
+  });
+
+  it('falls back to the chat on a narrow window, and its watch follows', () => {
+    const { store } = wideChat();
+    store.setLayout('split');
+    store.setSide('term');
+    store.setWide(false);
+    expect(store.layout()).toBe('chat');
+    expect(store.typesIntoPane()).toBe(false);
+    expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'p1', terminal: false });
+    store.receive({ type: 'terminal', target: 'p1', output: 'ignored' });
+    expect(store.state.terminal).toBe('');
+    store.setLayout('split');
+    expect(store.layout()).toBe('chat');
+  });
+
+  it('remembers Split for the whole phone, across chats and reloads', () => {
+    const { store, storage } = wideChat();
+    expect(store.layout()).toBe('chat');
+    store.setLayout('split');
+    store.back();
+    store.openChat('p1');
+    expect(store.layout()).toBe('split');
+
+    const again = new Store(storage, new FakePush());
+    again.setLink('open');
+    again.setWide(true);
+    again.receive({ type: 'sessions', sessions: [session('p1')] });
+    again.openChat('p1');
+    expect(again.layout()).toBe('split');
+    again.setLayout('chat');
+    const third = new Store(storage, new FakePush());
+    third.setWide(true);
+    third.receive({ type: 'sessions', sessions: [session('p1')] });
+    third.openChat('p1');
+    expect(third.layout()).toBe('chat');
+  });
+
+  it('offers no Split to a session without a chat, which stays on its terminal', () => {
+    const { store } = setup();
+    store.setWide(true);
+    const shell: Session = { ...session('w1:s1'), kind: 'shell', status: 'unknown' };
+    const codex: Session = { ...session('c1'), agent: 'codex' };
+    store.receive({ type: 'sessions', sessions: [session('p1'), shell, codex] });
+    store.openChat('p1');
+    expect(store.offersSplit()).toBe(true);
+    store.setLayout('split');
+    for (const target of ['w1:s1', 'c1']) {
+      store.openChat(target);
+      expect(store.offersSplit()).toBe(false);
+      expect(store.layout()).toBe('term');
+      store.setLayout('split');
+      expect(store.layout()).toBe('term');
+      expect(store.watchRequest()).toEqual({ kind: 'watch', target, terminal: true });
+    }
+    store.setWide(false);
+    store.openChat('p1');
+    expect(store.offersSplit()).toBe(false);
+  });
+
+  it('refuses the chat for a session without one, which stays on its terminal', () => {
+    const { store } = setup();
+    store.setWide(true);
+    const shell: Session = { ...session('w1:s1'), kind: 'shell', status: 'unknown' };
+    const codex: Session = { ...session('c1'), agent: 'codex' };
+    store.receive({ type: 'sessions', sessions: [shell, codex] });
+    for (const target of ['w1:s1', 'c1']) {
+      store.openChat(target);
+      store.setLayout('chat');
+      expect(store.layout()).toBe('term');
+      expect(store.state.showTerm).toBe(true);
+    }
+  });
+
+  it('ignores a side picked outside Split', () => {
+    const { store, changes } = wideChat();
+    changes.length = 0;
+    store.setSide('term');
+    expect(store.state.side).toBe('chat');
+    expect(store.typesIntoPane()).toBe(false);
+    expect(changes).toEqual([]);
+  });
+
+  it('drops the terminal text when a narrowing window leaves Split', () => {
+    const { store } = wideChat();
+    store.setLayout('split');
+    store.receive({ type: 'terminal', target: 'p1', output: 'prompt> ' });
+    expect(store.state.terminal).toBe('prompt> ');
+    store.setWide(false);
+    expect(store.state.terminal).toBe('');
+  });
+
+  it('toggles Split and the layout before it, on a wide window only', () => {
+    const { store } = wideChat();
+    store.setLayout('term');
+    store.toggleSplit();
+    expect(store.layout()).toBe('split');
+    store.toggleSplit();
+    expect(store.layout()).toBe('term');
+    store.setLayout('chat');
+    store.toggleSplit();
+    store.toggleSplit();
+    expect(store.layout()).toBe('chat');
+    store.setWide(false);
+    store.toggleSplit();
+    expect(store.layout()).toBe('chat');
+  });
+
+  it('switches between Chat and Terminal through the layout as the toggle does', () => {
+    const { store } = wideChat();
+    store.setLayout('term');
+    expect(store.state.showTerm).toBe(true);
+    expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'p1', terminal: true });
+    store.setLayout('chat');
+    expect(store.state.showTerm).toBe(false);
+    expect(store.watchRequest()).toEqual({ kind: 'watch', target: 'p1', terminal: false });
+  });
+});

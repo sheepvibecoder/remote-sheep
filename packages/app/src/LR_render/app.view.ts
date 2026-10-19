@@ -233,7 +233,8 @@ function onChange(change: Change): void {
 // ---- views ----
 
 function applyView(): void {
-  const { view, showTerm } = state;
+  const { view } = state;
+  const layout = store.layout();
   const wide = wideQuery.matches;
   list.classList.toggle('on', listShown());
   home.classList.toggle('hidden', !listShown());
@@ -241,8 +242,9 @@ function applyView(): void {
   if (!listShown()) sheet.classList.add('hidden');
   // Nothing open on a wide window: the right side says so instead of staying blank.
   $('empty').classList.toggle('on', wide && view === 'list');
-  chat.classList.toggle('on', view === 'chat' && !showTerm);
-  term.classList.toggle('on', view === 'chat' && showTerm);
+  chat.classList.toggle('on', view === 'chat' && layout !== 'term');
+  term.classList.toggle('on', view === 'chat' && layout !== 'chat');
+  document.body.classList.toggle('split', view === 'chat' && layout === 'split');
   devices.classList.toggle('on', view === 'devices');
   computers.classList.toggle('on', view === 'computers');
   $('settings').classList.toggle('on', view === 'settings');
@@ -271,8 +273,10 @@ function applyView(): void {
   } else {
     delete term.dataset['note'];
   }
-  $('to-chat').classList.toggle('on', !showTerm);
-  $('to-term').classList.toggle('on', showTerm);
+  $('to-chat').classList.toggle('on', layout === 'chat');
+  $('to-split').classList.toggle('on', layout === 'split');
+  $('to-term').classList.toggle('on', layout === 'term');
+  $('to-split').classList.toggle('hidden', !store.offersSplit());
   // With the terminal up the whole screen goes dark and the box types into the pane.
   const pane = store.typesIntoPane();
   document.body.classList.toggle('pane', pane);
@@ -358,18 +362,31 @@ function openChat(next: string): void {
 
 back.addEventListener('click', () => store.back());
 
-// Each side of the switch only acts when it is not the one already showing.
+// Each choice of the switch only acts when it is not the one already showing.
 $('to-chat').addEventListener('click', () => {
-  if (state.showTerm) switchView();
+  switchView(() => store.setLayout('chat'));
+});
+$('to-split').addEventListener('click', () => {
+  switchView(() => store.setLayout('split'));
 });
 $('to-term').addEventListener('click', () => {
-  if (!state.showTerm) switchView();
+  switchView(() => store.setLayout('term'));
 });
-function switchView(): void {
+const LAYOUT_NAMES = { chat: 'chat', split: 'split view', term: 'raw terminal' } as const;
+function switchView(change: () => void): void {
+  const was = store.layout();
+  // The rows of the old terminal must not linger while the agent sends the new snapshot.
   term.textContent = '';
-  store.toggleTerminal();
-  say(state.showTerm ? 'raw terminal' : 'chat');
+  change();
+  if (store.layout() !== was) say(LAYOUT_NAMES[store.layout()]);
 }
+// In Split the box serves the half last touched.
+chat.addEventListener('pointerdown', () => {
+  store.setSide('chat');
+});
+term.addEventListener('pointerdown', () => {
+  store.setSide('term');
+});
 
 // Every view shows the version at the bottom, so a stale page is told apart at a glance.
 $('version').textContent = 'RemoteSheep v' + __VERSION__;
@@ -1243,6 +1260,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
     () => Date.now(),
     localStorage,
   );
+  store.setWide(wideQuery.matches);
   listView = createComponent(SessionListComponent, {
     environmentInjector: angular.injector,
     hostElement: list,
@@ -1462,6 +1480,7 @@ function renderComputerSettings(): void {
 }
 
 wideQuery.addEventListener('change', () => {
+  store.setWide(wideQuery.matches);
   applyView();
   renderHeader();
   if (listShown()) {
@@ -1471,8 +1490,9 @@ wideQuery.addEventListener('change', () => {
 });
 
 // ---- keyboard ----
-// Ctrl+K jumps to the search, Alt+↓ to the next session that waits for an answer. They only
-// listen once the app is paired and showing, so the pairing screen is left alone.
+// Ctrl+K jumps to the search, Alt+↓ to the next session that waits for an answer, Ctrl+\ turns
+// Split on and off. They only listen once the app is paired and showing, so the pairing screen
+// is left alone.
 
 document.addEventListener('keydown', (event) => {
   if (state.gate) return;
@@ -1480,6 +1500,10 @@ document.addEventListener('keydown', (event) => {
     if (!listShown()) return;
     event.preventDefault();
     search.focus();
+  } else if (event.ctrlKey && event.key === '\\') {
+    if (!store.offersSplit()) return;
+    event.preventDefault();
+    switchView(() => store.toggleSplit());
   } else if (event.altKey && event.key === 'ArrowDown') {
     const next = store.nextToAnswer();
     if (next === null) return;
