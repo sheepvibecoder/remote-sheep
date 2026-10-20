@@ -7,11 +7,17 @@ import type {
   AgentKind,
   ChatMessage,
   LinkedDevice,
+  PairingOffer,
+  PortState,
+  RelayChange,
+  RelayInfo,
   Request,
+  UpdateState,
   ServerMessage,
   Session,
   Workspace,
 } from '@remote-sheep/protocol';
+import { checkRelaySetting, relayIsOn } from '@remote-sheep/protocol';
 import {
   byAttention,
   groupSpaces,
@@ -31,6 +37,7 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
+import { addressOnPort, isThisPcHost } from '../L1_domain/this-pc';
 import { PALETTES, paletteId } from '../L1_domain/palette';
 import { speechRate } from '../L1_domain/speech-rate';
 import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
@@ -112,6 +119,12 @@ export interface AppState {
   spaces: Workspace[];
   /** Whether phones may use plain consoles, as the agent last said; null until it did. */
   shells: boolean | null;
+  /** The computer's relay as the agent last said (never its access code); null until it did. */
+  relay: RelayInfo | null;
+  /** Why the relay could not be read or changed; null once it could. */
+  relayError: string | null;
+  /** The computer took the code just sent: the form forgets it. False after anything else. */
+  relayCodeAccepted: boolean;
   /** What the New sheet starts: an agent, or a plain console. */
   newKind: NewKind;
   /** The workspace whose sessions the Sessions tab shows; null shows them all. */
@@ -162,6 +175,40 @@ export interface AppState {
   push: { support: PushSupport; on: boolean; error: string | null };
   /** The last "check for updates" and what it found. */
   update: UpdateCheck;
+  /** The computer's own agent: its version and its update from Settings → Update. */
+  agentUpdate: AgentUpdate;
+  /** Settings → Add a device: the last pairing the computer made, or why it could not. */
+  pairing: { offer: PairingOffer | null; error: string | null };
+  /** Settings → Port. */
+  port: PortSettings;
+}
+
+/** The computer's port as Settings shows it, and what a change did. */
+export interface PortSettings {
+  /** As the computer last said; null until it did. */
+  state: PortState | null;
+  /** Why the port could not be read or changed; null otherwise. */
+  error: string | null;
+  /** What the person must know after a change; null otherwise. */
+  notice: string | null;
+  /** The page's new address once the computer restarted there; only for a page on this PC. */
+  moveTo: string | null;
+}
+
+/**
+ * The computer's update as the phone follows it: `restarting` waits for the link to come back
+ * after an update; the agent answers before it restarts, so the new version is read then.
+ */
+export interface AgentUpdate {
+  status: 'unknown' | 'idle' | 'updating' | 'restarting' | 'updated' | 'current' | 'failed';
+  /** The version the computer runs, as it last said; null until it did. */
+  version: string | null;
+  /** Whether it runs as the Herdr plugin, the only way it can update itself; null until it said. */
+  plugin: boolean | null;
+  /** The version it ran before the update, while restarting and once updated. */
+  from: string | null;
+  /** Why it could not be read or updated; null otherwise. */
+  error: string | null;
 }
 
 export type UpdateCheck =
@@ -197,18 +244,43 @@ export type Change =
   | 'quick'
   | 'appearance'
   | 'shells'
+  | 'relay'
   | 'terminal'
   | 'devices'
   | 'profiles'
   | 'push'
-  | 'update';
+  | 'update'
+  | 'agent-update'
+  | 'pairing'
+  | 'port';
 
 type Listener = (change: Change) => void;
 
 /** Whatever carries a request to the agent: the open connection, in the app. */
 export type Agent = Pick<AgentConnection, 'request'>;
 
+/** How long after a "still connecting" answer Settings → Relay reads the relay again. */
+const RELAY_RECHECK_MS = 5000;
+
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** How often the phone reads the computer's state while it updates itself. */
+const AGENT_UPDATE_POLL_MS = 3000;
+
+/** How long a page on this PC waits for the computer to restart on its new port. */
+const PORT_MOVE_DELAY_MS = 6000;
+
+export const BAD_PORT_TEXT = 'a port is a whole number from 1024 to 65535, or auto';
+
+const PORT_SOURCES = {
+  variable: 'set by the PORT variable on the computer',
+  saved: 'saved',
+  picked: 'picked as free',
+};
+
+export const PORT_MOVED =
+  'The computer restarts on the new port. Phones paired over its network need the new address; ' +
+  'phones on the relay are unaffected.';
 
 /** A value per session, kept in preferences as JSON; anything unreadable starts empty. */
 function readMap<T>(preferences: Preferences, key: string, valid: (value: unknown) => value is T) {
@@ -239,6 +311,8 @@ export class Store {
   private readonly lastStatus: Map<string, string>;
   /** Settles the person has not looked at yet, per session. */
   private readonly unreadCounts: Map<string, number>;
+  /** True while a loop reads the computer's update, so a second one does not start. */
+  private followingUpdate = false;
   /** When the phone saw each session's status change: the time a row shows and sorts by. */
   private readonly changeTimes: Map<string, number>;
   /**
@@ -257,6 +331,8 @@ export class Store {
    * the open chat, so a list row shows the last value this phone saw for that session.
    */
   private readonly contexts = new Map<string, { used: number; model: string | null }>();
+  /** The id the agent knows this browser by, from its last `ready`; null until then. */
+  private device: string | null = null;
 
   constructor(
     private readonly preferences: Preferences,
@@ -287,6 +363,10 @@ export class Store {
       space: null,
       newKind: 'claude',
       shells: null,
+      relay: null,
+      relayError: null,
+      relayCodeAccepted: false,
+      agentUpdate: { status: 'unknown', version: null, plugin: null, from: null, error: null },
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
@@ -312,6 +392,8 @@ export class Store {
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
       update: { status: 'idle' },
+      pairing: { offer: null, error: null },
+      port: { state: null, error: null, notice: null, moveTo: null },
     };
   }
 
@@ -480,6 +562,149 @@ export class Store {
       this.state.homeError = describe(error);
     }
     this.emit('shells');
+  }
+
+  /** Reads the computer's relay for Settings. */
+  async loadRelay(agent: Agent): Promise<void> {
+    await this.askRelay(agent);
+  }
+
+  /**
+   * Has the computer use this relay at once; one it cannot use is refused here, with why. The
+   * computer answers once it connected, failed, or gave up waiting (about 5 s); in that last case
+   * the relay is read once more `recheckMs` later, so the screen shows how it went.
+   */
+  async setRelay(
+    agent: Agent,
+    url: string,
+    code: string,
+    recheckMs = RELAY_RECHECK_MS,
+  ): Promise<void> {
+    const checked = checkRelaySetting(url, code);
+    if (!checked.ok) {
+      this.state.relayError = checked.error;
+      this.state.relayCodeAccepted = false;
+      this.emit('relay');
+      return;
+    }
+    await this.askRelay(agent, { url: checked.setting.url, code: checked.setting.code });
+    const relay = this.state.relay;
+    if (!relay || !relayIsOn(relay) || relay.connected || relay.problem) return;
+    await new Promise((resolve) => setTimeout(resolve, recheckMs));
+    await this.askRelay(agent);
+  }
+
+  /** Has the computer drop its relay and forget it; it then serves its own network only. */
+  async turnRelayOff(agent: Agent): Promise<void> {
+    await this.askRelay(agent, { off: true });
+  }
+
+  private async askRelay(agent: Agent, set?: RelayChange) {
+    try {
+      this.state.relay = await agent.request(set ? { kind: 'relay', set } : { kind: 'relay' });
+      this.state.relayError = null;
+      this.state.relayCodeAccepted = set !== undefined && 'code' in set;
+    } catch (error) {
+      this.state.relayError = describe(error);
+      this.state.relayCodeAccepted = false;
+    }
+    this.emit('relay');
+  }
+
+  /**
+   * Settings → Add a device: asks the computer for a new pairing (relay link first, and its QR
+   * code). It voids the one shown before, so only the newest QR pairs.
+   */
+  async addDevice(agent: Agent): Promise<void> {
+    try {
+      this.state.pairing = { offer: await agent.request({ kind: 'pairing' }), error: null };
+    } catch (error) {
+      this.state.pairing = { offer: null, error: describe(error) };
+    }
+    this.emit('pairing');
+  }
+
+  /**
+   * The port as Settings says it: where it comes from and why it cannot change; while the
+   * computer restarts, where it is going, since the port it still names is the one it leaves.
+   */
+  portLine(): string {
+    const { state, notice } = this.state.port;
+    if (state === null) return 'Checking…';
+    const line = state.restarting
+      ? 'Moving to ' + (state.saved === null ? 'a free port' : String(state.saved)) + '…'
+      : String(state.port) +
+        ' — ' +
+        PORT_SOURCES[state.source] +
+        (state.reason === null ? '' : '. ' + state.reason);
+    return notice ? line + ' ' + notice : line;
+  }
+
+  /** The id the agent knows this browser by; the link says it on every ready. */
+  setThisDevice(id: string): void {
+    this.device = id;
+  }
+
+  thisDevice(): string | null {
+    return this.device;
+  }
+
+  /** Reads the computer's port for Settings. */
+  async loadPort(agent: Agent): Promise<void> {
+    const port = this.state.port;
+    try {
+      port.state = await agent.request({ kind: 'port' });
+      port.error = null;
+    } catch (error) {
+      port.error = describe(error);
+    }
+    this.emit('port');
+  }
+
+  /**
+   * Has the computer move to another port (a number, or `auto` for a free one) and restart there.
+   * The computer checks the range and that the port is free. A page opened on this PC follows
+   * it to the new address once it had time to restart; phones keep the address they have.
+   */
+  async setPort(
+    agent: Agent,
+    text: string,
+    page: { protocol: string; hostname: string },
+    delayMs = PORT_MOVE_DELAY_MS,
+  ): Promise<void> {
+    const port = this.state.port;
+    const wanted = text.trim().toLowerCase();
+    const set = wanted === 'auto' ? 'auto' : /^\d+$/.test(wanted) ? Number(wanted) : null;
+    port.notice = null;
+    port.moveTo = null;
+    if (set === null) {
+      port.error = BAD_PORT_TEXT;
+      this.emit('port');
+      return;
+    }
+    let answer: PortState;
+    try {
+      answer = await agent.request({ kind: 'port', set });
+    } catch (error) {
+      port.error = describe(error);
+      this.emit('port');
+      return;
+    }
+    port.state = answer;
+    port.error = null;
+    port.notice = answer.restarting ? PORT_MOVED : null;
+    this.emit('port');
+    if (!answer.restarting || answer.saved === null || !isThisPcHost(page.hostname)) return;
+    // The new address is another origin, with its own storage: the page pairs there as a new
+    // device. So this one is forgotten now, before the agent restarts, and the list shows one
+    // browser. If it fails, the old device expires by itself as any unused pairing does.
+    const device = this.device;
+    if (device !== null) {
+      await agent.request({ kind: 'unlink', id: device }).catch(() => undefined);
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    port.moveTo = addressOnPort(page, answer.saved);
+    this.emit('port');
   }
 
   /** The kinds the New sheet offers: Console only while consoles are not turned off. */
@@ -1060,6 +1285,115 @@ export class Store {
     if (space === null) return null;
     const found = groupSpaces(this.state.sessions, this.state.spaces).find((s) => s.id === space);
     return found?.label ?? space;
+  }
+
+  /** Reads the computer's version, and whether it can update itself, for Settings. */
+  async loadAgentUpdate(agent: Agent): Promise<void> {
+    await this.readAgentUpdate(agent);
+    await this.followAgentUpdate(agent);
+  }
+
+  /** Whether the Update button can be used: the state is known and no update is under way. */
+  canUpdateAgent(): boolean {
+    const status = this.state.agentUpdate.status;
+    return status !== 'unknown' && status !== 'updating' && status !== 'restarting';
+  }
+
+  /**
+   * Has the computer update itself. The agent answers at once and Herdr works for minutes, so
+   * the state is read every few seconds until the outcome; a new build restarts the agent, the
+   * link comes back by itself, and `afterReady` reads the new version.
+   */
+  async updateAgent(agent: Agent): Promise<void> {
+    if (!this.canUpdateAgent()) return;
+    const update = this.state.agentUpdate;
+    update.status = 'updating';
+    update.error = null;
+    this.emit('agent-update');
+    try {
+      const answer = await agent.request({ kind: 'update', run: true });
+      update.from = answer.version;
+      this.applyAgentUpdate(answer);
+    } catch (error) {
+      update.status = 'failed';
+      update.error = describe(error);
+    }
+    this.emit('agent-update');
+    await this.followAgentUpdate(agent);
+  }
+
+  /** Runs on every ready: after an update's restart, reads the version that runs now. */
+  async afterReady(agent: Agent): Promise<void> {
+    const status = this.state.agentUpdate.status;
+    if (status === 'restarting' || status === 'updating') await this.loadAgentUpdate(agent);
+  }
+
+  /** Reads the state every few seconds while an update runs; one reader at a time. */
+  private async followAgentUpdate(agent: Agent): Promise<void> {
+    if (this.followingUpdate) return;
+    this.followingUpdate = true;
+    try {
+      // A method, not the field: the status can change while the loop waits.
+      while (this.agentUpdating()) {
+        await new Promise((resolve) => setTimeout(resolve, AGENT_UPDATE_POLL_MS));
+        if (!this.agentUpdating()) return;
+        await this.readAgentUpdate(agent);
+      }
+    } finally {
+      this.followingUpdate = false;
+    }
+  }
+
+  private agentUpdating(): boolean {
+    return this.state.agentUpdate.status === 'updating';
+  }
+
+  private async readAgentUpdate(agent: Agent): Promise<void> {
+    const update = this.state.agentUpdate;
+    try {
+      this.applyAgentUpdate(await agent.request({ kind: 'update' }));
+    } catch (error) {
+      // While an update runs, a dropped link is the restart; the next ready reads what runs.
+      if (update.status === 'updating' || update.status === 'restarting') {
+        update.status = 'restarting';
+      } else {
+        update.status = 'failed';
+        update.error = describe(error);
+      }
+    }
+    this.emit('agent-update');
+  }
+
+  /** What the agent said, read against what this phone was following. */
+  private applyAgentUpdate(answer: UpdateState): void {
+    const update = this.state.agentUpdate;
+    const following = update.status === 'updating' || update.status === 'restarting';
+    update.version = answer.version;
+    update.plugin = answer.plugin;
+    update.error = null;
+    if (!following) {
+      // An update another device started is followed too; an older outcome is not news.
+      if (answer.updating) {
+        update.status = 'updating';
+        update.from = answer.version;
+      } else {
+        update.status = 'idle';
+      }
+      return;
+    }
+    if (answer.outcome === 'failed') {
+      update.status = 'failed';
+      update.error = answer.error ?? 'the update failed';
+    } else if (answer.outcome === 'current') {
+      update.status = 'current';
+    } else if (answer.outcome === 'updated') {
+      update.status = 'restarting';
+    } else if (!answer.updating) {
+      // No outcome and nothing running: the agent that answers was started by the restart.
+      update.status = update.from === null ? 'idle' : 'updated';
+    } else {
+      update.status = 'updating';
+    }
   }
 
   /** Asks the server which version it serves now, against the one this page runs. */

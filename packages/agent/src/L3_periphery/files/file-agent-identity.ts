@@ -35,6 +35,18 @@ function parse(file: string, text: string): KeyPair {
 const hasCode = (error: unknown, code: string) =>
   error instanceof Error && 'code' in error && error.code === code;
 
+/**
+ * The public key of the agent that runs from this data folder, read only: `remote-sheep qr`
+ * checks the running agent against it and must never make a key. null when there is none.
+ */
+export async function readAgentPublicKey(file: string): Promise<Uint8Array | null> {
+  try {
+    return parse(file, await readFile(file, 'utf8')).publicKey;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadAgentKeyPair(file: string): Promise<KeyPair> {
   try {
     return parse(file, await readFile(file, 'utf8'));

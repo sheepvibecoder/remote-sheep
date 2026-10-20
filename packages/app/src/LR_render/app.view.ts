@@ -30,6 +30,7 @@ import { asksNothing, quickOrder, type Order } from '../L1_domain/order';
 import { isFixedStyle, promptOf } from '../L1_domain/reply-styles';
 import { pairFragmentFrom } from '../L1_domain/pair-link';
 import type { Connect } from '../L1_domain/ports/agent-connection';
+import type { LocalPairing } from '../L1_domain/ports/local-pairing';
 import type { PairingStore } from '../L1_domain/ports/pairing-store';
 import type { PushSubscriptions } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
@@ -46,6 +47,10 @@ import { stopDictation } from './dictation';
 import { $, must, say } from './dom';
 import { hideEditor, markUp } from './photo-editor';
 import { canScan, scanQr } from './qr-scanner';
+import { mountPairingSettings } from './pairing-settings';
+import { mountPortSettings } from './port-settings';
+import { mountRelaySettings } from './relay-settings';
+import { mountUpdateSettings } from './update-settings';
 import { renderRich } from './rich-text';
 import { SessionListComponent } from './session-list/session-list.component';
 import { autoSpeak, drawSpeed, speak, startSpeeds } from './speech';
@@ -199,7 +204,12 @@ function onChange(change: Change): void {
       document.title = pageTitle(store.unreadTotal());
       applyView();
       renderHeader();
-      if (state.view === 'settings') void store.loadShells(agent);
+      if (state.view === 'settings') {
+        void store.loadShells(agent);
+        void store.loadRelay(agent);
+        void store.loadAgentUpdate(agent);
+        void store.loadPort(agent);
+      }
       if (listShown()) renderList();
       if (state.view === 'devices') renderDevices();
       if (state.view === 'computers') {
@@ -230,6 +240,21 @@ function onChange(change: Change): void {
     case 'shells':
       renderShells();
       if (!sheet.classList.contains('hidden')) renderSheet();
+      return;
+    case 'relay':
+      renderRelay();
+      return;
+    case 'agent-update':
+      agentUpdateSettings.render(state.agentUpdate, store.canUpdateAgent());
+      return;
+    case 'pairing':
+      pairingSettings.render(state.pairing);
+      if (state.pairing.error && state.view === 'settings') say(state.pairing.error, true);
+      return;
+    case 'port':
+      portSettings.render(state.port, store.portLine());
+      if (state.port.error && state.view === 'settings') say(state.port.error, true);
+      if (state.port.moveTo) location.assign(state.port.moveTo);
       return;
     case 'quick':
       drawQuick();
@@ -1295,6 +1320,8 @@ export interface AppDependencies {
   agent: string | null;
   push: PushSubscriptions;
   updates: UpdateSource;
+  /** How a page opened on the agent's own computer asks it for a pairing, with no QR. */
+  localPairing: LocalPairing;
 }
 
 /** Pairs with the QR in the fragment, or reconnects with the pairing this phone kept. */
@@ -1348,6 +1375,9 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   renderQuickSettings();
   renderComputerSettings();
   renderShells();
+  agentUpdateSettings.render(state.agentUpdate, store.canUpdateAgent());
+  pairingSettings.render(state.pairing);
+  portSettings.render(state.port, store.portLine());
   store.subscribe(onChange);
   document.addEventListener('visibilitychange', () => {
     store.setVisible(document.visibilityState === 'visible');
@@ -1362,14 +1392,21 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
         watch();
         // Failures show in the Devices view through push.error.
         void store.syncPush(agent);
+        // After an update's restart the Store reads the new version; it reports by itself.
+        void store.afterReady(agent);
       },
       error: (message) => say(message, true),
       restart: () => {
         sessionStorage.setItem(ANNOUNCE, '1');
         location.replace(location.pathname);
       },
+      // As a scanned QR does: the page starts over on the pairing link.
+      pair: (fragment) => {
+        location.hash = fragment;
+      },
     },
     localStorage,
+    { page: { hostname: location.hostname, localPairing: dependencies.localPairing } },
   );
   // Errors surface through the store and the hooks; the page has nothing to wait for.
   void starter.start(dependencies.fragment);
@@ -1589,4 +1626,42 @@ function renderShells(): void {
 
 toggleShells.addEventListener('click', () => {
   if (state.shells !== null) void store.setShells(agent, !state.shells);
+});
+
+// ---- settings: relay ----
+
+const relaySettings = mountRelaySettings($('settings'), {
+  save: (url, code) => {
+    void store.setRelay(agent, url, code);
+  },
+  turnOff: () => {
+    void store.turnRelayOff(agent);
+  },
+});
+
+function renderRelay(): void {
+  relaySettings.render(state.relay);
+  if (state.relayCodeAccepted) relaySettings.clearCode();
+  if (state.relayError && state.view === 'settings') say(state.relayError, true);
+}
+
+// ---- settings: add a device, port ----
+
+const pairingSettings = mountPairingSettings($('settings'), () => {
+  // The QR or the reason arrives as a 'pairing' change; nothing else waits for it.
+  void store.addDevice(agent);
+});
+
+const portSettings = mountPortSettings($('settings'), {
+  save: (text) => {
+    // The outcome, and the move of a page on this PC, arrive as 'port' changes.
+    void store.setPort(agent, text, location);
+  },
+});
+
+// ---- settings: update ----
+
+const agentUpdateSettings = mountUpdateSettings($('settings'), () => {
+  // The outcome arrives as an 'agent-update' change; nothing else waits for it.
+  void store.updateAgent(agent);
 });

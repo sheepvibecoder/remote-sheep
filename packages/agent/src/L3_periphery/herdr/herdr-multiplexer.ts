@@ -14,17 +14,35 @@ import type { Multiplexer } from '../../L1_domain/ports/multiplexer';
 /** Runs herdr with these arguments and resolves with its stdout. */
 export type HerdrRunner = (args: string[]) => Promise<string>;
 
-// Arguments go straight to the executable, so prompt text never reaches a shell.
+/**
+ * The herdr to run: HERDR when the user names one, else the binary Herdr hands its plugins
+ * (HERDR_BIN_PATH, which reaches the Herdr that started the agent even when another one is
+ * first on PATH), else herdr on PATH.
+ */
+export function herdrExecutable(
+  env: Readonly<Record<string, string | undefined>>,
+  platform: string,
+): string {
+  return env['HERDR'] || env['HERDR_BIN_PATH'] || (platform === 'win32' ? 'herdr.exe' : 'herdr');
+}
+
+// Arguments go straight to the executable, so prompt text never reaches a shell. The background
+// agent has no console on Windows, so without windowsHide each call would flash a new window.
 export function herdrRunner(executable: string): HerdrRunner {
   return (args) =>
     new Promise((resolve, reject) => {
-      execFile(executable, args, { maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(stderr.trim() || err.message));
-          return;
-        }
-        resolve(stdout);
-      });
+      execFile(
+        executable,
+        args,
+        { maxBuffer: 4 * 1024 * 1024, windowsHide: true },
+        (err, stdout, stderr) => {
+          if (err) {
+            reject(new Error(stderr.trim() || err.message));
+            return;
+          }
+          resolve(stdout);
+        },
+      );
     });
 }
 

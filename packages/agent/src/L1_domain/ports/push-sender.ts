@@ -6,5 +6,6 @@ import type { PushSubscription } from '@remote-sheep/protocol';
  * not be used again) and rejects for any other failure.
  */
 export interface PushSender {
-  send(subscription: PushSubscription, payload: string): Promise<'sent' | 'gone'>;
+  /** subject: the `sub` claim of the VAPID token, the https origin of the relay in use now. */
+  send(subscription: PushSubscription, payload: string, subject: string): Promise<'sent' | 'gone'>;
 }

@@ -124,8 +124,8 @@ function setup() {
   const registry = new MemoryDeviceRegistry();
   const clock = { time: T0, now: () => clock.time };
   const random = { bytes: (n: number) => crypto.getRandomValues(new Uint8Array(n)) };
-  const pairing = new PairingService({ registry, clock, random });
   const agent = generateKeyPair();
+  const pairing = new PairingService({ registry, clock, random, agentKey: agent.publicKey });
   const log: Log = { opened: [], requests: [], closed: [] };
   const channel = new SecureChannel({
     keys: agent,

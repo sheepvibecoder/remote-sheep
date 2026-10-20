@@ -10,4 +10,6 @@ export interface SessionChange {
 /** Whoever must hear about it with no phone open: the bell of stage 4. */
 export interface Notifier {
   notify(change: SessionChange): void;
+  /** False while it cannot deliver anything; the hub then stops watching with no phone open. */
+  listening(): boolean;
 }

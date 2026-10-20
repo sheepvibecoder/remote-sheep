@@ -20,12 +20,37 @@ pnpm start
 ```
 
 It prints a QR code. Scan it with your phone, on the same network as the
-computer running Herdr, and the phone is paired.
+computer running Herdr, and the phone is paired. To use it in a browser on the
+same computer instead, open `http://localhost:<port>` (the port it prints): the
+page pairs itself with no QR and shows the sessions.
 
 ### Pairing
 
-- Each QR code pairs one phone and expires after 5 minutes. Press Enter where
-  remote-sheep runs for a new one.
+- Each QR code pairs one phone or browser and expires after 5 minutes. Press
+  Enter where remote-sheep runs for a new one.
+- When the agent runs in the background (`remote-sheep start`, or the Herdr
+  plugin), run `remote-sheep qr` or the plugin action **Show pairing QR**. It
+  asks the running agent for a new QR code and links over a control channel
+  that only this computer can reach (a loopback port and a secret in
+  `control.json`, readable by you alone). Enter shows a new one; q or Esc
+  closes it, and the agent keeps running. The background agent's log never
+  holds a pairing link.
+- A page opened from the agent at `http://localhost:<port>` or
+  `http://127.0.0.1:<port>` in a browser on this computer, with no pairing yet,
+  pairs itself: it asks the agent that served it for an invite (`POST
+/local-pairing`). The agent answers only a request that comes over loopback,
+  names its own `localhost` or `127.0.0.1` address as the Host (which stops DNS
+  rebinding) and carries that same address as its Origin; another site's page,
+  a request with no Origin, another machine and the relay are refused, and it
+  never sends CORS headers. Any program running on this computer can still ask,
+  as it could read the agent's files: that is the trade-off of "only from your
+  PC". The pairing is the usual one, listed by `remote-sheep devices`. If that
+  page kept a pairing the agent no longer accepts (its data folder was
+  replaced), it drops it and pairs itself again; a page on the network or the
+  relay asks for a new QR instead.
+- **Settings → Add a device** asks the computer for a new QR code and its links
+  (relay first, then the network, then this PC) to pair another phone or
+  browser; any paired device can ask, and it voids the previous code.
 - Every connection runs a fresh key exchange (X25519, triple Diffie-Hellman)
   and every frame is sealed with ChaCha20-Poly1305. Only the phone and this
   computer hold the keys.
@@ -148,14 +173,15 @@ opens that chat. Nothing from the transcript is sent.
 
 - **Needs a relay.** Push works only on https, so open the app from the
   relay's address. Plain LAN http cannot use it, and without a relay the
-  agent sends no push. On an iPhone, add the app to the home screen first.
+  agent sends no push; setting one while the agent runs turns push on with no
+  restart. On an iPhone, add the app to the home screen first.
 - **Switch it on** in **Settings → Linked devices → Notifications**. Where it cannot work, the
   switch says why.
 - **What the agent keeps.** One push subscription per paired device, inside
   `devices.json`. It is removed when the device is unlinked, revoked or its
   pairing expires, or when the push service says it is gone. The agent's
-  VAPID keys live in `~/.remote-sheep/vapid.json`, created on first use.
-- **Cost.** With a relay configured the agent asks Herdr for the session
+  VAPID keys live in `~/.remote-sheep/vapid.json`, created on the first start.
+- **Cost.** While a relay is set the agent asks Herdr for the session
   list every 2 seconds even with no phone open, so it can notice a session
   settling.
 
@@ -174,16 +200,42 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem \
 A self-signed certificate warns once and blocks installing the app to the
 home screen; a real certificate removes both.
 
+### Updating
+
+**Settings → Update** shows the version the computer runs. When the agent runs as the Herdr
+plugin, **Update** asks Herdr to fetch and build the newest version
+(`herdr plugin update sheepvibecoder.remote-sheep --yes`); the app says **Updating…** meanwhile,
+which can take a few minutes. If there is a new build, the agent restarts into it through the
+plugin's **Restart remote-sheep** action, keeping its data folder, port and relay; the app
+reconnects by itself and shows `old → new` version. If there is none, it says **already up to
+date** and nothing restarts. One update runs at a time: a second request, from any device, is
+told an update is already running. A failed update leaves the agent running and shows Herdr's
+reason.
+
+Herdr updates only a plugin installed from GitHub (`herdr plugin install`), and needs a Herdr
+that has `herdr plugin update`. A plugin linked with `herdr plugin link`, or an agent started with
+`pnpm start` or `remote-sheep start` outside Herdr, cannot update itself; the app says so. Update
+that copy with `git pull` and `pnpm build`, then `remote-sheep restart` (stop, then start again).
+
 ### Settings
 
-Set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
+**Settings → Port** in the app shows the port and moves the agent to another one (or **Auto**, a
+free one from 3998). Only the Herdr plugin can do it: it saves the port and restarts through its
+**Restart remote-sheep** action, and a page open on this computer moves to the new address,
+where it pairs itself again; it has the agent forget the device it was, so it is listed once. Phones
+paired over the network need the new address; phones on the relay are unaffected. An agent run by
+hand says to use `remote-sheep port <n>` and restart it; with `PORT` set, change that instead.
+A port counts as taken when any program listens on it, even on `localhost` only: the first start
+skips it, and Settings and `remote-sheep port <n>` refuse it and save nothing.
+
+The variables: set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
 `pnpm start` runs from; the file is ignored by git, and a variable set in the shell wins.
 
-| Variable            | Default                          |                                                                       |
-| ------------------- | -------------------------------- | --------------------------------------------------------------------- |
-| `PORT`              | `3999`                           | Port the phone connects to                                            |
-| `HERDR`             | `herdr` (`herdr.exe` on Windows) | Herdr executable                                                      |
-| `REMOTE_SHEEP_HOME` | `~/.remote-sheep`                | Agent key, paired phones, VAPID keys, certificate and uploaded photos |
+| Variable            | Default                                                     |                                                                                       |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `PORT`              | the saved port, else 3998 or the next free one              | Port the phone connects to; overrides `remote-sheep port`                             |
+| `HERDR`             | `herdr` (`herdr.exe` on Windows)                            | Herdr executable                                                                      |
+| `REMOTE_SHEEP_HOME` | `~/.remote-sheep`, or the plugin's state folder under Herdr | Agent key, paired phones, VAPID keys, certificate, uploaded photos and the saved port |
 
 ### Relay
 
@@ -216,8 +268,20 @@ pnpm start relay          # show it, with the code masked
 pnpm start relay off      # forget it: LAN only
 ```
 
+`relay set` and `relay off` take effect at the next start. To change the relay of the running
+agent with no restart, use the Herdr action **Set the relay**, `pnpm start relay change` (it asks
+for the URL and the access code, the code not shown as you type; an empty URL turns the relay off),
+or the app under **Settings → Relay**. Either way the agent connects at once, saves the setting to
+`relay.json` for the next start, and the next pairing QR lists the relay link first. The URL must
+be `https://` (plain `http://` only for a relay on the same computer, such as `wrangler dev`) and
+the code 1 to 256 characters with no spaces. The code is never logged, never shown back, and
+travels from the pane over the agent's loopback control channel only after the agent proved it
+holds the secret in `control.json`. Notifications follow the relay at once too: they start when
+a relay is set, use the new one when it is switched, and stop when it is turned off.
+
 The environment variables `REMOTE_SHEEP_RELAY` and `REMOTE_SHEEP_RELAY_CODE`
-still work and override the saved relay when set.
+still work and override the saved relay when set; a relay set by them can only be changed there,
+not from the pane or the app.
 
 Daily flow: change code, `pnpm build`, `pnpm start`. Run `pnpm relay:deploy`
 only when the phone app or the relay itself changed.

@@ -72,14 +72,18 @@ export async function removeRelaySettingsFile(file: string): Promise<boolean> {
   }
 }
 
+type Environment = Readonly<Record<string, string | undefined>>;
+
+/** True when the variables decide the relay, which then only they can change. */
+export function relayVariablesSet(env: Environment): boolean {
+  return Boolean(env['REMOTE_SHEEP_RELAY']?.trim() || env['REMOTE_SHEEP_RELAY_CODE']?.trim());
+}
+
 /** Variables win when either is set (unchanged behaviour); otherwise the saved file. */
-export function resolveRelaySettings(
-  file: string,
-  env: Readonly<Record<string, string | undefined>>,
-): RelaySettings | null {
-  const url = env['REMOTE_SHEEP_RELAY'];
-  const code = env['REMOTE_SHEEP_RELAY_CODE'];
-  if (url?.trim() || code?.trim()) return parseRelaySettings(url, code);
+export function resolveRelaySettings(file: string, env: Environment): RelaySettings | null {
+  if (relayVariablesSet(env)) {
+    return parseRelaySettings(env['REMOTE_SHEEP_RELAY'], env['REMOTE_SHEEP_RELAY_CODE']);
+  }
   return loadRelaySettingsFile(file);
 }
 

@@ -3,6 +3,7 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app.config';
 import { agentFromSearch, sessionFromSearch } from './L1_domain/session-link';
+import { HttpLocalPairing } from './L3_periphery/http-local-pairing';
 import { HttpUpdateSource } from './L3_periphery/http-update-source';
 import { IndexedDbPairingStore } from './L3_periphery/indexed-db-pairing-store';
 import {
@@ -48,6 +49,7 @@ bootstrapApplication(
     agent,
     push: new ServiceWorkerPushSubscriptions(pushEnvironment),
     updates: new HttpUpdateSource((url, init) => fetch(url, init)),
+    localPairing: new HttpLocalPairing((url, init) => fetch(url, init)),
   }),
 ).catch((error: unknown) => {
   // Nothing else will show it on a phone; the view's error handlers are not up yet.

@@ -12,11 +12,12 @@ function setup() {
   const clock = { time: T0, now: () => clock.time };
   let fill = 0;
   const random = { bytes: (n: number) => new Uint8Array(n).fill(++fill) };
-  const service = new PairingService({ registry, clock, random });
+  const service = new PairingService({ registry, clock, random, agentKey: AGENT_KEY });
   return { registry, clock, service };
 }
 
 const transcript = new Uint8Array(32).fill(9);
+const AGENT_KEY = new Uint8Array(32).fill(3);
 
 describe('PairingService', () => {
   it('creates one-time invites of 32 random bytes that live 5 minutes', () => {
@@ -24,6 +25,11 @@ describe('PairingService', () => {
     const invite = service.createInvite();
     expect(invite.secret).toEqual(new Uint8Array(32).fill(1));
     expect(invite.expiresAt).toBe(T0 + 5 * MINUTE);
+  });
+
+  it('puts the agent key in every invite, so the invite is all a QR code needs', () => {
+    const { service } = setup();
+    expect(service.createInvite().agentKey).toEqual(AGENT_KEY);
   });
 
   it('pairs a phone that proves it knows the invite secret, exactly once', async () => {

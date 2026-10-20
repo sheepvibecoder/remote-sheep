@@ -14,6 +14,7 @@ import {
   constantTimeEqual,
   publicKeyId,
   verifyPairingProof,
+  type Invite,
   type LinkedDevice,
 } from '@remote-sheep/protocol';
 import { isPairingExpired, pairingExpiresAt } from '../L1_domain/pairing-expiry';
@@ -26,7 +27,9 @@ export const INVITE_TTL_MS = 5 * 60 * 1000;
 /** `lastSeen` is written at most this often per device: fine enough for a 24-hour rule. */
 export const TOUCH_INTERVAL_MS = 60 * 1000;
 
-export interface PendingInvite {
+/** The whole invite a QR code carries: the agent key, the one-time secret and its expiry. */
+export interface PendingInvite extends Invite {
+  readonly agentKey: Uint8Array;
   readonly secret: Uint8Array;
   /** Epoch milliseconds; the invite is refused from this instant on. */
   readonly expiresAt: number;
@@ -47,6 +50,8 @@ export interface PairingServiceOptions {
   registry: DeviceRegistry;
   clock: Clock;
   random: RandomSource;
+  /** The agent's static public key, which every invite names. */
+  agentKey: Uint8Array;
 }
 
 export class PairingService {
@@ -61,7 +66,11 @@ export class PairingService {
   createInvite(): PendingInvite {
     const secret = this.options.random.bytes(INVITE_SECRET_BYTES);
     if (secret.length !== INVITE_SECRET_BYTES) throw new Error('random source returned short');
-    this.invite = { secret, expiresAt: this.options.clock.now() + INVITE_TTL_MS };
+    this.invite = {
+      agentKey: this.options.agentKey,
+      secret,
+      expiresAt: this.options.clock.now() + INVITE_TTL_MS,
+    };
     return this.invite;
   }
 

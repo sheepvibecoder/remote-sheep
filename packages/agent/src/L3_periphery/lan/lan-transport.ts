@@ -3,6 +3,14 @@
 //
 // This adapter only moves bytes. Who may talk, and in which format, is the
 // channel's business, so the relay of stage 3 can replace this file alone.
+//
+// One exception: `POST /local-pairing` hands a new invite to the app page when it was opened
+// in a browser on this PC, so that browser pairs with no QR. Only such a page can pass its checks:
+// the connection comes from loopback (never the LAN, and the relay never reaches this server),
+// the Host is this server's own loopback name (a DNS-rebinding page names its own domain), and
+// the Origin is that same address (another site's page, or a request with no Origin, is refused).
+// No CORS header is ever sent. Any program on this PC can still ask, as it could read the agent's
+// files: that is the trade-off of pairing "only from your PC".
 
 import { readFileSync } from 'node:fs';
 import {
@@ -17,13 +25,21 @@ import { extname, resolve, sep } from 'node:path';
 import { type RawData, WebSocket, WebSocketServer } from 'ws';
 import { CLOSE_PROTOCOL, RELAY_PING, RELAY_PONG } from '@remote-sheep/protocol';
 import type { Link, LinkServer } from '../../L1_domain/ports/link';
+import { isLoopbackAddress } from '../control/http-control-server';
 
 export interface LanOptions {
   port: number;
   /** Built phone app (index.html and its assets). */
   appDir: string;
   tls?: { cert: Buffer; key: Buffer };
+  /** How to change the port, added to the message when it is already in use. */
+  busyHint?: string;
+  /** A new encoded invite for a browser on this PC; without it there is no `/local-pairing`. */
+  localInvite?: () => string;
 }
+
+const LOCAL_PAIRING = '/local-pairing';
+const LOOPBACK_NAMES = ['localhost', '127.0.0.1'];
 
 // Above the 12 MB upload limit, so a photo just over it is refused with a
 // message by the upload store instead of a dropped socket.
@@ -117,7 +133,8 @@ export class LanTransport implements LinkServer {
             ? new Error(
                 'port ' +
                   this.options.port +
-                  ' is already in use; is remote-sheep already running?',
+                  ' is already in use; is remote-sheep already running?' +
+                  (this.options.busyHint ? ' Or ' + this.options.busyHint + '.' : ''),
               )
             : err,
         );
@@ -143,6 +160,10 @@ export class LanTransport implements LinkServer {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       res.end('not found');
     };
+    if (this.options.localInvite && req.method === 'POST' && req.url === LOCAL_PAIRING) {
+      this.pairLocally(req, res, this.options.localInvite);
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       notFound();
       return;
@@ -180,5 +201,31 @@ export class LanTransport implements LinkServer {
       'x-content-type-options': 'nosniff',
     });
     res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
+  /** Refusals say nothing about why and make no invite, so the live QR stays valid. */
+  private pairLocally(req: IncomingMessage, res: ServerResponse, invite: () => string): void {
+    if (!this.fromThisPcPage(req)) {
+      res.writeHead(403).end();
+      return;
+    }
+    res.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    });
+    res.end(JSON.stringify({ invite: invite() }));
+  }
+
+  private fromThisPcPage(req: IncomingMessage): boolean {
+    if (!isLoopbackAddress(req.socket.remoteAddress)) return false;
+    const host = req.headers.host;
+    const own = LOOPBACK_NAMES.map((name) => name + ':' + String(this.port()));
+    if (host === undefined || !own.includes(host)) return false;
+    const scheme = this.options.tls ? 'https://' : 'http://';
+    if (req.headers.origin !== scheme + host) return false;
+    // Browsers that send it say where the request came from; only the page itself may ask.
+    const site = req.headers['sec-fetch-site'];
+    return site === undefined || site === 'same-origin';
   }
 }

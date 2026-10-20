@@ -11,11 +11,18 @@ import type { Device, DeviceRegistry } from '../L1_domain/ports/device-registry'
 import type { Notifier, SessionChange } from '../L1_domain/ports/notifier';
 import type { PushSubscription } from '@remote-sheep/protocol';
 import type { PushSender } from '../L1_domain/ports/push-sender';
+import type { RelayOrigin } from '../L1_domain/ports/relay';
 import { isPairingExpired } from '../L1_domain/pairing-expiry';
 
 export interface PushNotifierOptions {
   registry: Pick<DeviceRegistry, 'list' | 'setPush'>;
   sender: PushSender;
+  /**
+   * Push needs a relay: its https origin is the VAPID subject and the page that registers the
+   * service worker. Read on every notice, so setting, switching or turning off the relay counts
+   * at once.
+   */
+  relay: RelayOrigin;
   clock: Clock;
   /** The VAPID public key, base64url, which a phone needs to subscribe. */
   publicKey: string;
@@ -32,6 +39,10 @@ const titleOf = (change: SessionChange): string =>
 
 export class PushNotifier implements Notifier {
   constructor(private readonly options: PushNotifierOptions) {}
+
+  listening(): boolean {
+    return this.options.relay.origin() !== null;
+  }
 
   get publicKey(): string {
     return this.options.publicKey;
@@ -56,6 +67,8 @@ export class PushNotifier implements Notifier {
   }
 
   private async deliver(change: SessionChange): Promise<void> {
+    const subject = this.options.relay.origin();
+    if (subject === null) return;
     const now = this.options.clock.now();
     const payload = JSON.stringify({
       title: titleOf(change),
@@ -65,13 +78,13 @@ export class PushNotifier implements Notifier {
     const devices = (await this.options.registry.list()).filter(
       (device) => device.push && !isPairingExpired(device, now),
     );
-    await Promise.all(devices.map((device) => this.send(device, payload)));
+    await Promise.all(devices.map((device) => this.send(device, payload, subject)));
   }
 
-  private async send(device: Device, payload: string): Promise<void> {
+  private async send(device: Device, payload: string, subject: string): Promise<void> {
     if (!device.push) return;
     try {
-      if ((await this.options.sender.send(device.push, payload)) === 'gone') {
+      if ((await this.options.sender.send(device.push, payload, subject)) === 'gone') {
         await this.options.registry.setPush(device.id, null);
       }
     } catch (err) {

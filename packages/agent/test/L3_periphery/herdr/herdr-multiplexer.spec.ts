@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Session } from '@remote-sheep/protocol';
 import {
   HerdrMultiplexer,
+  herdrExecutable,
+  herdrRunner,
   parseAgentList,
   parseShellList,
   parseWorkspaceList,
@@ -254,5 +256,27 @@ describe('HerdrMultiplexer', () => {
       throw new Error('claude: command not found');
     });
     await expect(broken.startSession('w5', 'claude')).rejects.toThrow('claude: command not found');
+  });
+});
+
+describe('herdrExecutable', () => {
+  it('runs the Herdr that started the agent as a plugin', async () => {
+    const executable = herdrExecutable({ HERDR_BIN_PATH: process.execPath }, 'win32');
+    expect(executable).toBe(process.execPath);
+    // The node binary stands in for herdr: the runner must call exactly that file.
+    const output = await herdrRunner(executable)(['-e', 'process.stdout.write("from bin path")']);
+    expect(output).toBe('from bin path');
+  });
+
+  it('lets HERDR override the plugin binary', () => {
+    expect(herdrExecutable({ HERDR: 'my-herdr', HERDR_BIN_PATH: '/opt/herdr' }, 'linux')).toBe(
+      'my-herdr',
+    );
+  });
+
+  it('finds herdr on PATH when started outside Herdr', () => {
+    expect(herdrExecutable({}, 'win32')).toBe('herdr.exe');
+    expect(herdrExecutable({}, 'linux')).toBe('herdr');
+    expect(herdrExecutable({ HERDR: '', HERDR_BIN_PATH: '' }, 'darwin')).toBe('herdr');
   });
 });

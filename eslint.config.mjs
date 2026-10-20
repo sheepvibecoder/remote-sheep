@@ -119,6 +119,7 @@ export default tseslint.config(
       'packages/app/build.mjs',
       '*.{ts,mjs}',
       'scripts/**/*.mjs',
+      'herdr-plugin/**/*.mjs',
     ],
     languageOptions: { globals: globals.node },
   },

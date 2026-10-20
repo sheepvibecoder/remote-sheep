@@ -2,9 +2,16 @@
 // pairing of the active profile, or ask for a QR. The handshake itself lives in the
 // connection; this decides which credentials it gets and when a pairing is kept or
 // dropped. A profile is one paired computer; the page shows one at a time.
+//
+// A page opened in a browser on the agent's own computer, with no profile yet, asks the agent
+// that served it for a pairing link and opens on it as a scanned QR would: the person lands in
+// the sessions list with nothing to scan. Its storage belongs to that address alone, so no profile
+// there means this browser never paired with that agent.
 
 import { generateKeyPair, type KeyPair } from '@remote-sheep/protocol';
 import { readPairLink } from '../L1_domain/pair-link';
+import type { LocalPairing } from '../L1_domain/ports/local-pairing';
+import { isThisPcHost } from '../L1_domain/this-pc';
 import { profileIdOf } from '../L1_domain/profile';
 import type { AgentConnection, Connect, Credentials } from '../L1_domain/ports/agent-connection';
 import type { PairingStore, StoredPairing } from '../L1_domain/ports/pairing-store';
@@ -22,6 +29,8 @@ export interface StarterHooks {
    * state (sessions, badges, the open chat) begins clean that way.
    */
   restart(): void;
+  /** Opens the page on this pairing link (`#pair=…`), exactly as a scanned QR does. */
+  pair(fragment: string): void;
 }
 
 export interface StarterOptions {
@@ -29,6 +38,8 @@ export interface StarterOptions {
   generateKeys?: () => KeyPair;
   /** How long a probe waits for another profile's agent before calling it offline. */
   probeTimeoutMs?: number;
+  /** Where the page was served from, and how it asks that agent to pair it with no QR. */
+  page?: { hostname: string; localPairing: LocalPairing };
 }
 
 const PROBE_TIMEOUT_MS = 8000;
@@ -43,6 +54,7 @@ export class LinkStarter {
   private readonly now: () => number;
   private readonly generateKeys: () => KeyPair;
   private readonly probeTimeoutMs: number;
+  private readonly page: StarterOptions['page'];
 
   constructor(
     private readonly store: Store,
@@ -55,6 +67,7 @@ export class LinkStarter {
     this.now = options.now ?? Date.now;
     this.generateKeys = options.generateKeys ?? (() => generateKeyPair());
     this.probeTimeoutMs = options.probeTimeoutMs ?? PROBE_TIMEOUT_MS;
+    this.page = options.page;
   }
 
   /** The open connection, or null while the page waits for a QR. */
@@ -86,7 +99,7 @@ export class LinkStarter {
     const wanted = this.preferences.getItem(ACTIVE_PROFILE);
     const profile = saved.find((p) => p.id === wanted) ?? saved[0];
     if (!profile) {
-      this.store.setGate('scan');
+      if (!(await this.pairItself())) this.store.setGate('scan');
       return;
     }
     if (profile.id !== wanted) {
@@ -197,6 +210,32 @@ export class LinkStarter {
     });
   }
 
+  private onThisPc(): boolean {
+    return this.page !== undefined && isThisPcHost(this.page.hostname);
+  }
+
+  private async pairAgain(id: string): Promise<void> {
+    this.close();
+    await this.forget(id);
+    await this.pairItself();
+  }
+
+  /** On this PC, asks the agent for a pairing link and opens on it; false when it cannot. */
+  private async pairItself(): Promise<boolean> {
+    const page = this.page;
+    if (!page || !this.onThisPc()) return false;
+    let fragment: string;
+    try {
+      fragment = await page.localPairing.invite();
+    } catch (error) {
+      this.hooks.error('this browser could not pair itself: ' + describe(error));
+      return false;
+    }
+    if (readPairLink(fragment, this.now()).kind !== 'invite') return false;
+    this.hooks.pair(fragment);
+    return true;
+  }
+
   /** Reads the stored profiles and hands them to the store; empty when they cannot be read. */
   private async list(): Promise<StoredPairing[]> {
     let saved: StoredPairing[] = [];
@@ -223,8 +262,15 @@ export class LinkStarter {
         this.store.setLink(state);
         // The link is already over; forget reports its own failure, so nothing waits for it.
         if (state === 'expired') void this.forget(id);
+        // On this PC a kept profile the agent refuses is from an identity it no longer has (its
+        // data folder was replaced): drop it and pair again, as a page with no profile does.
+        // Never for a pairing link, so a refused pairing cannot start another one.
+        if (state === 'unauthorized' && credentials.invite === null && this.onThisPc()) {
+          void this.pairAgain(id);
+        }
       },
       ready: (device) => {
+        this.store.setThisDevice(device);
         if (unsaved) {
           unsaved = false;
           // The link works whether or not the save lands; remember reports its own failure.

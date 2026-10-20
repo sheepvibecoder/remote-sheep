@@ -1,19 +1,22 @@
 // Paths and tuning in one place, so no module invents its own.
 //
-// Everything the agent writes lives in ~/.remote-sheep, never next to the
-// code: the agent key and certificate are secrets, the paired devices decide
-// who may drive the panes, and photos are private.
+// Everything the agent writes lives in ~/.remote-sheep (or the state folder Herdr gives
+// the plugin), never next to the code: the agent key and certificate are secrets, the
+// paired devices decide who may drive the panes, and photos are private.
 
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
+import { agentHome } from './L3_periphery/files/agent-home';
+import { herdrExecutable } from './L3_periphery/herdr/herdr-multiplexer';
+import { runsAsPlugin } from './L3_periphery/herdr/herdr-plugin-updates';
+import { relayVariablesSet, resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
 
 // A .env in the folder the agent starts from saves typing the same variables on every
 // start. Node never overrides a variable already set, so the shell still wins.
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-const home = process.env['REMOTE_SHEEP_HOME'] || join(homedir(), '.remote-sheep');
+const home = agentHome(process.env, homedir());
 const relayFile = join(home, 'relay.json');
 
 // Optional: the variables (which override) or `remote-sheep relay set`; with neither the
@@ -22,15 +25,24 @@ const relay = resolveRelaySettings(relayFile, process.env);
 const claudeHome = join(homedir(), '.claude');
 
 export const config = {
-  port: Number(process.env['PORT'] || 3999),
-  herdr: process.env['HERDR'] || (process.platform === 'win32' ? 'herdr.exe' : 'herdr'),
+  /** The PORT variable as typed, which overrides the saved port; checked by `portFromVariable`. */
+  portVariable: process.env['PORT'],
+  /** The port saved by the first start or `remote-sheep port <n>`. */
+  portFile: join(home, 'port.json'),
+  herdr: herdrExecutable(process.env, process.platform),
+  /** Started by the Herdr plugin, so it can update itself from the app. */
+  plugin: runsAsPlugin(process.env),
 
   /** null when no relay is configured. */
   relay,
+  /** True when the variables set the relay: then only they change it, not the app or the pane. */
+  relayFixed: relayVariablesSet(process.env),
 
   home,
   relayFile,
   settingsFile: join(home, 'settings.json'),
+  /** The running agent's loopback control port and secret, for `remote-sheep qr`. */
+  controlFile: join(home, 'control.json'),
   agentKeyFile: join(home, 'agent-key.json'),
   vapidFile: join(home, 'vapid.json'),
   devicesFile: join(home, 'devices.json'),

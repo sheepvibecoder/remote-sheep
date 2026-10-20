@@ -1,5 +1,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { request as httpRequest } from 'node:http';
+import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
@@ -102,7 +103,19 @@ describe('LanTransport', () => {
   it('reports a port already in use instead of crashing', async () => {
     const port = await start();
     const second = new LanTransport({ port, appDir: '.' });
-    await expect(second.start(() => {})).rejects.toThrow(/in use/);
+    await expect(second.start(() => {})).rejects.toThrow(
+      'port ' + String(port) + ' is already in use; is remote-sheep already running?',
+    );
+  });
+
+  it('adds how to change the port to the in-use message', async () => {
+    const port = await start();
+    const second = new LanTransport({ port, appDir: '.', busyHint: 'pick another' });
+    await expect(second.start(() => {})).rejects.toThrow(
+      'port ' +
+        String(port) +
+        ' is already in use; is remote-sheep already running? Or pick another.',
+    );
   });
 
   it('serves the phone app and refuses paths outside it', async () => {
@@ -112,5 +125,133 @@ describe('LanTransport', () => {
     expect(await page.text()).toBe('<h1>sheep</h1>');
     const escape = await fetch('http://127.0.0.1:' + port + '/..%2F..%2Fsecret.txt');
     expect(escape.status).toBe(404);
+  });
+
+  describe('POST /local-pairing, which pairs a browser on this PC with no QR', () => {
+    let invites = 0;
+
+    async function startLocal() {
+      invites = 0;
+      const appDir = mkdtempSync(join(tmpdir(), 'sheep-app-'));
+      writeFileSync(join(appDir, 'index.html'), '<h1>sheep</h1>');
+      transport = new LanTransport({
+        port: 0,
+        appDir,
+        localInvite: () => 'invite-' + String(++invites),
+      });
+      await transport.start(() => {});
+      return transport.port();
+    }
+
+    function post(
+      port: number,
+      headers: Record<string, string>,
+      { address = '127.0.0.1', method = 'POST' } = {},
+    ) {
+      return new Promise<{ status: number; headers: Record<string, unknown>; body: string }>(
+        (resolve, reject) => {
+          const req = httpRequest(
+            { host: address, port, path: '/local-pairing', method, headers },
+            (res) => {
+              let body = '';
+              res.setEncoding('utf8');
+              res.on('data', (chunk: string) => (body += chunk));
+              res.on('end', () => {
+                resolve({ status: res.statusCode ?? 0, headers: res.headers, body });
+              });
+            },
+          );
+          req.on('error', reject);
+          req.end();
+        },
+      );
+    }
+
+    const sameOrigin = (host: string) => ({
+      host,
+      origin: 'http://' + host,
+      'sec-fetch-site': 'same-origin',
+    });
+
+    it('hands a page served from 127.0.0.1 or localhost a new invite, with no CORS header', async () => {
+      const port = await startLocal();
+      const first = await post(port, sameOrigin('127.0.0.1:' + String(port)));
+      expect(first.status).toBe(200);
+      expect(JSON.parse(first.body)).toEqual({ invite: 'invite-1' });
+      expect(first.headers['cache-control']).toBe('no-store');
+      expect(Object.keys(first.headers).some((name) => name.startsWith('access-control-'))).toBe(
+        false,
+      );
+      const second = await post(port, sameOrigin('localhost:' + String(port)));
+      expect(JSON.parse(second.body)).toEqual({ invite: 'invite-2' });
+    });
+
+    it('accepts a same-origin request from a browser that sends no Sec-Fetch-Site', async () => {
+      const port = await startLocal();
+      const host = '127.0.0.1:' + String(port);
+      const answer = await post(port, { host, origin: 'http://' + host });
+      expect(answer.status).toBe(200);
+    });
+
+    it('refuses a foreign Origin, a missing Origin and a cross-site request, making no invite', async () => {
+      const port = await startLocal();
+      const host = '127.0.0.1:' + String(port);
+      const refused: Record<string, string>[] = [
+        { host, origin: 'http://evil.example', 'sec-fetch-site': 'cross-site' },
+        { host, origin: 'http://evil.example' },
+        { host, origin: 'http://localhost:' + String(port) },
+        { host, origin: 'https://' + host },
+        { host, 'sec-fetch-site': 'same-origin' },
+        { host, origin: 'http://' + host, 'sec-fetch-site': 'same-site' },
+        { host, origin: 'null' },
+      ];
+      for (const headers of refused) {
+        const answer = await post(port, headers);
+        expect(answer.status, JSON.stringify(headers)).toBe(403);
+        expect(answer.body).toBe('');
+      }
+      expect(invites).toBe(0);
+    });
+
+    it('refuses a Host other than localhost or 127.0.0.1 on its own port (DNS rebinding)', async () => {
+      const port = await startLocal();
+      for (const host of [
+        'evil.example:' + String(port),
+        '127.0.0.1:' + String(port + 1),
+        '127.0.0.1',
+        'localhost',
+        '192.168.1.20:' + String(port),
+      ]) {
+        const answer = await post(port, sameOrigin(host));
+        expect(answer.status, host).toBe(403);
+      }
+      expect(invites).toBe(0);
+    });
+
+    it('answers only POST, and is absent when the agent gives no invites', async () => {
+      const port = await startLocal();
+      const get = await post(port, sameOrigin('127.0.0.1:' + String(port)), { method: 'GET' });
+      expect(get.status).toBe(404);
+      expect(invites).toBe(0);
+      const plain = await start();
+      const absent = await post(plain, sameOrigin('127.0.0.1:' + String(plain)));
+      expect(absent.status).toBe(404);
+    });
+
+    const lan = Object.values(networkInterfaces())
+      .flat()
+      .find((i) => i?.family === 'IPv4' && !i.internal)?.address;
+
+    it.skipIf(lan === undefined)(
+      'refuses a request that arrives from another address, even with a loopback Host',
+      async () => {
+        const port = await startLocal();
+        const answer = await post(port, sameOrigin('127.0.0.1:' + String(port)), {
+          address: lan ?? '',
+        });
+        expect(answer.status).toBe(403);
+        expect(invites).toBe(0);
+      },
+    );
   });
 });

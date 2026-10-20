@@ -5,22 +5,43 @@ import { existsSync, readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { encodeBase64Url, publicKeyId } from '@remote-sheep/protocol';
+import { encodeBase64Url, encodeInvite, publicKeyId } from '@remote-sheep/protocol';
 import pkg from '../package.json' with { type: 'json' };
+import { PairingLinks } from './L1_domain/pairing-links';
+import { AgentUpdater } from './L2_application/agent-updater';
 import { PairingService } from './L2_application/pairing-service';
+import { PortChanger } from './L2_application/port-changer';
 import { PushNotifier } from './L2_application/push-notifier';
+import { RelaySwitch } from './L2_application/relay-switch';
+import type { RelayOrigin } from './L1_domain/ports/relay';
 import { SessionHub } from './L2_application/session-hub';
+import { chooseListenPort } from './L2_application/choose-listen-port';
+import { portFromVariable, presetListenPort } from './L1_domain/listen-port';
+import { BackgroundAgent, nodeAgentProcesses } from './L3_periphery/background/background-agent';
 import { SecureChannel } from './L3_periphery/channel/secure-channel';
 import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
-import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
+import { formatDevices } from './L3_periphery/cli/device-table';
+import { BACKGROUND_PAIRING_HINT, describePairing } from './L3_periphery/cli/pairing-messages';
+import { showPairingPrompt } from './L3_periphery/cli/pairing-prompt';
+import { showRelayPrompt } from './L3_periphery/cli/relay-prompt';
+import { TerminalQuestions } from './L3_periphery/cli/terminal-questions';
+import { busyPortHint, describePort, refusePortChoice } from './L3_periphery/cli/port-messages';
+import { requestPairing, requestRelay } from './L3_periphery/control/control-client';
+import { removeControlFile, saveControlFile } from './L3_periphery/control/control-file';
+import { HttpControlServer } from './L3_periphery/control/http-control-server';
 import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
-import { loadAgentKeyPair } from './L3_periphery/files/file-agent-identity';
+import { loadAgentKeyPair, readAgentPublicKey } from './L3_periphery/files/file-agent-identity';
 import { FileDeviceRegistry } from './L3_periphery/files/file-device-registry';
+import { FileSavedPort } from './L3_periphery/files/file-saved-port';
 import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
 import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
 import { FileUploadStore } from './L3_periphery/files/file-upload-store';
 import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
+import { herdrAnnouncer } from './L3_periphery/herdr/herdr-notifications';
+import { herdrCommand, HerdrPluginUpdates } from './L3_periphery/herdr/herdr-plugin-updates';
 import { LanTransport } from './L3_periphery/lan/lan-transport';
+import { TcpPortProbe } from './L3_periphery/lan/tcp-port-probe';
+import { QrPairingOffers } from './L3_periphery/pairing/qr-pairing-offers';
 import { WebPushSender } from './L3_periphery/push/web-push-sender';
 import { relayPushWarning } from './L3_periphery/relay/relay-settings';
 import {
@@ -29,8 +50,8 @@ import {
   removeRelaySettingsFile,
   saveRelaySettingsFile,
 } from './L3_periphery/relay/relay-settings-file';
-import { RelayTransport } from './L3_periphery/relay/relay-transport';
-import { pairingUrl, renderQr } from './L3_periphery/terminal/pairing-qr';
+import { FileSavedRelay } from './L3_periphery/relay/file-saved-relay';
+import { WebSocketRelayDialer } from './L3_periphery/relay/websocket-relay-dialer';
 import { config } from './config';
 
 function lanAddresses(): string[] {
@@ -44,14 +65,15 @@ const random = { bytes: (length: number) => new Uint8Array(randomBytes(length)) 
 
 async function createPushNotifier(
   registry: FileDeviceRegistry,
-  subject: string,
+  relay: RelayOrigin,
   agentId: string,
   log: (message: string) => void,
 ) {
   const vapid = await loadVapidKeys(config.vapidFile);
   return new PushNotifier({
     registry,
-    sender: new WebPushSender({ vapid, subject }),
+    sender: new WebPushSender({ vapid }),
+    relay,
     clock,
     publicKey: encodeBase64Url(vapid.publicKey),
     agentId,
@@ -59,23 +81,74 @@ async function createPushNotifier(
   });
 }
 
-async function serve(registry: FileDeviceRegistry) {
+async function serve(registry: FileDeviceRegistry, background: boolean) {
   const keys = await loadAgentKeyPair(config.agentKeyFile);
   const shells = await loadShellSetting(config.settingsFile);
-  const pairing = new PairingService({ registry, clock, random });
+  const pairing = new PairingService({ registry, clock, random, agentKey: keys.publicKey });
   const tls =
     existsSync(config.certFile) && existsSync(config.keyFile)
       ? { cert: readFileSync(config.certFile), key: readFileSync(config.keyFile) }
       : undefined;
   const log = (message: string) => console.error(message);
 
-  // Push needs the relay: its https origin is the VAPID subject and the page that can
-  // register a service worker. Without one there is no notifier and phones are told why.
+  // The relay can be set or turned off while the agent runs (Herdr's relay pane, the app's
+  // Settings); phones that arrive through it go to the channel like LAN ones.
+  const dialer = new WebSocketRelayDialer({
+    room: publicKeyId(keys.publicKey),
+    accept: (link) => {
+      channel.accept(link);
+    },
+    log,
+  });
+  const relay = new RelaySwitch({
+    saved: new FileSavedRelay(config.relayFile),
+    dialer,
+    initial: config.relay,
+    fixed: config.relayFixed,
+  });
+
+  // Push needs the relay: its https origin is the VAPID subject and the page that can register a
+  // service worker. The notifier follows the relay live; while there is none, it sends nothing
+  // and phones are told why.
   const pushWarning = relayPushWarning(config.relay);
   if (pushWarning) log(pushWarning);
-  const push = config.relay
-    ? await createPushNotifier(registry, config.relay.url, publicKeyId(keys.publicKey), log)
-    : undefined;
+  const push = await createPushNotifier(registry, relay, publicKeyId(keys.publicKey), log);
+
+  // Settings → Update: only the plugin can update itself. Phones read the state every few
+  // seconds while it runs, so the restart waits long enough for one to see the outcome.
+  const plugin = config.plugin ? new HerdrPluginUpdates(herdrCommand(config.herdr)) : null;
+  const updates = new AgentUpdater({
+    version: pkg.version,
+    plugin,
+    restartDelayMs: 3000,
+    log,
+  });
+
+  const variable = portFromVariable(config.portVariable);
+  const savedPort = new FileSavedPort(config.portFile);
+  const probe = new TcpPortProbe();
+  const chosen = await chooseListenPort({ variable, saved: savedPort, probe });
+  const { port, source } = chosen;
+  // Settings → Port: moving restarts the agent through the plugin, like an update.
+  const portChanger = new PortChanger({
+    current: chosen,
+    variable,
+    saved: savedPort,
+    probe,
+    restart: plugin && (() => plugin.restart()),
+    restartDelayMs: 1000,
+    log,
+  });
+
+  const scheme = tls ? 'https' : 'http';
+  const links = new PairingLinks(
+    {
+      relay: () => relay.origin(),
+      network: lanAddresses().map((address) => scheme + '://' + address + ':' + String(port)),
+      local: scheme + '://127.0.0.1:' + String(port),
+    },
+    pairing,
+  );
 
   const hub = new SessionHub({
     multiplexer: new HerdrMultiplexer(herdrRunner(config.herdr)),
@@ -93,7 +166,14 @@ async function serve(registry: FileDeviceRegistry) {
     shells,
     notifier: push,
     push,
+    relay,
+    updates,
+    pairing: new QrPairingOffers(links),
+    port: portChanger,
     log,
+  });
+  relay.onChange(() => {
+    hub.notifierChanged();
   });
 
   const channel = new SecureChannel({
@@ -105,47 +185,38 @@ async function serve(registry: FileDeviceRegistry) {
     log,
   });
   const transport = new LanTransport({
-    port: config.port,
+    port,
     appDir: join(dirname(fileURLToPath(import.meta.url)), 'app'),
     tls,
+    busyHint: busyPortHint(source),
+    // The app page opened in this PC's browser pairs it with no QR (loopback only).
+    localInvite: () => encodeInvite(pairing.createInvite()),
   });
   await transport.start((link) => channel.accept(link));
 
   // The relay serves the app too, so its address leads the QR code; the LAN stays listed.
-  const relay = config.relay
-    ? new RelayTransport({
-        url: config.relay.url,
-        code: config.relay.code,
-        room: publicKeyId(keys.publicKey),
-        log,
-        onState: (state) => log('relay ' + state + ' (' + config.relay?.url + ')'),
-      })
-    : null;
-  await relay?.start((link) => channel.accept(link));
+  await relay.start();
 
-  const scheme = tls ? 'https' : 'http';
-  const origins = [
-    ...(config.relay ? [config.relay.url] : []),
-    ...(lanAddresses().length ? lanAddresses() : ['localhost']).map(
-      (address) => scheme + '://' + address + ':' + config.port,
-    ),
-  ];
-  const interactive = process.stdin.isTTY;
+  const interactive = !background && process.stdin.isTTY;
+
+  // Same PC only: `remote-sheep qr` asks here for a new pairing while the agent keeps running.
+  const control = new HttpControlServer(links, { relay });
+  await saveControlFile(config.controlFile, {
+    port: await control.start(),
+    secret: control.secret,
+  });
 
   const printInvite = async () => {
-    const invite = pairing.createInvite();
-    const pair = { agentKey: keys.publicKey, secret: invite.secret, expiresAt: invite.expiresAt };
-    const urls = origins.map((origin) => pairingUrl(origin, pair));
     console.log('');
-    console.log(await renderQr(urls[0] ?? ''));
-    console.log('Scan this QR code with the phone to pair it. It pairs one phone and expires at');
-    console.log(formatTime(invite.expiresAt) + '. If the phone cannot reach this address, open:');
-    for (const url of urls) console.log('  ' + url);
+    console.log(await describePairing(links.newPairing()));
     if (interactive) console.log('Press Enter for a new QR code (the previous one stops working).');
   };
 
   console.log(
-    'remote-sheep ' + pkg.version + ' is listening on port ' + config.port + ' over ' + scheme,
+    'remote-sheep ' + pkg.version + ' is listening on port ' + String(port) + ' over ' + scheme,
+  );
+  console.log(
+    'Open ' + scheme + '://localhost:' + String(port) + ' in a browser on this PC to use it there.',
   );
   if (!tls) {
     console.log('Serving over plain http: frames are end-to-end encrypted, but someone on this');
@@ -158,8 +229,10 @@ async function serve(registry: FileDeviceRegistry) {
       : 'Consoles are off. Turn them on in the app, under Settings.',
   );
   console.log('Paired phones: `remote-sheep devices`; unpair one: `remote-sheep revoke <id>`.');
-  console.log('Stop with Ctrl+C.');
-  await printInvite();
+  console.log(background ? 'Stop with `remote-sheep stop`.' : 'Stop with Ctrl+C.');
+  // In the background the output is agent.log: a pairing link there would be a live credential.
+  if (background) console.log(BACKGROUND_PAIRING_HINT);
+  else await printInvite();
 
   if (interactive) {
     process.stdin.setEncoding('utf8');
@@ -172,12 +245,28 @@ async function serve(registry: FileDeviceRegistry) {
 
   const shutdown = async () => {
     hub.stop();
-    await relay?.stop();
+    await control.stop();
+    await removeControlFile(config.controlFile, control.secret);
+    await dialer.hangUp();
     await transport.stop();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown());
   process.on('SIGTERM', () => void shutdown());
+}
+
+const RESTART =
+  'Restart the agent to use it: `remote-sheep stop`, then `remote-sheep start` (or restart Herdr).';
+
+function backgroundAgent() {
+  return new BackgroundAgent({
+    dir: config.home,
+    // The built bundle starts itself again, from its data folder: a plugin's working folder
+    // on Windows is a \\?\ path that Node cannot resolve modules from.
+    processes: nodeAgentProcesses(fileURLToPath(import.meta.url), config.home),
+    // Run as the plugin, the outcome shows in Herdr too: an action's output is easy to miss.
+    ...(config.plugin ? { announce: herdrAnnouncer(herdrCommand(config.herdr)) } : {}),
+  });
 }
 
 async function main() {
@@ -223,8 +312,91 @@ async function main() {
           : 'No relay was set.',
       );
       return;
+    case 'port-show': {
+      const saved = await new FileSavedPort(config.portFile).load();
+      const variable = portFromVariable(config.portVariable);
+      console.log(describePort({ variable, saved, file: config.portFile }));
+      const status = await backgroundAgent().status();
+      if (status.kind === 'running') console.log(status.message);
+      return;
+    }
+    case 'port-set': {
+      const refusal = await refusePortChoice(
+        command.port,
+        new TcpPortProbe(),
+        (await backgroundAgent().status()).port,
+      );
+      if (refusal) {
+        console.error(refusal);
+        process.exitCode = 1;
+        return;
+      }
+      await new FileSavedPort(config.portFile).save(command.port);
+      console.log('Port ' + String(command.port) + ' saved. ' + RESTART);
+      if (
+        presetListenPort(portFromVariable(config.portVariable), command.port)?.source === 'variable'
+      ) {
+        console.log('PORT is set, though, and overrides it while it stays set.');
+      }
+      return;
+    }
+    case 'port-auto':
+      console.log(
+        (await new FileSavedPort(config.portFile).forget())
+          ? 'Saved port forgotten: the next start picks a free one and saves it. ' + RESTART
+          : 'No port was saved; the next start picks a free one and saves it.',
+      );
+      return;
     case 'serve':
-      await serve(registry);
+      await serve(registry, command.background);
+      return;
+    case 'qr':
+      await showPairingPrompt({
+        request: async () =>
+          requestPairing({
+            controlFile: config.controlFile,
+            agentKey: await readAgentPublicKey(config.agentKeyFile),
+          }),
+        input: process.stdin,
+        output: {
+          clear: () => {
+            console.clear();
+          },
+          print: (text) => {
+            console.log(text);
+          },
+        },
+      });
+      return;
+    case 'relay-change': {
+      const write = (text: string) => process.stdout.write(text);
+      const questions = new TerminalQuestions(process.stdin, write);
+      await showRelayPrompt({
+        request: (change) =>
+          requestRelay({ controlFile: config.controlFile, ...(change ? { change } : {}) }),
+        questions,
+        print: (text) => {
+          console.log(text);
+        },
+        waitToClose: async () => {
+          if (process.stdin.isTTY) await questions.ask('Press Enter to close.', true);
+        },
+      });
+      return;
+    }
+    case 'start':
+    case 'restart': {
+      const agent = backgroundAgent();
+      const result = command.kind === 'start' ? await agent.start() : await agent.restart();
+      (result.kind === 'failed' ? console.error : console.log)(result.message);
+      if (result.kind === 'failed') process.exitCode = 1;
+      return;
+    }
+    case 'stop':
+      console.log((await backgroundAgent().stop()).message);
+      return;
+    case 'status':
+      console.log((await backgroundAgent().status()).message);
       return;
   }
 }
