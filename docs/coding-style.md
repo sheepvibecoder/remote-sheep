@@ -39,8 +39,10 @@ role of the file in one short paragraph.
 ## Language
 
 Code, identifiers, comments, logs, docs and commit messages are in English. The phone UI copy is
-in English; the default order suffix and the attached-photo phrase are Spanish because the
-sessions they reach are run in Spanish (`app/src/L1_domain/order.ts`).
+in English, and so are the defaults a phone starts with: the quick replies, the reply-style
+suffixes and the attached-photo phrase (`app/src/L1_domain`). Dictation and read-aloud follow the
+browser's language, with US English when it names none. A preference the person saved is kept as
+written, in whatever language.
 
 ## Commits
 

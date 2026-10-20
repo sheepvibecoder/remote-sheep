@@ -22,6 +22,21 @@ describe('reply styles', () => {
     ]);
   });
 
+  it('ask in English by default, except the style that asks for Spanish', () => {
+    expect(DEFAULT_REPLY_STYLES.map((s) => s.suffix)).toEqual([
+      '',
+      ' (answer in one line)',
+      ' (explain it simply)',
+      ' (answer in 10 lines at most)',
+      ' (responde en español)',
+    ]);
+  });
+
+  it('keep the styles a person already saved, whatever their language', () => {
+    const saved = [{ id: 'one-line', label: 'One line', suffix: ' (responde en una sola linea)' }];
+    expect(readStyles(JSON.stringify(saved)).at(-1)).toEqual(saved[0]);
+  });
+
   it('pick the style by id, fall back to Off for a removed one, and start on one line', () => {
     expect(replyStyle(DEFAULT_REPLY_STYLES, 'simple').label).toBe('Explain simply');
     expect(replyStyle(DEFAULT_REPLY_STYLES, 'gone').id).toBe('off');

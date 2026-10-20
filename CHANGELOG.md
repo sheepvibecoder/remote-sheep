@@ -38,6 +38,13 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 - `PORT` is now checked: a value below 1024 or that is not a port is refused.
 - Phones that ask for notifications without a relay are told to turn it on in Settings → Relay.
+- **English defaults** for an international audience: the quick replies are now **Continue**,
+  **Run the tests**, **Commit it** and **Explain the change**; **One line** appends
+  `(answer in one line)`, **Explain simply** `(explain it simply)` and **10 lines max**
+  `(answer in 10 lines at most)`; a photo goes as **Attached image:** (and **Look at this image.**
+  with no words). Dictation and read-aloud follow the browser's language, with US English when it
+  names none, instead of always `es-PE`. Quick replies and reply styles a person already saved are
+  kept as they are; a phone that never changed them now shows the English ones.
 
 - With a keyboard and mouse, **Enter** sends the message and **Shift+Enter** starts a new line, as
   in WhatsApp. On a touch screen Enter still starts a new line and the button sends.

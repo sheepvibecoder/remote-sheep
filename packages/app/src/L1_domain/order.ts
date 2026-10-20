@@ -1,7 +1,7 @@
 // What the phone sends a session: the words, the reply style picked, and an attached photo.
-// The suffixes are Spanish because the sessions they reach are run in Spanish.
+// The photo phrases are English, for an international audience.
 
-const PHOTO_ONLY = 'Mira esta imagen.';
+const PHOTO_ONLY = 'Look at this image.';
 
 /** A way of asking for a reply, appended to every order while it is picked. */
 export interface ReplyStyle {
@@ -32,6 +32,6 @@ export function quickOrder(reply: string, style: ReplyStyle): Order {
 export function composeOrder(text: string, style: ReplyStyle, photoPath: string | null): Order {
   const spoken = text || PHOTO_ONLY;
   let order = spoken + style.suffix;
-  if (photoPath) order += '\n\nImagen adjunta: ' + photoPath;
+  if (photoPath) order += '\n\nAttached image: ' + photoPath;
   return { spoken, order };
 }

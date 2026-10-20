@@ -7,12 +7,15 @@ const OFF = 'off';
 const OFF_STYLE: ReplyStyle = { id: OFF, label: 'Off', suffix: '' };
 const ONE_LINE = 'one-line';
 
-/** The styles a phone starts with, in the mockup's order. The suffixes are Spanish like the sessions. */
+/**
+ * The styles a phone starts with, in the mockup's order. The suffixes are English, for an
+ * international audience; only the style that asks for Spanish is written in Spanish.
+ */
 export const DEFAULT_REPLY_STYLES: readonly ReplyStyle[] = [
   OFF_STYLE,
-  { id: ONE_LINE, label: 'One line', suffix: ' (responde en una sola linea)' },
-  { id: 'simple', label: 'Explain simply', suffix: ' (explicalo simple)' },
-  { id: 'ten-lines', label: '10 lines max', suffix: ' (responde en 10 lineas como maximo)' },
+  { id: ONE_LINE, label: 'One line', suffix: ' (answer in one line)' },
+  { id: 'simple', label: 'Explain simply', suffix: ' (explain it simply)' },
+  { id: 'ten-lines', label: '10 lines max', suffix: ' (answer in 10 lines at most)' },
   { id: 'spanish', label: 'En español', suffix: ' (responde en español)' },
 ];
 

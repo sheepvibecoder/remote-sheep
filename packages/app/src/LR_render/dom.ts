@@ -1,3 +1,5 @@
+import { SPEECH_LANGUAGE_KEY, speechLanguage } from '../L1_domain/speech-language';
+
 /** The element with this id, checked against the type the caller expects. */
 export function $(id: string): HTMLElement;
 export function $<T extends HTMLElement>(id: string, type: new () => T): T;
@@ -23,5 +25,5 @@ export function say(message: string, isError = false): void {
 
 /** Language for dictation and reading aloud. */
 export function language(): string {
-  return localStorage.getItem('lang') || 'es-PE';
+  return speechLanguage(localStorage.getItem(SPEECH_LANGUAGE_KEY), navigator.language);
 }

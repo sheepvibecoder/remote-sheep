@@ -240,11 +240,11 @@ describe('Store', () => {
     expect(store.typesIntoPane()).toBe(false);
     expect(store.orderFor('hola', 'C:\\up\\x.jpg')).toEqual({
       spoken: 'hola',
-      order: 'hola (responde en una sola linea)\n\nImagen adjunta: C:\\up\\x.jpg',
+      order: 'hola (answer in one line)\n\nAttached image: C:\\up\\x.jpg',
       usesPhoto: true,
     });
     expect(store.orderFor('hola', null)?.usesPhoto).toBe(false);
-    expect(store.orderFor('', 'C:\\up\\x.jpg')?.spoken).toBe('Mira esta imagen.');
+    expect(store.orderFor('', 'C:\\up\\x.jpg')?.spoken).toBe('Look at this image.');
     expect(store.orderFor('  ', null)).toBeNull();
     store.toggleTerminal();
     expect(store.typesIntoPane()).toBe(true);
@@ -379,9 +379,9 @@ describe('Store', () => {
     expect(seen).toEqual(['quick', 'quick']);
     expect(new Store(storage, new FakePush()).state.quickList).toEqual([
       'Sigue',
-      'Corre los tests',
-      'Haz commit',
-      'Explícame el cambio',
+      'Run the tests',
+      'Commit it',
+      'Explain the change',
       'Haz push',
     ]);
     seen.length = 0;
@@ -389,16 +389,28 @@ describe('Store', () => {
     store.resetQuick();
     expect(seen).toEqual(['quick', 'quick']);
     expect(new Store(storage, new FakePush()).state.quickList).toEqual([
-      'Continúa',
-      'Corre los tests',
-      'Haz commit',
-      'Explícame el cambio',
+      'Continue',
+      'Run the tests',
+      'Commit it',
+      'Explain the change',
     ]);
     seen.length = 0;
-    expect(store.saveQuick(null, 'Continúa')).toBe(false);
+    expect(store.saveQuick(null, 'Continue')).toBe(false);
     expect(seen).toEqual([]);
     store.removeQuick(0);
-    expect(store.state.quickList[0]).toBe('Corre los tests');
+    expect(store.state.quickList[0]).toBe('Run the tests');
+  });
+
+  it('keeps the Spanish replies and styles a person saved before the defaults became English', () => {
+    const storage = new MemoryStorage();
+    const replies = ['Continúa', 'Haz commit'];
+    const styles = [{ id: 'one-line', label: 'One line', suffix: ' (responde en una sola linea)' }];
+    storage.setItem('quickList', JSON.stringify(replies));
+    storage.setItem('replyStyles', JSON.stringify(styles));
+    const store = new Store(storage, new FakePush());
+    expect(store.state.quickList).toEqual(replies);
+    store.setReplyStyle('one-line');
+    expect(store.orderFor('hola', null)?.order).toBe('hola (responde en una sola linea)');
   });
 
   it('moves a quick reply one place up or down, and the new order survives a reload', () => {
@@ -408,7 +420,7 @@ describe('Store', () => {
     store.moveQuick(3, -1);
     store.moveQuick(0, 1);
     expect(seen).toEqual(['quick', 'quick']);
-    const moved = ['Corre los tests', 'Continúa', 'Explícame el cambio', 'Haz commit'];
+    const moved = ['Run the tests', 'Continue', 'Explain the change', 'Commit it'];
     expect(store.state.quickList).toEqual(moved);
     expect(new Store(storage, new FakePush()).state.quickList).toEqual(moved);
     seen.length = 0;

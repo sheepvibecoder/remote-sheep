@@ -79,7 +79,9 @@ Every screen shows the version at the bottom; **Check for updates** compares it
 with the `version.json` the server now serves and offers to reload when it is newer.
 
 In a chat, type or dictate with the microphone, attach a photo from the gallery with the clip or take one with the camera,
-and switch to the raw terminal with the chat/terminal switch at the top. The top of a chat shows the
+and switch to the raw terminal with the chat/terminal switch at the top. Dictation and reading
+aloud use the browser's language, or US English when it names none. A photo reaches the session
+as **Attached image:** and its path after your words. The top of a chat shows the
 session's avatar with its status ring and a line such as **Needs your answer**. While a session waits for an answer, or
 the terminal is open, **esc**, **tab**, **↑**, **↓** and **⏎** appear above the message box, with
 **Stop** (Ctrl+C) apart from them: they answer Claude Code's menus. When the terminal shows a
@@ -98,8 +100,8 @@ The **⋮** of a chat names the model and holds the **reply style** every order 
 picked shows as a chip next to the microphone; tap it to change it. It is kept for each computer.
 **Read replies aloud** is there too.
 
-Above the message box, the quick replies (at first **Continúa**, **Corre los tests**, **Haz commit**
-and **Explícame el cambio**) send that order with one tap, with the reply style, and leave what you were typing in the
+Above the message box, the quick replies (at first **Continue**, **Run the tests**, **Commit it**
+and **Explain the change**) send that order with one tap, with the reply style, and leave what you were typing in the
 box. **Quick replies** in the chat's **⋮** hides or shows them. In **Settings** you write your own
 (up to eight): **Add quick reply** opens a box to write one, a tap on a reply opens it to edit or
 delete, **↑** and **↓** move it one place up or down (the chips follow that order), and **Reset

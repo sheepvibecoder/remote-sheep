@@ -1,14 +1,15 @@
-// The one-tap orders above the message box, written by the person. Spanish by default, like the
-// sessions they reach. A short list: more chips than a row can show would only get in the way.
+// The one-tap orders above the message box, written by the person. English by default, for an
+// international audience; a list the person saved is kept as written. A short list: more chips
+// than a row can show would only get in the way.
 
 export const MAX_QUICK_REPLIES = 8;
 
 /** The replies a phone starts with. */
 export const DEFAULT_QUICK_REPLIES: readonly string[] = [
-  'Continúa',
-  'Corre los tests',
-  'Haz commit',
-  'Explícame el cambio',
+  'Continue',
+  'Run the tests',
+  'Commit it',
+  'Explain the change',
 ];
 
 /**

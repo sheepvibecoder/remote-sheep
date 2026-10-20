@@ -11,10 +11,10 @@ import {
 describe('quick replies', () => {
   it('start with the four of the mockup', () => {
     expect(DEFAULT_QUICK_REPLIES).toEqual([
-      'Continúa',
-      'Corre los tests',
-      'Haz commit',
-      'Explícame el cambio',
+      'Continue',
+      'Run the tests',
+      'Commit it',
+      'Explain the change',
     ]);
     expect(MAX_QUICK_REPLIES).toBe(8);
   });
@@ -52,6 +52,11 @@ describe('quick replies', () => {
     expect(readQuickReplies(null)).toEqual(DEFAULT_QUICK_REPLIES);
     expect(readQuickReplies('{broken')).toEqual(DEFAULT_QUICK_REPLIES);
     expect(readQuickReplies('[1,2]')).toEqual(DEFAULT_QUICK_REPLIES);
+  });
+
+  it('keep the replies a person already saved, whatever their language', () => {
+    const saved = ['Continúa', 'Corre los tests', 'Haz commit', 'Explícame el cambio'];
+    expect(readQuickReplies(JSON.stringify(saved))).toEqual(saved);
   });
 
   it('drop blank stored replies, which would send an empty order', () => {
