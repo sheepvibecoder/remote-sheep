@@ -10,18 +10,23 @@ import pkg from '../package.json' with { type: 'json' };
 import { PairingService } from './L2_application/pairing-service';
 import { PushNotifier } from './L2_application/push-notifier';
 import { SessionHub } from './L2_application/session-hub';
+import { chooseListenPort } from './L2_application/choose-listen-port';
+import { portFromVariable, presetListenPort } from './L1_domain/listen-port';
 import { BackgroundAgent, nodeAgentProcesses } from './L3_periphery/background/background-agent';
 import { SecureChannel } from './L3_periphery/channel/secure-channel';
 import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
 import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
+import { busyPortHint, describePort } from './L3_periphery/cli/port-messages';
 import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
 import { loadAgentKeyPair } from './L3_periphery/files/file-agent-identity';
 import { FileDeviceRegistry } from './L3_periphery/files/file-device-registry';
+import { FileSavedPort } from './L3_periphery/files/file-saved-port';
 import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
 import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
 import { FileUploadStore } from './L3_periphery/files/file-upload-store';
 import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
 import { LanTransport } from './L3_periphery/lan/lan-transport';
+import { TcpPortProbe } from './L3_periphery/lan/tcp-port-probe';
 import { WebPushSender } from './L3_periphery/push/web-push-sender';
 import { relayPushWarning } from './L3_periphery/relay/relay-settings';
 import {
@@ -105,10 +110,16 @@ async function serve(registry: FileDeviceRegistry) {
     checkIntervalMs: config.pairingCheckIntervalMs,
     log,
   });
+  const { port, source } = await chooseListenPort({
+    variable: portFromVariable(config.portVariable),
+    saved: new FileSavedPort(config.portFile),
+    probe: new TcpPortProbe(),
+  });
   const transport = new LanTransport({
-    port: config.port,
+    port,
     appDir: join(dirname(fileURLToPath(import.meta.url)), 'app'),
     tls,
+    busyHint: busyPortHint(source),
   });
   await transport.start((link) => channel.accept(link));
 
@@ -128,7 +139,7 @@ async function serve(registry: FileDeviceRegistry) {
   const origins = [
     ...(config.relay ? [config.relay.url] : []),
     ...(lanAddresses().length ? lanAddresses() : ['localhost']).map(
-      (address) => scheme + '://' + address + ':' + config.port,
+      (address) => scheme + '://' + address + ':' + String(port),
     ),
   ];
   const interactive = process.stdin.isTTY;
@@ -146,7 +157,7 @@ async function serve(registry: FileDeviceRegistry) {
   };
 
   console.log(
-    'remote-sheep ' + pkg.version + ' is listening on port ' + config.port + ' over ' + scheme,
+    'remote-sheep ' + pkg.version + ' is listening on port ' + String(port) + ' over ' + scheme,
   );
   if (!tls) {
     console.log('Serving over plain http: frames are end-to-end encrypted, but someone on this');
@@ -181,10 +192,12 @@ async function serve(registry: FileDeviceRegistry) {
   process.on('SIGTERM', () => void shutdown());
 }
 
+const RESTART =
+  'Restart the agent to use it: `remote-sheep stop`, then `remote-sheep start` (or restart Herdr).';
+
 function backgroundAgent() {
   return new BackgroundAgent({
     dir: config.home,
-    port: config.port,
     // The built bundle starts itself again, from its data folder: a plugin's working folder
     // on Windows is a \\?\ path that Node cannot resolve modules from.
     processes: nodeAgentProcesses(fileURLToPath(import.meta.url), config.home),
@@ -232,6 +245,30 @@ async function main() {
         (await removeRelaySettingsFile(config.relayFile))
           ? 'Relay forgotten. The agent serves the local network only.'
           : 'No relay was set.',
+      );
+      return;
+    case 'port-show': {
+      const saved = await new FileSavedPort(config.portFile).load();
+      const variable = portFromVariable(config.portVariable);
+      console.log(describePort({ variable, saved, file: config.portFile }));
+      const status = await backgroundAgent().status();
+      if (status.kind === 'running') console.log(status.message);
+      return;
+    }
+    case 'port-set':
+      await new FileSavedPort(config.portFile).save(command.port);
+      console.log('Port ' + String(command.port) + ' saved. ' + RESTART);
+      if (
+        presetListenPort(portFromVariable(config.portVariable), command.port)?.source === 'variable'
+      ) {
+        console.log('PORT is set, though, and overrides it while it stays set.');
+      }
+      return;
+    case 'port-auto':
+      console.log(
+        (await new FileSavedPort(config.portFile).forget())
+          ? 'Saved port forgotten: the next start picks a free one and saves it. ' + RESTART
+          : 'No port was saved; the next start picks a free one and saves it.',
       );
       return;
     case 'serve':

@@ -102,7 +102,19 @@ describe('LanTransport', () => {
   it('reports a port already in use instead of crashing', async () => {
     const port = await start();
     const second = new LanTransport({ port, appDir: '.' });
-    await expect(second.start(() => {})).rejects.toThrow(/in use/);
+    await expect(second.start(() => {})).rejects.toThrow(
+      'port ' + String(port) + ' is already in use; is remote-sheep already running?',
+    );
+  });
+
+  it('adds how to change the port to the in-use message', async () => {
+    const port = await start();
+    const second = new LanTransport({ port, appDir: '.', busyHint: 'pick another' });
+    await expect(second.start(() => {})).rejects.toThrow(
+      'port ' +
+        String(port) +
+        ' is already in use; is remote-sheep already running? Or pick another.',
+    );
   });
 
   it('serves the phone app and refuses paths outside it', async () => {

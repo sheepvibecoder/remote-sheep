@@ -77,6 +77,13 @@ Herdr starts it on its own start; the actions `start`, `stop` and `status` do it
 The plugin keeps its data, its PID (`agent-process.json`) and its log (`agent.log`, with the
 pairing QR) in the state folder Herdr gives it; `REMOTE_SHEEP_HOME` still wins when set.
 
+The first start listens on port 3999, or on the next free port up to 4049 when 3999 is taken,
+and saves it (`port.json`), so the phone's address stays the same; `status` shows the port in
+use. To change it, run `remote-sheep port 4100` (any port from 1024 to 65535), then
+`remote-sheep stop` and `remote-sheep start`, or restart Herdr. `remote-sheep port` shows the
+port and where it comes from, and `remote-sheep port auto` lets the next start pick again. The
+`PORT` variable still overrides the saved port.
+
 <p align="center">
   <a href="docs/">Docs</a> ·
   <a href=".github/SECURITY.md">Security</a> ·

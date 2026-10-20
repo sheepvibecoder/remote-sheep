@@ -1,10 +1,11 @@
 // The agent as a background process: `remote-sheep start`, `stop` and `status`.
 //
 // Herdr's startup hook is one-shot, not a supervisor, so the agent owns its own lifecycle: start
-// launches it detached with no window and records its PID, port and log in its data folder;
+// launches it detached with no window and records its PID and log in its data folder;
 // a second start finds that PID still running and leaves it alone, which makes start safe as
 // both the startup hook and a hand-run action. A PID is trusted only while it still names a
-// remote-sheep process, so a stale file never stops, or stands in for, another program.
+// remote-sheep process, so a stale file never stops, or stands in for, another program. The
+// port is read from what the agent prints once it listens: the agent picks it itself.
 
 import { execFile, spawn } from 'node:child_process';
 import {
@@ -31,7 +32,6 @@ export interface AgentProcesses {
 
 export interface AgentProcessRecord {
   readonly pid: number;
-  readonly port: number;
   readonly log: string;
 }
 
@@ -51,7 +51,6 @@ export interface StatusResult {
 export interface BackgroundAgentOptions {
   /** The agent's data folder: the PID file and the log live next to its keys. */
   dir: string;
-  port: number;
   processes: AgentProcesses;
   /** How long a start waits for the agent to say it listens. */
   readyTimeoutMs?: number;
@@ -60,6 +59,7 @@ export interface BackgroundAgentOptions {
 
 /** What the agent prints once it listens (main.ts); the sign that a start worked. */
 const LISTENING = ' is listening on port ';
+const LISTENING_PORT = / is listening on port (\d+)/;
 const LOG_TAIL_LINES = 15;
 
 export class BackgroundAgent {
@@ -80,19 +80,19 @@ export class BackgroundAgent {
     if (running) {
       return {
         kind: 'already-running',
-        message: 'remote-sheep already runs: ' + describe(running),
+        message: 'remote-sheep already runs: ' + this.describe(running),
       };
     }
     mkdirSync(this.options.dir, { recursive: true });
     rmSync(this.recordFile, { force: true });
     const pid = await this.options.processes.launch(this.logFile);
-    const record = { pid, port: this.options.port, log: this.logFile };
+    const record = { pid, log: this.logFile };
     writeFileSync(this.recordFile, JSON.stringify(record));
 
     const deadline = Date.now() + this.readyTimeoutMs;
     for (;;) {
       if (this.log().includes(LISTENING)) {
-        return { kind: 'started', message: 'remote-sheep started: ' + describe(record) };
+        return { kind: 'started', message: 'remote-sheep started: ' + this.describe(record) };
       }
       if (!(await this.options.processes.isAgent(pid))) {
         rmSync(this.recordFile, { force: true });
@@ -104,7 +104,7 @@ export class BackgroundAgent {
       if (Date.now() >= deadline) {
         return {
           kind: 'not-ready',
-          message: 'remote-sheep runs but does not listen yet: ' + describe(record),
+          message: 'remote-sheep runs but does not listen yet: ' + this.describe(record),
         };
       }
       await sleep(this.pollMs);
@@ -123,7 +123,7 @@ export class BackgroundAgent {
   async status(): Promise<StatusResult> {
     const running = await this.running();
     return running
-      ? { kind: 'running', message: 'remote-sheep is running: ' + describe(running) }
+      ? { kind: 'running', message: 'remote-sheep is running: ' + this.describe(running) }
       : { kind: 'stopped', message: 'remote-sheep is stopped. Log: ' + this.logFile };
   }
 
@@ -138,14 +138,25 @@ export class BackgroundAgent {
     try {
       const value: unknown = JSON.parse(readFileSync(this.recordFile, 'utf8'));
       if (typeof value !== 'object' || value === null) return null;
-      const { pid, port, log } = value as Record<string, unknown>;
-      return Number.isInteger(pid) && typeof port === 'number' && typeof log === 'string'
-        ? { pid: pid as number, port, log }
-        : null;
+      const { pid, log } = value as Record<string, unknown>;
+      return Number.isInteger(pid) && typeof log === 'string' ? { pid: pid as number, log } : null;
     } catch {
       // A damaged file is as good as none: the next start writes a new one.
       return null;
     }
+  }
+
+  private describe(record: AgentProcessRecord): string {
+    const port = LISTENING_PORT.exec(this.log())?.[1];
+    return (
+      'PID ' +
+      String(record.pid) +
+      ', ' +
+      (port ? 'port ' + port : 'port not known yet') +
+      ', log ' +
+      record.log +
+      '.'
+    );
   }
 
   private log(): string {
@@ -155,12 +166,6 @@ export class BackgroundAgent {
   private tail(): string {
     return this.log().trimEnd().split('\n').slice(-LOG_TAIL_LINES).join('\n') || '(empty log)';
   }
-}
-
-function describe(record: AgentProcessRecord): string {
-  return (
-    'PID ' + String(record.pid) + ', port ' + String(record.port) + ', log ' + record.log + '.'
-  );
 }
 
 /** Whether a PID is alive; EPERM means it is, under another user. */

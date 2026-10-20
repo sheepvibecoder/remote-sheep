@@ -87,3 +87,26 @@ describe('parseArguments for the background agent', () => {
     expect(USAGE).toContain('remote-sheep start');
   });
 });
+
+describe('parseArguments for the port', () => {
+  it('shows, saves or forgets the port', () => {
+    expect(parseArguments(['port'])).toEqual({ kind: 'port-show' });
+    expect(parseArguments(['port', '3994'])).toEqual({ kind: 'port-set', port: 3994 });
+    expect(parseArguments(['port', 'auto'])).toEqual({ kind: 'port-auto' });
+    expect(USAGE).toContain('remote-sheep port <n>');
+    expect(USAGE).toContain('remote-sheep port auto');
+  });
+
+  it('refuses a value that is not a usable port', () => {
+    for (const value of ['80', '65536', 'abc', '4000.5']) {
+      expect(parseArguments(['port', value])).toEqual({
+        kind: 'error',
+        message: 'port needs a whole number from 1024 to 65535, or `auto`',
+      });
+    }
+    expect(parseArguments(['port', '4000', 'x'])).toEqual({
+      kind: 'error',
+      message: 'port takes one value: a port number or `auto`',
+    });
+  });
+});

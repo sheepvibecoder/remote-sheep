@@ -24,7 +24,10 @@ const relay = resolveRelaySettings(relayFile, process.env);
 const claudeHome = join(homedir(), '.claude');
 
 export const config = {
-  port: Number(process.env['PORT'] || 3999),
+  /** The PORT variable as typed, which overrides the saved port; checked by `portFromVariable`. */
+  portVariable: process.env['PORT'],
+  /** The port saved by the first start or `remote-sheep port <n>`. */
+  portFile: join(home, 'port.json'),
   herdr: herdrExecutable(process.env, process.platform),
 
   /** null when no relay is configured. */

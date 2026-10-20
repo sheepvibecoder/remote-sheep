@@ -179,11 +179,11 @@ home screen; a real certificate removes both.
 Set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
 `pnpm start` runs from; the file is ignored by git, and a variable set in the shell wins.
 
-| Variable            | Default                          |                                                                       |
-| ------------------- | -------------------------------- | --------------------------------------------------------------------- |
-| `PORT`              | `3999`                           | Port the phone connects to                                            |
-| `HERDR`             | `herdr` (`herdr.exe` on Windows) | Herdr executable                                                      |
-| `REMOTE_SHEEP_HOME` | `~/.remote-sheep`                | Agent key, paired phones, VAPID keys, certificate and uploaded photos |
+| Variable            | Default                                                     |                                                                                       |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `PORT`              | the saved port, else 3999 or the next free one              | Port the phone connects to; overrides `remote-sheep port`                             |
+| `HERDR`             | `herdr` (`herdr.exe` on Windows)                            | Herdr executable                                                                      |
+| `REMOTE_SHEEP_HOME` | `~/.remote-sheep`, or the plugin's state folder under Herdr | Agent key, paired phones, VAPID keys, certificate, uploaded photos and the saved port |
 
 ### Relay
 

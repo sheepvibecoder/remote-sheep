@@ -42,20 +42,35 @@ class FakeProcesses implements AgentProcesses {
 function setup() {
   const dir = join(mkdtempSync(join(tmpdir(), 'sheep-background-')), 'state');
   const processes = new FakeProcesses();
-  const agent = new BackgroundAgent({ dir, port: 3996, processes, readyTimeoutMs: 500, pollMs: 5 });
+  const agent = new BackgroundAgent({ dir, processes, readyTimeoutMs: 500, pollMs: 5 });
   const recordFile = join(dir, 'agent-process.json');
   const record = () => JSON.parse(readFileSync(recordFile, 'utf8')) as { pid: number };
   return { dir, processes, agent, recordFile, record };
 }
 
 describe('BackgroundAgent', () => {
-  it('starts the agent and records its pid, port and log', async () => {
+  it('starts the agent and records its pid and log', async () => {
     const { dir, processes, agent, record } = setup();
     const result = await agent.start();
     expect(result.kind).toBe('started');
     expect(processes.launched).toEqual([100]);
-    expect(record()).toEqual({ pid: 100, port: 3996, log: join(dir, 'agent.log') });
+    expect(record()).toEqual({ pid: 100, log: join(dir, 'agent.log') });
     expect(result.message).toContain('PID 100');
+    expect(result.message).toContain('port 3996');
+  });
+
+  it('reports the port the agent says it listens on, whichever it picked', async () => {
+    const { processes, agent } = setup();
+    processes.output = 'remote-sheep 1.0.0 is listening on port 4007 over http\n';
+    expect((await agent.start()).message).toContain('port 4007');
+    expect((await agent.status()).message).toContain('port 4007');
+  });
+
+  it('says the port is not known yet while the agent does not listen', async () => {
+    const { processes, agent } = setup();
+    processes.output = 'loading\n';
+    await agent.start();
+    expect((await agent.status()).message).toContain('port not known yet');
   });
 
   it('leaves a running agent alone, so a second start launches nothing', async () => {
@@ -91,7 +106,7 @@ describe('BackgroundAgent', () => {
   it('takes a damaged pid file for none and starts the agent', async () => {
     const { dir, processes, agent, recordFile, record } = setup();
     mkdirSync(dir, { recursive: true });
-    for (const garbage of ['{not json', '[]', '{"pid":"x","port":3996,"log":"l"}']) {
+    for (const garbage of ['{not json', '[]', '{"pid":"x","log":"l"}']) {
       writeFileSync(recordFile, garbage);
       processes.alive.clear();
       expect((await agent.start()).kind).toBe('started');

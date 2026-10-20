@@ -23,6 +23,8 @@ export interface LanOptions {
   /** Built phone app (index.html and its assets). */
   appDir: string;
   tls?: { cert: Buffer; key: Buffer };
+  /** How to change the port, added to the message when it is already in use. */
+  busyHint?: string;
 }
 
 // Above the 12 MB upload limit, so a photo just over it is refused with a
@@ -117,7 +119,8 @@ export class LanTransport implements LinkServer {
             ? new Error(
                 'port ' +
                   this.options.port +
-                  ' is already in use; is remote-sheep already running?',
+                  ' is already in use; is remote-sheep already running?' +
+                  (this.options.busyHint ? ' Or ' + this.options.busyHint + '.' : ''),
               )
             : err,
         );

@@ -1,5 +1,7 @@
 // The command line of `remote-sheep`: which of its jobs to do.
 
+import { parseListenPort } from '../../L1_domain/listen-port';
+
 export type Command =
   | { kind: 'serve' }
   | { kind: 'start' }
@@ -10,6 +12,9 @@ export type Command =
   | { kind: 'relay-set'; url: string; code: string }
   | { kind: 'relay-show' }
   | { kind: 'relay-off' }
+  | { kind: 'port-show' }
+  | { kind: 'port-set'; port: number }
+  | { kind: 'port-auto' }
   | { kind: 'help' }
   | { kind: 'error'; message: string };
 
@@ -25,6 +30,14 @@ To keep the agent running with no window (the Herdr plugin does this for you):
   remote-sheep start         start it in the background; does nothing if it already runs
   remote-sheep stop          stop the agent started with remote-sheep start
   remote-sheep status        say whether it runs, with its PID, port and log file
+
+The first start listens on port 3999, or the next free one up to 4049, and saves it so the
+phone's address stays the same:
+  remote-sheep port          show the port and where it comes from
+  remote-sheep port <n>      save another port (1024-65535); restart the agent to use it:
+                             remote-sheep stop, then remote-sheep start (or restart Herdr)
+  remote-sheep port auto     forget the saved port; the next start picks a free one again
+The environment variable PORT still overrides the saved port when set.
 
 To also serve phones outside this network, save your relay once:
   remote-sheep relay set <url> <code>   https URL of your relay and the access code its owner
@@ -83,6 +96,18 @@ export function parseArguments(args: readonly string[]): Command {
           sub +
           ' (use `relay`, `relay set <url> <code>` or `relay off`)',
       };
+    }
+    case 'port': {
+      const [value, ...extra] = rest;
+      if (value === undefined) return { kind: 'port-show' };
+      if (extra.length) {
+        return { kind: 'error', message: 'port takes one value: a port number or `auto`' };
+      }
+      if (value === 'auto') return { kind: 'port-auto' };
+      const port = parseListenPort(value);
+      return port === null
+        ? { kind: 'error', message: 'port needs a whole number from 1024 to 65535, or `auto`' }
+        : { kind: 'port-set', port };
     }
     default:
       return { kind: 'error', message: 'unknown command: ' + command };
