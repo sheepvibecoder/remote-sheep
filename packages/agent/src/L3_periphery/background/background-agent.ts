@@ -245,7 +245,8 @@ export function nodeAgentProcesses(
       try {
         // detached: its own process group (Unix) or no console (Windows), so it outlives the
         // command that started it; no stdin, so it never waits for Enter.
-        const child = spawn(process.execPath, [script], {
+        // `serve --background` keeps pairing links out of the log: they are live credentials.
+        const child = spawn(process.execPath, [script, 'serve', '--background'], {
           cwd,
           detached: true,
           windowsHide: true,

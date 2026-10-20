@@ -20,12 +20,21 @@ pnpm start
 ```
 
 It prints a QR code. Scan it with your phone, on the same network as the
-computer running Herdr, and the phone is paired.
+computer running Herdr, and the phone is paired. To use it in a browser on the
+same computer instead, open the link labelled "On this PC's browser"
+(`http://127.0.0.1:<port>/#pair=…`).
 
 ### Pairing
 
-- Each QR code pairs one phone and expires after 5 minutes. Press Enter where
-  remote-sheep runs for a new one.
+- Each QR code pairs one phone or browser and expires after 5 minutes. Press
+  Enter where remote-sheep runs for a new one.
+- When the agent runs in the background (`remote-sheep start`, or the Herdr
+  plugin), run `remote-sheep qr` or the plugin action **Show pairing QR**. It
+  asks the running agent for a new QR code and links over a control channel
+  that only this computer can reach (a loopback port and a secret in
+  `control.json`, readable by you alone). Enter shows a new one; q or Esc
+  closes it, and the agent keeps running. The background agent's log never
+  holds a pairing link.
 - Every connection runs a fresh key exchange (X25519, triple Diffie-Hellman)
   and every frame is sealed with ChaCha20-Poly1305. Only the phone and this
   computer hold the keys.

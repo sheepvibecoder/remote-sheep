@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodeBase64Url, publicKeyId } from '@remote-sheep/protocol';
 import pkg from '../package.json' with { type: 'json' };
+import { PairingLinks } from './L1_domain/pairing-links';
 import { PairingService } from './L2_application/pairing-service';
 import { PushNotifier } from './L2_application/push-notifier';
 import { SessionHub } from './L2_application/session-hub';
@@ -15,10 +16,15 @@ import { portFromVariable, presetListenPort } from './L1_domain/listen-port';
 import { BackgroundAgent, nodeAgentProcesses } from './L3_periphery/background/background-agent';
 import { SecureChannel } from './L3_periphery/channel/secure-channel';
 import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
-import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
+import { formatDevices } from './L3_periphery/cli/device-table';
+import { BACKGROUND_PAIRING_HINT, describePairing } from './L3_periphery/cli/pairing-messages';
+import { showPairingPrompt } from './L3_periphery/cli/pairing-prompt';
 import { busyPortHint, describePort } from './L3_periphery/cli/port-messages';
+import { requestPairing } from './L3_periphery/control/control-client';
+import { removeControlFile, saveControlFile } from './L3_periphery/control/control-file';
+import { HttpControlServer } from './L3_periphery/control/http-control-server';
 import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
-import { loadAgentKeyPair } from './L3_periphery/files/file-agent-identity';
+import { loadAgentKeyPair, readAgentPublicKey } from './L3_periphery/files/file-agent-identity';
 import { FileDeviceRegistry } from './L3_periphery/files/file-device-registry';
 import { FileSavedPort } from './L3_periphery/files/file-saved-port';
 import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
@@ -36,7 +42,6 @@ import {
   saveRelaySettingsFile,
 } from './L3_periphery/relay/relay-settings-file';
 import { RelayTransport } from './L3_periphery/relay/relay-transport';
-import { pairingUrl, renderQr } from './L3_periphery/terminal/pairing-qr';
 import { config } from './config';
 
 function lanAddresses(): string[] {
@@ -65,10 +70,10 @@ async function createPushNotifier(
   });
 }
 
-async function serve(registry: FileDeviceRegistry) {
+async function serve(registry: FileDeviceRegistry, background: boolean) {
   const keys = await loadAgentKeyPair(config.agentKeyFile);
   const shells = await loadShellSetting(config.settingsFile);
-  const pairing = new PairingService({ registry, clock, random });
+  const pairing = new PairingService({ registry, clock, random, agentKey: keys.publicKey });
   const tls =
     existsSync(config.certFile) && existsSync(config.keyFile)
       ? { cert: readFileSync(config.certFile), key: readFileSync(config.keyFile) }
@@ -136,23 +141,26 @@ async function serve(registry: FileDeviceRegistry) {
   await relay?.start((link) => channel.accept(link));
 
   const scheme = tls ? 'https' : 'http';
-  const origins = [
-    ...(config.relay ? [config.relay.url] : []),
-    ...(lanAddresses().length ? lanAddresses() : ['localhost']).map(
-      (address) => scheme + '://' + address + ':' + String(port),
-    ),
-  ];
-  const interactive = process.stdin.isTTY;
+  const links = new PairingLinks(
+    {
+      relay: config.relay?.url ?? null,
+      network: lanAddresses().map((address) => scheme + '://' + address + ':' + String(port)),
+      local: scheme + '://127.0.0.1:' + String(port),
+    },
+    pairing,
+  );
+  const interactive = !background && process.stdin.isTTY;
+
+  // Same PC only: `remote-sheep qr` asks here for a new pairing while the agent keeps running.
+  const control = new HttpControlServer(links);
+  await saveControlFile(config.controlFile, {
+    port: await control.start(),
+    secret: control.secret,
+  });
 
   const printInvite = async () => {
-    const invite = pairing.createInvite();
-    const pair = { agentKey: keys.publicKey, secret: invite.secret, expiresAt: invite.expiresAt };
-    const urls = origins.map((origin) => pairingUrl(origin, pair));
     console.log('');
-    console.log(await renderQr(urls[0] ?? ''));
-    console.log('Scan this QR code with the phone to pair it. It pairs one phone and expires at');
-    console.log(formatTime(invite.expiresAt) + '. If the phone cannot reach this address, open:');
-    for (const url of urls) console.log('  ' + url);
+    console.log(await describePairing(links.newPairing()));
     if (interactive) console.log('Press Enter for a new QR code (the previous one stops working).');
   };
 
@@ -170,8 +178,10 @@ async function serve(registry: FileDeviceRegistry) {
       : 'Consoles are off. Turn them on in the app, under Settings.',
   );
   console.log('Paired phones: `remote-sheep devices`; unpair one: `remote-sheep revoke <id>`.');
-  console.log('Stop with Ctrl+C.');
-  await printInvite();
+  console.log(background ? 'Stop with `remote-sheep stop`.' : 'Stop with Ctrl+C.');
+  // In the background the output is agent.log: a pairing link there would be a live credential.
+  if (background) console.log(BACKGROUND_PAIRING_HINT);
+  else await printInvite();
 
   if (interactive) {
     process.stdin.setEncoding('utf8');
@@ -184,6 +194,8 @@ async function serve(registry: FileDeviceRegistry) {
 
   const shutdown = async () => {
     hub.stop();
+    await control.stop();
+    await removeControlFile(config.controlFile, control.secret);
     await relay?.stop();
     await transport.stop();
     process.exit(0);
@@ -272,7 +284,25 @@ async function main() {
       );
       return;
     case 'serve':
-      await serve(registry);
+      await serve(registry, command.background);
+      return;
+    case 'qr':
+      await showPairingPrompt({
+        request: async () =>
+          requestPairing({
+            controlFile: config.controlFile,
+            agentKey: await readAgentPublicKey(config.agentKeyFile),
+          }),
+        input: process.stdin,
+        output: {
+          clear: () => {
+            console.clear();
+          },
+          print: (text) => {
+            console.log(text);
+          },
+        },
+      });
       return;
     case 'start': {
       const result = await backgroundAgent().start();

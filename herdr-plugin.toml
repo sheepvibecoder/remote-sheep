@@ -15,8 +15,8 @@ command = ["pnpm", "build"]
 # Every command is the same Node loader: Herdr runs it with no shell and, on Windows, in a
 # \\?\C:\... folder where `node <relative path>` fails. The loader strips that prefix from
 # HERDR_PLUGIN_ROOT, moves there and imports herdr-plugin/plugin.mjs, which runs the built
-# agent's `start`, `stop` or `status`. One command for all platforms keeps the action ids the
-# same everywhere (ids must be unique inside a plugin).
+# agent's `start`, `stop`, `status` or `qr`. One command for all platforms keeps the action ids
+# the same everywhere (ids must be unique inside a plugin).
 
 # One-shot per Herdr start: starts the agent in the background unless it already runs.
 [[startup]]
@@ -39,3 +39,20 @@ id = "status"
 title = "remote-sheep status"
 contexts = ["workspace"]
 command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "status"]
+
+# Pairing: the action opens the `qr` pane, which asks the running agent for a new QR code and
+# links (one for a browser on this PC, at 127.0.0.1) and waits: Enter shows a new one, q or Esc
+# closes the pane. Closing it never stops the agent; only `stop` does.
+[[actions]]
+id = "qr"
+title = "Show pairing QR"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "open-qr"]
+
+# No placement: the default overlay is a temporary zoomed pane that gives the QR code the whole
+# screen and restores the previous focus and zoom when it closes. A popup is half the screen by
+# default and may be newer than the oldest Herdr this plugin accepts.
+[[panes]]
+id = "qr"
+title = "remote-sheep pairing QR"
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "qr"]

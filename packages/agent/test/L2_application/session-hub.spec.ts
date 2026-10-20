@@ -170,6 +170,7 @@ describe('SessionHub', () => {
       registry,
       clock: { now: () => T0 },
       random: { bytes: (n: number) => new Uint8Array(n).fill(7) },
+      agentKey: new Uint8Array(32).fill(3),
     });
     hub = new SessionHub({
       multiplexer: mux,

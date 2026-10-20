@@ -36,6 +36,8 @@ export const config = {
   home,
   relayFile,
   settingsFile: join(home, 'settings.json'),
+  /** The running agent's loopback control port and secret, for `remote-sheep qr`. */
+  controlFile: join(home, 'control.json'),
   agentKeyFile: join(home, 'agent-key.json'),
   vapidFile: join(home, 'vapid.json'),
   devicesFile: join(home, 'devices.json'),

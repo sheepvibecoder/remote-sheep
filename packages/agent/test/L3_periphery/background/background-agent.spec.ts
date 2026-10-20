@@ -171,6 +171,27 @@ describe('nodeAgentProcesses', () => {
     expect(await processes.isAgent(pid)).toBe(false);
   }, 30_000);
 
+  it('launches the agent in background mode, which keeps pairing links out of its log', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sheep-launch-'));
+    const script = join(dir, 'remote-sheep.js');
+    writeFileSync(
+      script,
+      'console.log(JSON.stringify(process.argv.slice(2))); setInterval(() => {}, 1000);',
+    );
+    const processes = nodeAgentProcesses(script, dir);
+    const log = join(dir, 'agent.log');
+    const pid = await processes.launch(log);
+    try {
+      const deadline = Date.now() + 10_000;
+      while (!readFileSync(log, 'utf8').includes(']') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(readFileSync(log, 'utf8').trim()).toBe('["serve","--background"]');
+    } finally {
+      await processes.stop(pid);
+    }
+  }, 30_000);
+
   it('forces an agent that ignores SIGTERM, and says when even SIGKILL fails', async () => {
     const sent: string[] = [];
     let diesOnKill = true;
@@ -216,5 +237,12 @@ describe('herdr-plugin.toml', () => {
         new RegExp('id = "' + action + '"\\n(?:.*\\n)*?command = \\[.*"' + action + '"\\]'),
       );
     }
+  });
+
+  it('offers a qr action that opens the qr pane, which runs `remote-sheep qr`', () => {
+    expect(manifest).toMatch(
+      /\[\[actions\]\]\nid = "qr"\ntitle = "Show pairing QR"\n(?:.*\n)*?command = \[.*"open-qr"\]/,
+    );
+    expect(manifest).toMatch(/\[\[panes\]\]\nid = "qr"\n(?:.*\n)*?command = \[.*"qr"\]/);
   });
 });

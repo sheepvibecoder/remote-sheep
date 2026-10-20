@@ -3,8 +3,25 @@ import { parseArguments, USAGE } from '../../../src/L3_periphery/cli/cli-argumen
 
 describe('parseArguments', () => {
   it('serves by default', () => {
-    expect(parseArguments([])).toEqual({ kind: 'serve' });
-    expect(parseArguments(['serve'])).toEqual({ kind: 'serve' });
+    expect(parseArguments([])).toEqual({ kind: 'serve', background: false });
+    expect(parseArguments(['serve'])).toEqual({ kind: 'serve', background: false });
+  });
+
+  it('serves in the background when `start` launches it, and only then', () => {
+    expect(parseArguments(['serve', '--background'])).toEqual({ kind: 'serve', background: true });
+    expect(parseArguments(['serve', '--background', 'x'])).toEqual({
+      kind: 'error',
+      message: 'serve takes no arguments',
+    });
+  });
+
+  it('asks the running agent for a pairing QR', () => {
+    expect(parseArguments(['qr'])).toEqual({ kind: 'qr' });
+    expect(parseArguments(['qr', 'x'])).toEqual({
+      kind: 'error',
+      message: 'qr takes no arguments',
+    });
+    expect(USAGE).toContain('remote-sheep qr');
   });
 
   it('lists devices and revokes one by id', () => {
