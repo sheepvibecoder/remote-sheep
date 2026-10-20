@@ -13,8 +13,6 @@ const TIMEOUT_MS = 15_000;
 
 export interface WebPushSenderOptions {
   vapid: VapidKeys;
-  /** The `sub` claim: how the push service can reach whoever runs this agent. The relay's https origin. */
-  subject: string;
   /** Lets a test post to a local http server; the protocol validator already insists on https. */
   allowInsecure?: boolean;
   fetch?: typeof fetch;
@@ -24,7 +22,12 @@ export interface WebPushSenderOptions {
 export class WebPushSender implements PushSender {
   constructor(private readonly options: WebPushSenderOptions) {}
 
-  async send(subscription: PushSubscription, payload: string): Promise<'sent' | 'gone'> {
+  /** subject: the `sub` claim, how the push service can reach whoever runs this agent. */
+  async send(
+    subscription: PushSubscription,
+    payload: string,
+    subject: string,
+  ): Promise<'sent' | 'gone'> {
     const endpoint = new URL(subscription.endpoint);
     if (endpoint.protocol !== 'https:' && !this.options.allowInsecure) {
       throw new Error('push endpoint must be https');
@@ -45,7 +48,7 @@ export class WebPushSender implements PushSender {
         Authorization: vapidAuthorization(
           this.options.vapid,
           subscription.endpoint,
-          this.options.subject,
+          subject,
           now(),
         ),
         TTL: String(TTL_SECONDS),

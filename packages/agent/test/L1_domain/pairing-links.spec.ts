@@ -30,7 +30,7 @@ describe('PairingLinks', () => {
     const invites = new FixedInvites();
     const links = new PairingLinks(
       {
-        relay: 'https://relay.example.com',
+        relay: () => 'https://relay.example.com',
         network: ['http://192.168.1.20:3999', 'http://10.0.0.5:3999'],
         local: 'http://127.0.0.1:3999',
       },
@@ -49,9 +49,22 @@ describe('PairingLinks', () => {
     expect(pairing.links[3]?.url).toBe(pairingUrl('http://127.0.0.1:3999', invite));
   });
 
+  it('reads the relay on every pairing, so one set while the agent runs leads the next QR code', () => {
+    let relay: string | null = null;
+    const links = new PairingLinks(
+      { relay: () => relay, network: [], local: 'http://127.0.0.1:3999' },
+      new FixedInvites(),
+    );
+    expect(links.newPairing().links.map((link) => link.where)).toEqual(['this-pc']);
+    relay = 'https://relay.example.com';
+    expect(links.newPairing().links.map((link) => link.where)).toEqual(['relay', 'this-pc']);
+    relay = null;
+    expect(links.newPairing().links.map((link) => link.where)).toEqual(['this-pc']);
+  });
+
   it('leaves out the relay when none is set, and always offers this PC', () => {
     const links = new PairingLinks(
-      { relay: null, network: [], local: 'http://127.0.0.1:3999' },
+      { relay: () => null, network: [], local: 'http://127.0.0.1:3999' },
       new FixedInvites(),
     );
     expect(links.newPairing().links).toEqual([

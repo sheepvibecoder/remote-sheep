@@ -43,6 +43,15 @@ describe('parseArguments', () => {
     expect(USAGE).toContain('remote-sheep relay set <url> <code>');
   });
 
+  it('asks the running agent to change its relay with `relay change`, which takes no arguments', () => {
+    expect(parseArguments(['relay', 'change'])).toEqual({ kind: 'relay-change' });
+    expect(parseArguments(['relay', 'change', 'x'])).toEqual({
+      kind: 'error',
+      message: 'relay change takes no arguments; it asks for the URL and the access code',
+    });
+    expect(USAGE).toContain('remote-sheep relay change');
+  });
+
   it('explains wrong relay arguments', () => {
     const set = 'relay set needs a relay URL and an access code';
     expect(parseArguments(['relay', 'set'])).toEqual({ kind: 'error', message: set });

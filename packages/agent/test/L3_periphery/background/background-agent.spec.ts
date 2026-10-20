@@ -245,4 +245,14 @@ describe('herdr-plugin.toml', () => {
     );
     expect(manifest).toMatch(/\[\[panes\]\]\nid = "qr"\n(?:.*\n)*?command = \[.*"qr"\]/);
   });
+
+  it('offers a relay action that opens the relay pane, which runs `remote-sheep relay change`', () => {
+    expect(manifest).toMatch(
+      /\[\[actions\]\]\nid = "relay"\ntitle = "Set the relay"\n(?:.*\n)*?command = \[.*"open-relay"\]/,
+    );
+    expect(manifest).toMatch(/\[\[panes\]\]\nid = "relay"\n(?:.*\n)*?command = \[.*"relay"\]/);
+    const plugin = readFileSync(join(__dirname, '../../../../../herdr-plugin/plugin.mjs'), 'utf8');
+    expect(plugin).toContain("['relay', ['relay', 'change']]");
+    expect(plugin).toContain("['open-relay', 'relay']");
+  });
 });

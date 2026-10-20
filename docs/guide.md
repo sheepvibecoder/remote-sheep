@@ -157,14 +157,15 @@ opens that chat. Nothing from the transcript is sent.
 
 - **Needs a relay.** Push works only on https, so open the app from the
   relay's address. Plain LAN http cannot use it, and without a relay the
-  agent sends no push. On an iPhone, add the app to the home screen first.
+  agent sends no push; setting one while the agent runs turns push on with no
+  restart. On an iPhone, add the app to the home screen first.
 - **Switch it on** in **Settings → Linked devices → Notifications**. Where it cannot work, the
   switch says why.
 - **What the agent keeps.** One push subscription per paired device, inside
   `devices.json`. It is removed when the device is unlinked, revoked or its
   pairing expires, or when the push service says it is gone. The agent's
-  VAPID keys live in `~/.remote-sheep/vapid.json`, created on first use.
-- **Cost.** With a relay configured the agent asks Herdr for the session
+  VAPID keys live in `~/.remote-sheep/vapid.json`, created on the first start.
+- **Cost.** While a relay is set the agent asks Herdr for the session
   list every 2 seconds even with no phone open, so it can notice a session
   settling.
 
@@ -225,8 +226,20 @@ pnpm start relay          # show it, with the code masked
 pnpm start relay off      # forget it: LAN only
 ```
 
+`relay set` and `relay off` take effect at the next start. To change the relay of the running
+agent with no restart, use the Herdr action **Set the relay**, `pnpm start relay change` (it asks
+for the URL and the access code, the code not shown as you type; an empty URL turns the relay off),
+or the app under **Settings → Relay**. Either way the agent connects at once, saves the setting to
+`relay.json` for the next start, and the next pairing QR lists the relay link first. The URL must
+be `https://` (plain `http://` only for a relay on the same computer, such as `wrangler dev`) and
+the code 1 to 256 characters with no spaces. The code is never logged, never shown back, and
+travels from the pane over the agent's loopback control channel only after the agent proved it
+holds the secret in `control.json`. Notifications follow the relay at once too: they start when
+a relay is set, use the new one when it is switched, and stop when it is turned off.
+
 The environment variables `REMOTE_SHEEP_RELAY` and `REMOTE_SHEEP_RELAY_CODE`
-still work and override the saved relay when set.
+still work and override the saved relay when set; a relay set by them can only be changed there,
+not from the pane or the app.
 
 Daily flow: change code, `pnpm build`, `pnpm start`. Run `pnpm relay:deploy`
 only when the phone app or the relay itself changed.

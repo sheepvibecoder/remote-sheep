@@ -260,7 +260,10 @@ describe('SessionHub', () => {
       terminalIntervalMs: TERMINAL_MS,
       debounceMs: 0,
       shells: new FakeShells(false),
-      notifier: { notify: (change) => heard.push(change.session.target + ' ' + change.to) },
+      notifier: {
+        notify: (change) => heard.push(change.session.target + ' ' + change.to),
+        listening: () => true,
+      },
     });
     await settle();
     mux.sessions = [session('p1', 'done')];
@@ -273,6 +276,49 @@ describe('SessionHub', () => {
     const calls = mux.listCalls;
     await vi.advanceTimersByTimeAsync(LIST_MS * 2);
     expect(mux.listCalls).toBeGreaterThan(calls);
+  });
+
+  it('watches the sessions with no phone only while the notifier listens, following it live', async () => {
+    hub.stop();
+    let listening = false;
+    const push = {
+      notify: () => undefined,
+      listening: () => listening,
+      publicKey: 'VAPID-KEY',
+      subscribe: async () => undefined,
+      unsubscribe: async () => undefined,
+    };
+    hub = new SessionHub({
+      multiplexer: mux,
+      transcripts,
+      uploads,
+      devices: pairing,
+      listIntervalMs: LIST_MS,
+      terminalIntervalMs: TERMINAL_MS,
+      debounceMs: 0,
+      shells: new FakeShells(false),
+      notifier: push,
+      push,
+    });
+    const phone = new FakeConnection();
+    const message = 'notifications need a relay: turn it on in Settings → Relay';
+    await expect(hub.request(phone, { kind: 'push-key' })).rejects.toThrow(message);
+    let calls = mux.listCalls;
+    await vi.advanceTimersByTimeAsync(LIST_MS * 2);
+    expect(mux.listCalls).toBe(calls);
+
+    listening = true;
+    hub.notifierChanged();
+    expect(await hub.request(phone, { kind: 'push-key' })).toEqual({ key: 'VAPID-KEY' });
+    calls = mux.listCalls;
+    await vi.advanceTimersByTimeAsync(LIST_MS * 2);
+    expect(mux.listCalls).toBeGreaterThan(calls);
+
+    listening = false;
+    hub.notifierChanged();
+    calls = mux.listCalls;
+    await vi.advanceTimersByTimeAsync(LIST_MS * 2);
+    expect(mux.listCalls).toBe(calls);
   });
 
   it('streams the chat of the watched session and again whenever the transcript changes', async () => {
@@ -578,6 +624,40 @@ describe('SessionHub', () => {
     expect(await hub.request(phone, { kind: 'shells', on: true })).toEqual({ on: true });
   });
 
+  it('reads and changes the relay for a paired phone, and says so when this agent has none to change', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await expect(hub.request(phone, { kind: 'relay' })).rejects.toThrow(
+      'this agent cannot change its relay',
+    );
+    const asked: unknown[] = [];
+    const info = { on: true, url: 'https://relay.example.com', connected: false, fixed: false };
+    hub.stop();
+    hub = new SessionHub({
+      multiplexer: mux,
+      transcripts,
+      uploads,
+      devices: pairing,
+      listIntervalMs: LIST_MS,
+      terminalIntervalMs: TERMINAL_MS,
+      debounceMs: 0,
+      shells: new FakeShells(false),
+      relay: {
+        relay: () => info,
+        changeRelay: async (change) => {
+          asked.push(change);
+          return Promise.resolve(info);
+        },
+      },
+    });
+    hub.open(phone);
+    expect(await hub.request(phone, { kind: 'relay' })).toEqual(info);
+    const set = { url: 'https://relay.example.com', code: 'c0de' };
+    expect(await hub.request(phone, { kind: 'relay', set })).toEqual(info);
+    expect(await hub.request(phone, { kind: 'relay', set: { off: true } })).toEqual(info);
+    expect(asked).toEqual([set, { off: true }]);
+  });
+
   describe('with consoles on', () => {
     beforeEach(() => {
       hub.stop();
@@ -837,8 +917,12 @@ describe('SessionHub', () => {
         terminalIntervalMs: TERMINAL_MS,
         debounceMs: 0,
         shells: new FakeShells(false),
-        notifier: { notify: (change) => heard.push(change.session.target + ' ' + change.to) },
+        notifier: {
+          notify: (change) => heard.push(change.session.target + ' ' + change.to),
+          listening: () => true,
+        },
         push: {
+          listening: () => true,
           publicKey: 'VAPID-KEY',
           subscribe: async (device, push) => void stored.push([device, push]),
           unsubscribe: async (device) => void stored.push([device, null]),
@@ -920,7 +1004,7 @@ describe('SessionHub', () => {
 
     it('tells a phone that notifications need a relay when this agent has none', async () => {
       const phone = new FakeConnection();
-      const message = 'notifications need a relay: start the agent with REMOTE_SHEEP_RELAY';
+      const message = 'notifications need a relay: turn it on in Settings → Relay';
       await expect(hub.request(phone, { kind: 'push-key' })).rejects.toThrow(message);
       await expect(hub.request(phone, { kind: 'push-subscribe', ...subscription })).rejects.toThrow(
         message,

@@ -9,7 +9,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { agentHome } from './L3_periphery/files/agent-home';
 import { herdrExecutable } from './L3_periphery/herdr/herdr-multiplexer';
-import { resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
+import { relayVariablesSet, resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
 
 // A .env in the folder the agent starts from saves typing the same variables on every
 // start. Node never overrides a variable already set, so the shell still wins.
@@ -32,6 +32,8 @@ export const config = {
 
   /** null when no relay is configured. */
   relay,
+  /** True when the variables set the relay: then only they change it, not the app or the pane. */
+  relayFixed: relayVariablesSet(process.env),
 
   home,
   relayFile,

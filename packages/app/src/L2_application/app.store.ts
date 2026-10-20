@@ -7,11 +7,14 @@ import type {
   AgentKind,
   ChatMessage,
   LinkedDevice,
+  RelayChange,
+  RelayInfo,
   Request,
   ServerMessage,
   Session,
   Workspace,
 } from '@remote-sheep/protocol';
+import { checkRelaySetting } from '@remote-sheep/protocol';
 import {
   byAttention,
   groupSpaces,
@@ -112,6 +115,12 @@ export interface AppState {
   spaces: Workspace[];
   /** Whether phones may use plain consoles, as the agent last said; null until it did. */
   shells: boolean | null;
+  /** The computer's relay as the agent last said (never its access code); null until it did. */
+  relay: RelayInfo | null;
+  /** Why the relay could not be read or changed; null once it could. */
+  relayError: string | null;
+  /** The computer took the code just sent: the form forgets it. False after anything else. */
+  relayCodeAccepted: boolean;
   /** What the New sheet starts: an agent, or a plain console. */
   newKind: NewKind;
   /** The workspace whose sessions the Sessions tab shows; null shows them all. */
@@ -197,6 +206,7 @@ export type Change =
   | 'quick'
   | 'appearance'
   | 'shells'
+  | 'relay'
   | 'terminal'
   | 'devices'
   | 'profiles'
@@ -287,6 +297,9 @@ export class Store {
       space: null,
       newKind: 'claude',
       shells: null,
+      relay: null,
+      relayError: null,
+      relayCodeAccepted: false,
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
@@ -480,6 +493,40 @@ export class Store {
       this.state.homeError = describe(error);
     }
     this.emit('shells');
+  }
+
+  /** Reads the computer's relay for Settings. */
+  async loadRelay(agent: Agent): Promise<void> {
+    await this.askRelay(agent);
+  }
+
+  /** Has the computer use this relay at once; one it cannot use is refused here, with why. */
+  async setRelay(agent: Agent, url: string, code: string): Promise<void> {
+    const checked = checkRelaySetting(url, code);
+    if (!checked.ok) {
+      this.state.relayError = checked.error;
+      this.state.relayCodeAccepted = false;
+      this.emit('relay');
+      return;
+    }
+    await this.askRelay(agent, { url: checked.setting.url, code: checked.setting.code });
+  }
+
+  /** Has the computer drop its relay and forget it; it then serves its own network only. */
+  async turnRelayOff(agent: Agent): Promise<void> {
+    await this.askRelay(agent, { off: true });
+  }
+
+  private async askRelay(agent: Agent, set?: RelayChange) {
+    try {
+      this.state.relay = await agent.request(set ? { kind: 'relay', set } : { kind: 'relay' });
+      this.state.relayError = null;
+      this.state.relayCodeAccepted = set !== undefined && 'code' in set;
+    } catch (error) {
+      this.state.relayError = describe(error);
+      this.state.relayCodeAccepted = false;
+    }
+    this.emit('relay');
   }
 
   /** The kinds the New sheet offers: Console only while consoles are not turned off. */

@@ -72,6 +72,13 @@ describe('client messages', () => {
       { type: 'request', id: 13, request: { kind: 'new-session', space: 'w5', shell: false } },
       { type: 'request', id: 16, request: { kind: 'shells' } },
       { type: 'request', id: 17, request: { kind: 'shells', on: false } },
+      { type: 'request', id: 18, request: { kind: 'relay' } },
+      {
+        type: 'request',
+        id: 19,
+        request: { kind: 'relay', set: { url: 'https://r.dev', code: 'c0de' } },
+      },
+      { type: 'request', id: 20, request: { kind: 'relay', set: { off: true } } },
       { type: 'request', id: 14, request: { kind: 'new-session', space: 'w5', shell: true } },
       {
         type: 'request',
@@ -150,6 +157,23 @@ describe('client messages', () => {
     for (const on of ['yes', 1, null]) {
       expect(
         decodeClientMessage(raw({ type: 'request', id: 1, request: { kind: 'shells', on } })),
+      ).toBeNull();
+    }
+  });
+
+  it('refuses a relay change of the wrong shape, leaving what it means to the agent', () => {
+    for (const set of [
+      null,
+      'off',
+      { off: false },
+      { url: 'https://r.dev' },
+      { url: 5, code: 'c' },
+      { url: 'https://r.dev', code: 'c', off: true },
+      { url: 'x'.repeat(2049), code: 'c' },
+      { url: 'https://r.dev', code: 'x'.repeat(1025) },
+    ]) {
+      expect(
+        decodeClientMessage(raw({ type: 'request', id: 1, request: { kind: 'relay', set } })),
       ).toBeNull();
     }
   });

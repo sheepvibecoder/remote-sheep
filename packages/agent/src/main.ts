@@ -10,6 +10,8 @@ import pkg from '../package.json' with { type: 'json' };
 import { PairingLinks } from './L1_domain/pairing-links';
 import { PairingService } from './L2_application/pairing-service';
 import { PushNotifier } from './L2_application/push-notifier';
+import { RelaySwitch } from './L2_application/relay-switch';
+import type { RelayOrigin } from './L1_domain/ports/relay';
 import { SessionHub } from './L2_application/session-hub';
 import { chooseListenPort } from './L2_application/choose-listen-port';
 import { portFromVariable, presetListenPort } from './L1_domain/listen-port';
@@ -19,8 +21,10 @@ import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
 import { formatDevices } from './L3_periphery/cli/device-table';
 import { BACKGROUND_PAIRING_HINT, describePairing } from './L3_periphery/cli/pairing-messages';
 import { showPairingPrompt } from './L3_periphery/cli/pairing-prompt';
+import { showRelayPrompt } from './L3_periphery/cli/relay-prompt';
+import { TerminalQuestions } from './L3_periphery/cli/terminal-questions';
 import { busyPortHint, describePort } from './L3_periphery/cli/port-messages';
-import { requestPairing } from './L3_periphery/control/control-client';
+import { requestPairing, requestRelay } from './L3_periphery/control/control-client';
 import { removeControlFile, saveControlFile } from './L3_periphery/control/control-file';
 import { HttpControlServer } from './L3_periphery/control/http-control-server';
 import { ClaudeTranscripts } from './L3_periphery/claude/claude-transcripts';
@@ -41,7 +45,8 @@ import {
   removeRelaySettingsFile,
   saveRelaySettingsFile,
 } from './L3_periphery/relay/relay-settings-file';
-import { RelayTransport } from './L3_periphery/relay/relay-transport';
+import { FileSavedRelay } from './L3_periphery/relay/file-saved-relay';
+import { WebSocketRelayDialer } from './L3_periphery/relay/websocket-relay-dialer';
 import { config } from './config';
 
 function lanAddresses(): string[] {
@@ -55,14 +60,15 @@ const random = { bytes: (length: number) => new Uint8Array(randomBytes(length)) 
 
 async function createPushNotifier(
   registry: FileDeviceRegistry,
-  subject: string,
+  relay: RelayOrigin,
   agentId: string,
   log: (message: string) => void,
 ) {
   const vapid = await loadVapidKeys(config.vapidFile);
   return new PushNotifier({
     registry,
-    sender: new WebPushSender({ vapid, subject }),
+    sender: new WebPushSender({ vapid }),
+    relay,
     clock,
     publicKey: encodeBase64Url(vapid.publicKey),
     agentId,
@@ -80,13 +86,28 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
       : undefined;
   const log = (message: string) => console.error(message);
 
-  // Push needs the relay: its https origin is the VAPID subject and the page that can
-  // register a service worker. Without one there is no notifier and phones are told why.
+  // The relay can be set or turned off while the agent runs (Herdr's relay pane, the app's
+  // Settings); phones that arrive through it go to the channel like LAN ones.
+  const dialer = new WebSocketRelayDialer({
+    room: publicKeyId(keys.publicKey),
+    accept: (link) => {
+      channel.accept(link);
+    },
+    log,
+  });
+  const relay = new RelaySwitch({
+    saved: new FileSavedRelay(config.relayFile),
+    dialer,
+    initial: config.relay,
+    fixed: config.relayFixed,
+  });
+
+  // Push needs the relay: its https origin is the VAPID subject and the page that can register a
+  // service worker. The notifier follows the relay live; while there is none, it sends nothing
+  // and phones are told why.
   const pushWarning = relayPushWarning(config.relay);
   if (pushWarning) log(pushWarning);
-  const push = config.relay
-    ? await createPushNotifier(registry, config.relay.url, publicKeyId(keys.publicKey), log)
-    : undefined;
+  const push = await createPushNotifier(registry, relay, publicKeyId(keys.publicKey), log);
 
   const hub = new SessionHub({
     multiplexer: new HerdrMultiplexer(herdrRunner(config.herdr)),
@@ -104,7 +125,11 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
     shells,
     notifier: push,
     push,
+    relay,
     log,
+  });
+  relay.onChange(() => {
+    hub.notifierChanged();
   });
 
   const channel = new SecureChannel({
@@ -129,21 +154,12 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
   await transport.start((link) => channel.accept(link));
 
   // The relay serves the app too, so its address leads the QR code; the LAN stays listed.
-  const relay = config.relay
-    ? new RelayTransport({
-        url: config.relay.url,
-        code: config.relay.code,
-        room: publicKeyId(keys.publicKey),
-        log,
-        onState: (state) => log('relay ' + state + ' (' + config.relay?.url + ')'),
-      })
-    : null;
-  await relay?.start((link) => channel.accept(link));
+  await relay.start();
 
   const scheme = tls ? 'https' : 'http';
   const links = new PairingLinks(
     {
-      relay: config.relay?.url ?? null,
+      relay: () => relay.origin(),
       network: lanAddresses().map((address) => scheme + '://' + address + ':' + String(port)),
       local: scheme + '://127.0.0.1:' + String(port),
     },
@@ -152,7 +168,7 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
   const interactive = !background && process.stdin.isTTY;
 
   // Same PC only: `remote-sheep qr` asks here for a new pairing while the agent keeps running.
-  const control = new HttpControlServer(links);
+  const control = new HttpControlServer(links, { relay });
   await saveControlFile(config.controlFile, {
     port: await control.start(),
     secret: control.secret,
@@ -196,7 +212,7 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
     hub.stop();
     await control.stop();
     await removeControlFile(config.controlFile, control.secret);
-    await relay?.stop();
+    await dialer.hangUp();
     await transport.stop();
     process.exit(0);
   };
@@ -304,6 +320,22 @@ async function main() {
         },
       });
       return;
+    case 'relay-change': {
+      const write = (text: string) => process.stdout.write(text);
+      const questions = new TerminalQuestions(process.stdin, write);
+      await showRelayPrompt({
+        request: (change) =>
+          requestRelay({ controlFile: config.controlFile, ...(change ? { change } : {}) }),
+        questions,
+        print: (text) => {
+          console.log(text);
+        },
+        waitToClose: async () => {
+          if (process.stdin.isTTY) await questions.ask('Press Enter to close.', true);
+        },
+      });
+      return;
+    }
     case 'start': {
       const result = await backgroundAgent().start();
       (result.kind === 'failed' ? console.error : console.log)(result.message);

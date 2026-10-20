@@ -6,17 +6,36 @@
 // from control.json, which only the agent's owner can read. A web page in a browser on this PC
 // can reach loopback too: it cannot read the secret, and a request carrying an Origin or a
 // foreign Host (DNS rebinding) is refused before the secret is even looked at. Refusals say
-// nothing about why. Later operations (P4: set the relay) are more routes in `handle`.
+// nothing about why.
+//
+// `remote-sheep relay change` sends the relay access code here. Before it does, it asks
+// `/identify` (which needs no secret, only this PC) to prove that the server holds the secret in
+// control.json: a program that took over a dead agent's port gets the old secret, never the code.
 
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { decodeRelayChange } from '@remote-sheep/protocol';
 import type { PairingRequests } from '../../L1_domain/ports/pairing-requests';
+import type { RelayRequests } from '../../L1_domain/ports/relay';
 
 export interface HttpControlServerOptions {
   /** How long a connection may take to send its request; 5 s by default. */
   timeoutMs?: number | undefined;
+  /** Lets this PC read and change the relay; without it there is no `/relay`. */
+  relay?: RelayRequests | undefined;
 }
+
+/** What the server answers to `/identify`: proof that it holds `secret`, bound to `challenge`. */
+export function identityProof(secret: string, challenge: string): string {
+  return createHmac('sha256', secret)
+    .update('remote-sheep control identity\n' + challenge)
+    .digest('base64url');
+}
+
+const CHALLENGE = /^[\w-]{43}$/;
+// A relay URL and code fit in far less; anything bigger is not our client.
+const MAX_BODY_BYTES = 8 * 1024;
 
 const HOST = '127.0.0.1';
 const SECRET_BYTES = 32;
@@ -86,24 +105,104 @@ export class HttpControlServer {
   }
 
   private handle(req: IncomingMessage, res: ServerResponse): void {
-    if (!this.allowed(req)) {
+    if (!this.fromThisPc(req)) {
+      res.writeHead(403).end();
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/identify') {
+      const challenge = req.headers['x-challenge'];
+      if (typeof challenge !== 'string' || !CHALLENGE.test(challenge)) {
+        res.writeHead(400).end();
+        return;
+      }
+      answer(res, 200, { proof: identityProof(this.secret, challenge) });
+      return;
+    }
+    if (!this.authorized(req)) {
       res.writeHead(403).end();
       return;
     }
     if (req.method === 'POST' && req.url === '/pairing') {
-      const body = JSON.stringify(this.operations.newPairing());
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(body);
+      answer(res, 200, this.operations.newPairing());
+      return;
+    }
+    const relay = this.options.relay;
+    if (relay && req.method === 'POST' && req.url === '/relay') {
+      void this.changeRelay(relay, req, res);
       return;
     }
     res.writeHead(404).end();
   }
 
-  private allowed(req: IncomingMessage): boolean {
+  /** `{}` reads the relay; `{ "set": … }` changes it. Refusals carry the reason for the person. */
+  private async changeRelay(
+    relay: RelayRequests,
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
+    const text = await readBody(req);
+    if (text === null) {
+      res.writeHead(413, { connection: 'close' }).end();
+      return;
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      value = null;
+    }
+    const fields =
+      typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+    const change = fields?.['set'] === undefined ? undefined : decodeRelayChange(fields['set']);
+    if (!fields || change === null) {
+      answer(res, 400, { error: 'malformed relay request' });
+      return;
+    }
+    try {
+      answer(res, 200, change ? await relay.changeRelay(change) : relay.relay());
+    } catch (error) {
+      answer(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  /** What a web page in a browser on this PC cannot pass: loopback, no Origin, our own Host. */
+  private fromThisPc(req: IncomingMessage): boolean {
     if (!isLoopbackAddress(req.socket.remoteAddress)) return false;
     if (req.headers.origin !== undefined) return false;
-    if (req.headers.host !== HOST + ':' + String(this.port)) return false;
+    return req.headers.host === HOST + ':' + String(this.port);
+  }
+
+  private authorized(req: IncomingMessage): boolean {
     // Hashing first gives equal lengths, so the comparison leaks neither content nor length.
     return timingSafeEqual(digest(req.headers.authorization ?? ''), this.expected);
   }
+}
+
+function answer(res: ServerResponse, status: number, value: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(value));
+}
+
+/** The body as text; null once it passes the limit, without reading the rest. */
+function readBody(req: IncomingMessage): Promise<string | null> {
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        req.removeAllListeners('data');
+        req.pause();
+        resolve(null);
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    });
+    req.on('error', () => {
+      resolve(null);
+    });
+  });
 }

@@ -91,6 +91,15 @@ use. To change it, run `remote-sheep port 4100` (any port from 1024 to 65535), t
 port and where it comes from, and `remote-sheep port auto` lets the next start pick again. The
 `PORT` variable still overrides the saved port.
 
+To reach the PC from outside its network, run the action **Set the relay**
+(`sheepvibecoder.remote-sheep.relay`), or `remote-sheep relay change` in any terminal. It opens a
+pane that shows the relay in use and asks for the relay's `https://` URL and the access code (not
+shown as you type); an empty URL turns the relay off and forgets it. The running agent connects at
+once, with no restart, and keeps the setting in `relay.json` (readable by you alone) for the next
+start; the next pairing QR lists the relay link first. A paired phone or browser can do the same
+under **Settings → Relay**. The access code never goes to the log or back to the app. A relay set
+by the `REMOTE_SHEEP_RELAY` variables can only be changed there.
+
 <p align="center">
   <a href="docs/">Docs</a> ·
   <a href=".github/SECURITY.md">Security</a> ·

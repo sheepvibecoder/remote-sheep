@@ -20,7 +20,7 @@ export interface MonitorOptions {
   multiplexer: Pick<Multiplexer, 'listSessions'>;
   intervalMs: number;
   events: MonitorEvents;
-  notifier?: Notifier;
+  notifier?: Pick<Notifier, 'notify'>;
   log?: (message: string) => void;
 }
 

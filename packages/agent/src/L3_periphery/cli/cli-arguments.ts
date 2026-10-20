@@ -14,6 +14,7 @@ export type Command =
   | { kind: 'relay-set'; url: string; code: string }
   | { kind: 'relay-show' }
   | { kind: 'relay-off' }
+  | { kind: 'relay-change' }
   | { kind: 'port-show' }
   | { kind: 'port-set'; port: number }
   | { kind: 'port-auto' }
@@ -50,6 +51,9 @@ To also serve phones outside this network, save your relay once:
                                         issued to this agent; every start then uses it
   remote-sheep relay                    show the saved relay (the code is masked)
   remote-sheep relay off                forget it; the agent serves the local network only
+  remote-sheep relay change             ask for the URL and the access code (not shown as you
+                                        type) and hand them to the running agent, which connects
+                                        at once and keeps them; an empty URL turns it off
 With a relay the agent can also notify phones when a session finishes (opt-in on the phone).
 The environment variables REMOTE_SHEEP_RELAY and REMOTE_SHEEP_RELAY_CODE still work and
 override the saved relay when set.
@@ -94,6 +98,14 @@ export function parseArguments(args: readonly string[]): Command {
         return args.length
           ? { kind: 'error', message: 'relay off takes no arguments' }
           : { kind: 'relay-off' };
+      }
+      if (sub === 'change') {
+        return args.length
+          ? {
+              kind: 'error',
+              message: 'relay change takes no arguments; it asks for the URL and the access code',
+            }
+          : { kind: 'relay-change' };
       }
       if (sub === 'set') {
         const [url, code] = args;

@@ -11,14 +11,16 @@ import {
   AGENT_IMPOSTOR,
   AGENT_NOT_RUNNING,
   requestPairing,
+  requestRelay,
 } from '../../../src/L3_periphery/control/control-client';
 import { saveControlFile } from '../../../src/L3_periphery/control/control-file';
 import { HttpControlServer } from '../../../src/L3_periphery/control/http-control-server';
 import { MemoryDeviceRegistry } from '../../fakes/memory-device-registry';
+import type { RelayChange, RelayInfo } from '@remote-sheep/protocol';
 
 const AGENT_KEY = generateKeyPair().publicKey;
 const ORIGINS = {
-  relay: null,
+  relay: () => null,
   network: ['http://192.168.1.20:3999'],
   local: 'http://127.0.0.1:3999',
 };
@@ -157,5 +159,87 @@ describe('requestPairing', () => {
     await expect(requestPairing({ controlFile: file, agentKey: AGENT_KEY })).rejects.toThrow(
       'unexpected answer',
     );
+  });
+});
+
+describe('requestRelay', () => {
+  const OFF: RelayInfo = { on: false, url: null, connected: false, fixed: false };
+
+  async function relayAgent() {
+    const changes: RelayChange[] = [];
+    let info = OFF;
+    const server = new HttpControlServer(new PairingLinks(ORIGINS, pairingService()), {
+      relay: {
+        relay: () => info,
+        changeRelay: async (change) => {
+          await Promise.resolve();
+          if ('code' in change && change.code === 'refuse') throw new Error('Not this one.');
+          changes.push(change);
+          info =
+            'off' in change ? OFF : { on: true, url: change.url, connected: true, fixed: false };
+          return info;
+        },
+      },
+    });
+    closers.push(() => server.stop());
+    const file = controlFile();
+    await saveControlFile(file, { port: await server.start(), secret: server.secret });
+    return { file, changes };
+  }
+
+  it('reads, sets and turns off the relay of the running agent', async () => {
+    const { file, changes } = await relayAgent();
+    expect(await requestRelay({ controlFile: file })).toEqual(OFF);
+    const set = { url: 'https://relay.example.com', code: 'c0de' };
+    expect(await requestRelay({ controlFile: file, change: set })).toEqual({
+      on: true,
+      url: 'https://relay.example.com',
+      connected: true,
+      fixed: false,
+    });
+    expect(await requestRelay({ controlFile: file, change: { off: true } })).toEqual(OFF);
+    expect(changes).toEqual([set, { off: true }]);
+  });
+
+  it('passes on why the agent refused a change', async () => {
+    const { file } = await relayAgent();
+    await expect(
+      requestRelay({ controlFile: file, change: { url: 'https://r.dev', code: 'refuse' } }),
+    ).rejects.toThrow('Not this one.');
+  });
+
+  it('says the agent is not running, like qr, with no control.json or a closed port', async () => {
+    await expect(requestRelay({ controlFile: controlFile() })).rejects.toThrow(AGENT_NOT_RUNNING);
+    const server = new HttpControlServer({ newPairing: () => ({ links: [], expiresAt: 0 }) });
+    const port = await server.start();
+    await server.stop();
+    const file = controlFile();
+    await saveControlFile(file, { port, secret: 'stale' });
+    await expect(requestRelay({ controlFile: file, change: { off: true } })).rejects.toThrow(
+      AGENT_NOT_RUNNING,
+    );
+  });
+
+  it('never hands the access code to a program that cannot prove it is this agent', async () => {
+    const received: string[] = [];
+    const port = await listening(
+      createHttpServer((req, res) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+        req.on('end', () => {
+          received.push(req.url + ' ' + body);
+          res
+            .writeHead(200, { 'content-type': 'application/json' })
+            .end(JSON.stringify({ proof: 'made-up', ...OFF }));
+        });
+      }),
+    );
+    const file = controlFile();
+    await saveControlFile(file, { port, secret: 'stale' });
+    await expect(
+      requestRelay({ controlFile: file, change: { url: 'https://r.dev', code: 'c0de' } }),
+    ).rejects.toThrow(AGENT_IMPOSTOR);
+    expect(received.join(' ')).not.toContain('c0de');
+    expect(received.every((line) => line.startsWith('/identify'))).toBe(true);
   });
 });

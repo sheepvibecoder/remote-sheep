@@ -9,6 +9,7 @@
 // handshake in `secure/` opens; only the two handshake frames go in clear.
 
 import { decodeFrame, encodeFrame } from './frame';
+import type { RelayChange, RelayInfo } from './relay-setting';
 import { decodeBase64Url } from './secure/base64url';
 
 export { decodeFrame, encodeFrame, type Frame } from './frame';
@@ -20,6 +21,17 @@ export {
   type RelayEnvelope,
 } from './relay-envelope';
 export { decodeBase64Url, encodeBase64Url } from './secure/base64url';
+export {
+  checkRelaySetting,
+  MAX_RELAY_CODE_LENGTH,
+  RELAY_CODE_PROBLEM,
+  RELAY_URL_PROBLEM,
+  relayIsOn,
+  type RelayChange,
+  type RelayInfo,
+  type RelaySetting,
+  type RelaySettingCheck,
+} from './relay-setting';
 export { constantTimeEqual, generateKeyPair, publicKeyId, type KeyPair } from './secure/keys';
 export {
   decodeInvite,
@@ -139,6 +151,8 @@ export type Request =
   | { kind: 'spaces' }
   /** Reads whether phones may use plain consoles, or sets it when `on` is given. */
   | { kind: 'shells'; on?: boolean }
+  /** Reads the relay, or changes it when `set` is given; the agent connects without a restart. */
+  | { kind: 'relay'; set?: RelayChange }
   /**
    * Starts a coding agent (Claude Code when `agent` is absent, as older phones ask), or a plain
    * shell, in a new tab of this workspace.
@@ -186,6 +200,7 @@ export interface Results {
   'push-unsubscribe': undefined;
   spaces: Workspace[];
   shells: { on: boolean };
+  relay: RelayInfo;
   /** The pane of the new session, ready to open as a chat. */
   'new-session': { target: string };
 }
@@ -325,6 +340,11 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
     case 'shells':
       if (value['on'] !== undefined && typeof value['on'] !== 'boolean') return null;
       return { kind: 'shells', ...(value['on'] === undefined ? {} : { on: value['on'] }) };
+    case 'relay': {
+      if (value['set'] === undefined) return { kind: 'relay' };
+      const set = decodeRelayChange(value['set']);
+      return set ? { kind: 'relay', set } : null;
+    }
     case 'new-session': {
       if (!isText(value['space'])) return null;
       // Absent from phones older than shells: they only ever start Claude Code.
@@ -341,6 +361,22 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
     default:
       return null;
   }
+}
+
+// Generous bounds on the shape only: what makes a URL or a code usable is `checkRelaySetting`,
+// which the agent applies so the device hears why, instead of an unknown-request answer.
+const MAX_RELAY_URL_TEXT = 2048;
+const MAX_RELAY_CODE_TEXT = 1024;
+
+/** A relay change of the right shape, or null; also what the agent's control channel reads. */
+export function decodeRelayChange(value: unknown): RelayChange | null {
+  if (!isObject(value)) return null;
+  const keys = Object.keys(value);
+  if (value['off'] === true) return keys.length === 1 ? { off: true } : null;
+  const { url, code } = value;
+  if (keys.length !== 2 || typeof url !== 'string' || typeof code !== 'string') return null;
+  if (url.length > MAX_RELAY_URL_TEXT || code.length > MAX_RELAY_CODE_TEXT) return null;
+  return { url, code };
 }
 
 // ---- codecs ----

@@ -46,6 +46,7 @@ import { stopDictation } from './dictation';
 import { $, must, say } from './dom';
 import { hideEditor, markUp } from './photo-editor';
 import { canScan, scanQr } from './qr-scanner';
+import { mountRelaySettings } from './relay-settings';
 import { renderRich } from './rich-text';
 import { SessionListComponent } from './session-list/session-list.component';
 import { autoSpeak, drawSpeed, speak, startSpeeds } from './speech';
@@ -199,7 +200,10 @@ function onChange(change: Change): void {
       document.title = pageTitle(store.unreadTotal());
       applyView();
       renderHeader();
-      if (state.view === 'settings') void store.loadShells(agent);
+      if (state.view === 'settings') {
+        void store.loadShells(agent);
+        void store.loadRelay(agent);
+      }
       if (listShown()) renderList();
       if (state.view === 'devices') renderDevices();
       if (state.view === 'computers') {
@@ -230,6 +234,9 @@ function onChange(change: Change): void {
     case 'shells':
       renderShells();
       if (!sheet.classList.contains('hidden')) renderSheet();
+      return;
+    case 'relay':
+      renderRelay();
       return;
     case 'quick':
       drawQuick();
@@ -1590,3 +1597,20 @@ function renderShells(): void {
 toggleShells.addEventListener('click', () => {
   if (state.shells !== null) void store.setShells(agent, !state.shells);
 });
+
+// ---- settings: relay ----
+
+const relaySettings = mountRelaySettings($('settings'), {
+  save: (url, code) => {
+    void store.setRelay(agent, url, code);
+  },
+  turnOff: () => {
+    void store.turnRelayOff(agent);
+  },
+});
+
+function renderRelay(): void {
+  relaySettings.render(state.relay);
+  if (state.relayCodeAccepted) relaySettings.clearCode();
+  if (state.relayError && state.view === 'settings') say(state.relayError, true);
+}

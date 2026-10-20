@@ -7,6 +7,7 @@ import type {
   ServerMessage,
   Session,
 } from '@remote-sheep/protocol';
+import { RELAY_CODE_PROBLEM, RELAY_URL_PROBLEM } from '@remote-sheep/protocol';
 import type { PushSubscriptions, PushSupport } from '../../src/L1_domain/ports/push-subscriptions';
 import { Store, type Agent, type Change } from '../../src/L2_application/app.store';
 
@@ -778,6 +779,49 @@ describe('Store', () => {
       await store.setShells(broken, false);
       expect(store.state.shells).toBe(true);
       expect(store.state.homeError).toBe('could not write settings');
+    });
+
+    it('reads the relay and sets or turns it off, keeping the answer of the agent', async () => {
+      const { store, changes } = withSessions();
+      expect(store.state.relay).toBeNull();
+      const off = { on: false, url: null, connected: false, fixed: false };
+      const on = { on: true, url: 'https://relay.example.com', connected: false, fixed: false };
+      const reader = new FakeAgent(off);
+      await store.loadRelay(reader);
+      expect(reader.asked).toEqual([{ kind: 'relay' }]);
+      expect(store.state.relay).toEqual(off);
+      expect(changes).toContain('relay');
+      const setter = new FakeAgent(on);
+      await store.setRelay(setter, ' https://relay.example.com ', ' c0de ');
+      expect(setter.asked).toEqual([
+        { kind: 'relay', set: { url: 'https://relay.example.com', code: 'c0de' } },
+      ]);
+      expect(store.state.relay).toEqual(on);
+      expect(store.state.relayError).toBeNull();
+      // The code was taken: the form can forget it.
+      expect(store.state.relayCodeAccepted).toBe(true);
+      const switcher = new FakeAgent(off);
+      await store.turnRelayOff(switcher);
+      expect(switcher.asked).toEqual([{ kind: 'relay', set: { off: true } }]);
+      expect(store.state.relay).toEqual(off);
+      expect(store.state.relayCodeAccepted).toBe(false);
+    });
+
+    it('refuses a relay it cannot use before asking the agent, and keeps the reason of a refusal', async () => {
+      const { store } = withSessions();
+      const agent = new FakeAgent();
+      await store.setRelay(agent, 'http://relay.example.com', 'c0de');
+      expect(agent.asked).toEqual([]);
+      expect(store.state.relayError).toBe(RELAY_URL_PROBLEM);
+      await store.setRelay(agent, 'https://relay.example.com', '');
+      expect(agent.asked).toEqual([]);
+      expect(store.state.relayError).toBe(RELAY_CODE_PROBLEM);
+      agent.failure = new Error('this agent cannot change its relay');
+      await store.setRelay(agent, 'https://relay.example.com', 'c0de');
+      expect(store.state.relayError).toBe('this agent cannot change its relay');
+      // A refused code stays in the form, so it can be fixed.
+      expect(store.state.relayCodeAccepted).toBe(false);
+      expect(store.state.relay).toBeNull();
     });
 
     it('keeps the reason when the workspaces cannot be read or a session cannot start', async () => {

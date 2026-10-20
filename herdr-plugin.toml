@@ -15,8 +15,8 @@ command = ["pnpm", "build"]
 # Every command is the same Node loader: Herdr runs it with no shell and, on Windows, in a
 # \\?\C:\... folder where `node <relative path>` fails. The loader strips that prefix from
 # HERDR_PLUGIN_ROOT, moves there and imports herdr-plugin/plugin.mjs, which runs the built
-# agent's `start`, `stop`, `status` or `qr`. One command for all platforms keeps the action ids
-# the same everywhere (ids must be unique inside a plugin).
+# agent's `start`, `stop`, `status`, `qr` or `relay change`. One command for all platforms keeps
+# the action ids the same everywhere (ids must be unique inside a plugin).
 
 # One-shot per Herdr start: starts the agent in the background unless it already runs.
 [[startup]]
@@ -56,3 +56,18 @@ command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cw
 id = "qr"
 title = "remote-sheep pairing QR"
 command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "qr"]
+
+# Relay: the action opens the `relay` pane, which shows the running agent's relay and asks for a
+# new URL and access code (the code is not shown as it is typed), or an empty URL to turn the relay
+# off. The agent connects at once, with no restart, and keeps the setting in relay.json for the
+# next start. Phones can do the same in the app, under Settings.
+[[actions]]
+id = "relay"
+title = "Set the relay"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "open-relay"]
+
+[[panes]]
+id = "relay"
+title = "remote-sheep relay"
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "relay"]

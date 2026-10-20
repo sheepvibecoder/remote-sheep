@@ -1,5 +1,5 @@
-// What the Herdr plugin runs: `start`, `stop`, `status` or `qr` of the built agent, and
-// `open-qr`, which asks Herdr to open the plugin's `qr` pane.
+// What the Herdr plugin runs: `start`, `stop`, `status`, `qr` or `relay` of the built agent, and
+// `open-qr` or `open-relay`, which ask Herdr to open the plugin's pane of that name.
 //
 // Herdr runs plugin commands with no shell and, on Windows, in a `\\?\C:\...` folder where Node
 // cannot resolve a relative script (EISDIR on lstat 'C:'). So herdr-plugin.toml starts Node with
@@ -7,13 +7,26 @@
 // this file; from here every path is built from this file's own location. The agent owns the
 // lifecycle itself (packages/agent/src/L3_periphery/background): this only finds and runs it.
 // The `qr` pane runs `remote-sheep qr`, which asks the running agent for a new pairing over its
-// loopback control channel; closing the pane ends that command, never the agent.
+// loopback control channel; closing the pane ends that command, never the agent. The `relay` pane
+// runs `remote-sheep relay change`, which asks for the relay URL and access code and hands them to
+// the running agent the same way.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const COMMANDS = new Set(['start', 'stop', 'status', 'qr']);
+// What each command runs in the built agent.
+const COMMANDS = new Map([
+  ['start', ['start']],
+  ['stop', ['stop']],
+  ['status', ['status']],
+  ['qr', ['qr']],
+  ['relay', ['relay', 'change']],
+]);
+const PANES = new Map([
+  ['open-qr', 'qr'],
+  ['open-relay', 'relay'],
+]);
 const PLUGIN_ID = 'sheepvibecoder.remote-sheep';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -21,24 +34,28 @@ const agent = join(root, 'packages', 'agent', 'dist', 'remote-sheep.js');
 // `node -e <loader> start` leaves the command last on process.argv; so does `node plugin.mjs start`.
 const command = process.argv.at(-1) ?? '';
 
-if (command === 'open-qr') {
-  // An action cannot show a QR itself (its output is not a terminal); it opens the pane that does.
+const pane = PANES.get(command);
+const args = COMMANDS.get(command);
+
+if (pane) {
+  // An action's output is not a terminal, so it cannot show a QR or ask a question itself; it
+  // opens the pane that does.
   const herdr = process.env.HERDR_BIN_PATH || 'herdr';
   const result = spawnSync(
     herdr,
-    ['plugin', 'pane', 'open', '--plugin', PLUGIN_ID, '--entrypoint', 'qr'],
+    ['plugin', 'pane', 'open', '--plugin', PLUGIN_ID, '--entrypoint', pane],
     { stdio: 'inherit', windowsHide: true },
   );
   if (result.error) console.error(result.error.message);
   process.exitCode = result.status ?? 1;
-} else if (!COMMANDS.has(command)) {
-  console.error('usage: plugin.mjs start|stop|status|qr|open-qr');
+} else if (!args) {
+  console.error('usage: plugin.mjs start|stop|status|qr|relay|open-qr|open-relay');
   process.exitCode = 2;
 } else if (!existsSync(agent)) {
   console.error('remote-sheep is not built: run `pnpm install` and `pnpm build` in ' + root);
   process.exitCode = 1;
 } else {
-  const result = spawnSync(process.execPath, [agent, command], {
+  const result = spawnSync(process.execPath, [agent, ...args], {
     cwd: root,
     stdio: 'inherit',
     windowsHide: true,

@@ -1,7 +1,10 @@
+import { createHmac } from 'node:crypto';
 import { request } from 'node:http';
 import { connect } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { RelayChange, RelayInfo } from '@remote-sheep/protocol';
 import type { Pairing } from '../../../src/L1_domain/pairing';
+import type { RelayRequests } from '../../../src/L1_domain/ports/relay';
 import {
   HttpControlServer,
   isLoopbackAddress,
@@ -27,7 +30,7 @@ async function started(newPairing: () => Pairing = () => PAIRING, timeoutMs?: nu
 /** A raw request, so the tests can send what a well-behaved client never would. */
 function call(
   port: number,
-  options: { method?: string; path?: string; headers?: Record<string, string> },
+  options: { method?: string; path?: string; headers?: Record<string, string>; body?: string },
 ): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = request(
@@ -49,9 +52,135 @@ function call(
       },
     );
     req.on('error', reject);
-    req.end();
+    req.end(options.body);
   });
 }
+
+const OFF: RelayInfo = { on: false, url: null, connected: false, fixed: false };
+
+/** Records the changes asked; refuses a code of "bad" the way RelaySwitch refuses one. */
+class FakeRelay implements RelayRequests {
+  changes: RelayChange[] = [];
+  info = OFF;
+  relay(): RelayInfo {
+    return this.info;
+  }
+  async changeRelay(change: RelayChange): Promise<RelayInfo> {
+    await Promise.resolve();
+    if ('code' in change && change.code === 'bad') throw new Error('The access code is bad.');
+    this.changes.push(change);
+    this.info =
+      'off' in change ? OFF : { on: true, url: change.url, connected: false, fixed: false };
+    return this.info;
+  }
+}
+
+async function withRelay() {
+  const relay = new FakeRelay();
+  const server = new HttpControlServer({ newPairing: () => PAIRING }, { relay });
+  servers.push(server);
+  const port = await server.start();
+  return { server, port, relay, authorization: 'Bearer ' + server.secret };
+}
+
+describe('HttpControlServer relay', () => {
+  it('reads the relay and changes it for a caller with the secret, never echoing the code', async () => {
+    const { port, relay, authorization } = await withRelay();
+    const read = await call(port, { path: '/relay', headers: { authorization }, body: '{}' });
+    expect(read.status).toBe(200);
+    expect(JSON.parse(read.body)).toEqual(OFF);
+    const set = { url: 'https://relay.example.com', code: 'c0de' };
+    const changed = await call(port, {
+      path: '/relay',
+      headers: { authorization },
+      body: JSON.stringify({ set }),
+    });
+    expect(changed.status).toBe(200);
+    expect(changed.body).not.toContain('c0de');
+    expect(JSON.parse(changed.body)).toMatchObject({ on: true, url: 'https://relay.example.com' });
+    const off = await call(port, {
+      path: '/relay',
+      headers: { authorization },
+      body: JSON.stringify({ set: { off: true } }),
+    });
+    expect(JSON.parse(off.body)).toEqual(OFF);
+    expect(relay.changes).toEqual([set, { off: true }]);
+  });
+
+  it('refuses a relay change without the secret, from a web page, or rebound, changing nothing', async () => {
+    const { server, port, relay } = await withRelay();
+    const body = JSON.stringify({ set: { off: true } });
+    const authorization = 'Bearer ' + server.secret;
+    const attempts: Record<string, string>[] = [
+      {},
+      { authorization: 'Bearer wrong' },
+      { authorization, origin: 'http://evil.example' },
+      { authorization, host: 'evil.example' },
+    ];
+    for (const headers of attempts) {
+      expect(await call(port, { path: '/relay', headers, body })).toEqual({
+        status: 403,
+        body: '',
+      });
+    }
+    expect(relay.changes).toEqual([]);
+  });
+
+  it('answers a malformed body or a refused change with 400 and the reason', async () => {
+    const { port, relay, authorization } = await withRelay();
+    for (const body of ['not json', '{"set":"off"}', '{"set":{"url":"https://r.dev"}}']) {
+      const res = await call(port, { path: '/relay', headers: { authorization }, body });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body)).toEqual({ error: 'malformed relay request' });
+    }
+    const refused = await call(port, {
+      path: '/relay',
+      headers: { authorization },
+      body: JSON.stringify({ set: { url: 'https://r.dev', code: 'bad' } }),
+    });
+    expect(refused.status).toBe(400);
+    expect(JSON.parse(refused.body)).toEqual({ error: 'The access code is bad.' });
+    const huge = await call(port, {
+      path: '/relay',
+      headers: { authorization },
+      body: JSON.stringify({ set: { url: 'https://r.dev', code: 'x'.repeat(20_000) } }),
+    }).catch(() => ({ status: 0, body: '' }));
+    expect([0, 413]).toContain(huge.status);
+    expect(relay.changes).toEqual([]);
+  });
+
+  it('proves it holds the secret to a caller that has not sent it, and only to this PC', async () => {
+    const { server, port } = await withRelay();
+    const challenge = 'A'.repeat(43);
+    const res = await call(port, { path: '/identify', headers: { 'x-challenge': challenge } });
+    expect(res.status).toBe(200);
+    const expected = createHmac('sha256', server.secret)
+      .update('remote-sheep control identity\n' + challenge)
+      .digest('base64url');
+    expect(JSON.parse(res.body)).toEqual({ proof: expected });
+    expect(
+      (await call(port, { path: '/identify', headers: { 'x-challenge': 'short' } })).status,
+    ).toBe(400);
+    expect(
+      (
+        await call(port, {
+          path: '/identify',
+          headers: { 'x-challenge': challenge, origin: 'http://evil.example' },
+        })
+      ).status,
+    ).toBe(403);
+  });
+
+  it('has no relay route when the agent gave it no relay to change', async () => {
+    const { server, port } = await started();
+    const res = await call(port, {
+      path: '/relay',
+      headers: { authorization: 'Bearer ' + server.secret },
+      body: '{}',
+    });
+    expect(res.status).toBe(404);
+  });
+});
 
 describe('HttpControlServer', () => {
   it('listens on loopback only, on a port of its own', async () => {

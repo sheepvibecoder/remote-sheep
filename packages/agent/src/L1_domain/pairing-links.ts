@@ -10,7 +10,8 @@ import type { Pairing, PairingLink, PairingPlace } from './pairing';
 import type { InviteSource, PairingRequests } from './ports/pairing-requests';
 
 export interface PairingOrigins {
-  readonly relay: string | null;
+  /** Read on every pairing: the relay can be set or turned off while the agent runs. */
+  readonly relay: () => string | null;
   readonly network: readonly string[];
   readonly local: string;
 }
@@ -33,9 +34,10 @@ export class PairingLinks implements PairingRequests {
       where,
       url: pairingUrl(origin, invite),
     });
+    const relay = this.origins.relay();
     return {
       links: [
-        ...(this.origins.relay ? [link('relay', this.origins.relay)] : []),
+        ...(relay ? [link('relay', relay)] : []),
         ...this.origins.network.map((origin) => link('network', origin)),
         link('this-pc', this.origins.local),
       ],

@@ -17,6 +17,7 @@ import type { Multiplexer } from '../L1_domain/ports/multiplexer';
 import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
 import type { Notifier } from '../L1_domain/ports/notifier';
+import type { RelayRequests } from '../L1_domain/ports/relay';
 import type { UploadStore } from '../L1_domain/ports/upload-store';
 import type { PairingService } from './pairing-service';
 import type { PushNotifier } from './push-notifier';
@@ -26,7 +27,10 @@ import { SessionMonitor } from './session-monitor';
 export type LinkedDevices = Pick<PairingService, 'linkedDevices' | 'unlink' | 'onDevicesChanged'>;
 
 /** The opt-in side of push notifications; `PushNotifier` provides it. */
-export type PushSubscriptions = Pick<PushNotifier, 'publicKey' | 'subscribe' | 'unsubscribe'>;
+export type PushSubscriptions = Pick<
+  PushNotifier,
+  'publicKey' | 'subscribe' | 'unsubscribe' | 'listening'
+>;
 
 export interface HubOptions {
   multiplexer: Multiplexer;
@@ -42,10 +46,12 @@ export interface HubOptions {
    * the app, because a shell runs any command on this computer, not only what a coding agent would.
    */
   shells: ShellSetting;
-  /** When set, the session list is watched even with no phone connected. */
+  /** While it listens, the session list is watched even with no phone connected. */
   notifier?: Notifier;
-  /** Absent when this agent cannot send push (no relay); phones asking to subscribe are told why. */
+  /** Phones asking to subscribe while it cannot send push (no relay) are told why. */
   push?: PushSubscriptions;
+  /** Lets a paired phone read the relay and set or turn it off; absent where it cannot change. */
+  relay?: RelayRequests;
   log?: (message: string) => void;
 }
 
@@ -90,7 +96,7 @@ export class SessionHub implements ConnectionEvents {
         refreshed: () => this.followTranscripts(),
       },
     });
-    if (options.notifier) this.monitor.start();
+    if (this.notifying()) this.monitor.start();
     // For the agent's lifetime: the hub and the pairing service live and die
     // together. pushDevices logs its own failures, so nothing waits for it.
     options.devices.onDevicesChanged(() => void this.pushDevices());
@@ -111,7 +117,17 @@ export class SessionHub implements ConnectionEvents {
   close(connection: Connection): void {
     this.viewers.delete(connection);
     this.reconcile();
-    if (this.viewers.size === 0 && !this.options.notifier) this.stop();
+    if (this.viewers.size === 0 && !this.notifying()) this.stop();
+  }
+
+  /** The notifier began or stopped listening (the relay was set or turned off). */
+  notifierChanged(): void {
+    if (this.notifying()) this.monitor.start();
+    else if (this.viewers.size === 0) this.stop();
+  }
+
+  private notifying(): boolean {
+    return this.options.notifier?.listening() === true;
   }
 
   async request(connection: Connection, request: Request): Promise<unknown> {
@@ -157,6 +173,11 @@ export class SessionHub implements ConnectionEvents {
           this.broadcast((c) => c.send({ type: 'sessions', sessions: this.reachable() }));
         }
         return { on: this.options.shells.enabled() };
+      case 'relay': {
+        const relay = this.options.relay;
+        if (!relay) throw new Error('this agent cannot change its relay');
+        return request.set ? relay.changeRelay(request.set) : relay.relay();
+      }
       case 'new-session':
         return this.newSession(request.space, request.shell, request.agent ?? 'claude');
     }
@@ -245,10 +266,11 @@ export class SessionHub implements ConnectionEvents {
   }
 
   private requirePush(): PushSubscriptions {
-    if (!this.options.push) {
-      throw new Error('notifications need a relay: start the agent with REMOTE_SHEEP_RELAY');
+    const push = this.options.push;
+    if (!push?.listening()) {
+      throw new Error('notifications need a relay: turn it on in Settings → Relay');
     }
-    return this.options.push;
+    return push;
   }
 
   private isChatWatched(target: string): boolean {

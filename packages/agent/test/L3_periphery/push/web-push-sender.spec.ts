@@ -52,15 +52,20 @@ describe('WebPushSender', () => {
   const sender = () =>
     new WebPushSender({
       vapid,
-      subject: 'https://relay.example',
       allowInsecure: true,
       now: () => NOW,
     });
 
+  const SUBJECT = 'https://relay.example';
+
   it('posts an encrypted body to the endpoint, signed with a VAPID token', async () => {
     const { received, origin } = await pushService(201);
     const subscriber = phone();
-    const result = await sender().send({ endpoint: origin + '/push/abc', ...subscriber }, PAYLOAD);
+    const result = await sender().send(
+      { endpoint: origin + '/push/abc', ...subscriber },
+      PAYLOAD,
+      SUBJECT,
+    );
     expect(result).toBe('sent');
 
     const request = received[0];
@@ -99,10 +104,19 @@ describe('WebPushSender', () => {
     expect(valid).toBe(true);
   });
 
+  it('names the subject it is given on each send, so a new relay counts at once', async () => {
+    const { received, origin } = await pushService(201);
+    await sender().send({ endpoint: origin + '/a', ...phone() }, '{}', 'https://other.example');
+    const claims = /t=[\w-]+\.([\w-]+)\./.exec(received[0]?.headers.authorization ?? '')?.[1];
+    expect(JSON.parse(Buffer.from(claims ?? '', 'base64url').toString())).toMatchObject({
+      sub: 'https://other.example',
+    });
+  });
+
   it('answers gone for 404 and 410', async () => {
     for (const status of [404, 410]) {
       const { origin } = await pushService(status);
-      const result = await sender().send({ endpoint: origin + '/x', ...phone() }, '{}');
+      const result = await sender().send({ endpoint: origin + '/x', ...phone() }, '{}', SUBJECT);
       expect(result).toBe('gone');
       server?.close();
     }
@@ -110,15 +124,15 @@ describe('WebPushSender', () => {
 
   it('fails with the status for anything else', async () => {
     const { origin } = await pushService(429);
-    await expect(sender().send({ endpoint: origin + '/x', ...phone() }, '{}')).rejects.toThrow(
-      '429',
-    );
+    await expect(
+      sender().send({ endpoint: origin + '/x', ...phone() }, '{}', SUBJECT),
+    ).rejects.toThrow('429');
   });
 
   it('refuses a plain http endpoint unless told otherwise', async () => {
-    const strict = new WebPushSender({ vapid, subject: 'https://relay.example' });
+    const strict = new WebPushSender({ vapid });
     await expect(
-      strict.send({ endpoint: 'http://127.0.0.1:1/x', ...phone() }, '{}'),
+      strict.send({ endpoint: 'http://127.0.0.1:1/x', ...phone() }, '{}', SUBJECT),
     ).rejects.toThrow('https');
   });
 });
