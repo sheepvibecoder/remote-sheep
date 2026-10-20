@@ -14,6 +14,12 @@ import {
 } from '@remote-sheep/protocol';
 import type { RelayDialer, RelayOrigin, RelayRequests, SavedRelay } from '../L1_domain/ports/relay';
 
+/**
+ * How long a change waits for the relay to answer before saying it is still connecting: the person
+ * then sees whether it worked, without a pane or a phone hanging on a relay that never answers.
+ */
+export const RELAY_DIAL_WAIT_MS = 5000;
+
 export const RELAY_FIXED =
   'The relay is set by the REMOTE_SHEEP_RELAY variables on the computer; change it there.';
 
@@ -50,11 +56,13 @@ export class RelaySwitch implements RelayRequests, RelayOrigin {
   }
 
   relay(): RelayInfo {
+    const problem = this.current ? this.options.dialer.problem() : null;
     return {
       on: this.current !== null,
       url: this.current?.url ?? null,
       connected: this.current !== null && this.options.dialer.connected(),
       fixed: this.options.fixed,
+      ...(problem === null ? {} : { problem }),
     };
   }
 
@@ -83,6 +91,8 @@ export class RelaySwitch implements RelayRequests, RelayOrigin {
     await this.options.saved.save(checked.setting);
     this.current = checked.setting;
     await this.options.dialer.dial(checked.setting);
+    // The setting stays saved whatever the outcome: the dialer keeps retrying an outage.
+    await this.options.dialer.settled(RELAY_DIAL_WAIT_MS);
     return this.relay();
   }
 }

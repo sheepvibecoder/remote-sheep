@@ -17,7 +17,7 @@ import type {
   Session,
   Workspace,
 } from '@remote-sheep/protocol';
-import { checkRelaySetting } from '@remote-sheep/protocol';
+import { checkRelaySetting, relayIsOn } from '@remote-sheep/protocol';
 import {
   byAttention,
   groupSpaces,
@@ -258,6 +258,9 @@ type Listener = (change: Change) => void;
 
 /** Whatever carries a request to the agent: the open connection, in the app. */
 export type Agent = Pick<AgentConnection, 'request'>;
+
+/** How long after a "still connecting" answer Settings → Relay reads the relay again. */
+const RELAY_RECHECK_MS = 5000;
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -566,8 +569,17 @@ export class Store {
     await this.askRelay(agent);
   }
 
-  /** Has the computer use this relay at once; one it cannot use is refused here, with why. */
-  async setRelay(agent: Agent, url: string, code: string): Promise<void> {
+  /**
+   * Has the computer use this relay at once; one it cannot use is refused here, with why. The
+   * computer answers once it connected, failed, or gave up waiting (about 5 s); in that last case
+   * the relay is read once more `recheckMs` later, so the screen shows how it went.
+   */
+  async setRelay(
+    agent: Agent,
+    url: string,
+    code: string,
+    recheckMs = RELAY_RECHECK_MS,
+  ): Promise<void> {
     const checked = checkRelaySetting(url, code);
     if (!checked.ok) {
       this.state.relayError = checked.error;
@@ -576,6 +588,10 @@ export class Store {
       return;
     }
     await this.askRelay(agent, { url: checked.setting.url, code: checked.setting.code });
+    const relay = this.state.relay;
+    if (!relay || !relayIsOn(relay) || relay.connected || relay.problem) return;
+    await new Promise((resolve) => setTimeout(resolve, recheckMs));
+    await this.askRelay(agent);
   }
 
   /** Has the computer drop its relay and forget it; it then serves its own network only. */

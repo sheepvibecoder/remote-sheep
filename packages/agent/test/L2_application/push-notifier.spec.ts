@@ -96,7 +96,9 @@ describe('PushNotifier', () => {
     const dialer = {
       dial: async () => undefined,
       hangUp: async () => undefined,
+      settled: async () => ({ connected: true, problem: null }),
       connected: () => true,
+      problem: () => null,
     };
     const fixed = new RelaySwitch({
       saved,

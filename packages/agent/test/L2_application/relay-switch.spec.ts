@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { RELAY_CODE_PROBLEM, RELAY_URL_PROBLEM, type RelaySetting } from '@remote-sheep/protocol';
-import type { RelayDialer, SavedRelay } from '../../src/L1_domain/ports/relay';
-import { RELAY_FIXED, RelaySwitch } from '../../src/L2_application/relay-switch';
+import type { RelayDialer, RelayOutcome, SavedRelay } from '../../src/L1_domain/ports/relay';
+import {
+  RELAY_DIAL_WAIT_MS,
+  RELAY_FIXED,
+  RelaySwitch,
+} from '../../src/L2_application/relay-switch';
 
 class MemorySavedRelay implements SavedRelay {
   setting: RelaySetting | null = null;
@@ -15,22 +19,35 @@ class MemorySavedRelay implements SavedRelay {
   }
 }
 
-/** Records what was dialled; "connects" at once unless told otherwise. */
+/** Records what was dialled; "connects" at once unless `next` says otherwise. */
 class FakeDialer implements RelayDialer {
   calls: string[] = [];
+  waits: number[] = [];
   open = false;
+  trouble: string | null = null;
+  next: RelayOutcome = { connected: true, problem: null };
   async dial(setting: RelaySetting): Promise<void> {
     this.calls.push('dial ' + setting.url + ' ' + setting.code);
-    this.open = true;
+    this.open = this.next.connected;
+    this.trouble = this.next.problem;
     await Promise.resolve();
+  }
+  async settled(withinMs: number): Promise<RelayOutcome> {
+    this.waits.push(withinMs);
+    await Promise.resolve();
+    return { connected: this.open, problem: this.trouble };
   }
   async hangUp(): Promise<void> {
     this.calls.push('hang up');
     this.open = false;
+    this.trouble = null;
     await Promise.resolve();
   }
   connected(): boolean {
     return this.open;
+  }
+  problem(): string | null {
+    return this.trouble;
   }
 }
 
@@ -97,6 +114,34 @@ describe('RelaySwitch', () => {
     expect(saved.setting).toEqual(RELAY);
     expect(dialer.calls).toEqual(['dial https://relay.example.com c0de']);
     expect(relay.origin()).toBe('https://relay.example.com');
+  });
+
+  it('answers a change only once the dial has an outcome, waiting about 5 seconds at most', async () => {
+    const { dialer, relay } = relaySwitch(null);
+    const set = { url: 'https://relay.example.com', code: 'c0de' };
+    expect(await relay.changeRelay(set)).toMatchObject({ connected: true });
+    expect(dialer.waits).toEqual([RELAY_DIAL_WAIT_MS]);
+    expect(RELAY_DIAL_WAIT_MS).toBe(5000);
+
+    dialer.next = { connected: false, problem: 'The relay refused the access code.' };
+    const refused = await relay.changeRelay(set);
+    expect(refused).toEqual({
+      on: true,
+      url: 'https://relay.example.com',
+      connected: false,
+      fixed: false,
+      problem: 'The relay refused the access code.',
+    });
+    // Saved all the same: the person fixes the code, or the relay owner does.
+    expect(relay.origin()).toBe('https://relay.example.com');
+
+    dialer.next = { connected: false, problem: null };
+    expect(await relay.changeRelay(set)).toEqual({
+      on: true,
+      url: 'https://relay.example.com',
+      connected: false,
+      fixed: false,
+    });
   });
 
   it('turns the relay off: hangs up, forgets it, and the QR code loses its link', async () => {

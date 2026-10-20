@@ -11,7 +11,12 @@ const OFF: RelayInfo = { on: false, url: null, connected: false, fixed: false };
 const ON: RelayInfo = { on: true, url: 'https://relay.example.com', connected: true, fixed: false };
 
 /** Answers the questions in order; null stands for Esc or Ctrl+C. */
-function setup(state: RelayInfo, answers: (string | null)[], refuse?: string) {
+function setup(
+  state: RelayInfo,
+  answers: (string | null)[],
+  refuse?: string,
+  outcome: Partial<RelayInfo> = { connected: true },
+) {
   const asked: { question: string; hidden: boolean }[] = [];
   const changes: RelayChange[] = [];
   const printed: string[] = [];
@@ -21,7 +26,7 @@ function setup(state: RelayInfo, answers: (string | null)[], refuse?: string) {
       if (!change) return Promise.resolve(state);
       if (refuse) return Promise.reject(new Error(refuse));
       changes.push(change);
-      return Promise.resolve('off' in change ? OFF : { ...ON, url: change.url, connected: false });
+      return Promise.resolve('off' in change ? OFF : { ...ON, url: change.url, ...outcome });
     },
     questions: {
       ask: (question, hidden) => {
@@ -48,9 +53,39 @@ describe('showRelayPrompt', () => {
     expect(asked.map((a) => a.hidden)).toEqual([false, true]);
     expect(changes).toEqual([{ url: 'https://relay.example.com', code: 'c0de' }]);
     expect(printed.join('\n')).toContain('The relay is off');
-    expect(printed.join('\n')).toContain('Relay set: https://relay.example.com');
+    expect(printed.join('\n')).toContain('Relay set and connected: https://relay.example.com');
     expect(printed.join('\n')).not.toContain('c0de');
     expect(closed()).toBe(1);
+  });
+
+  it('says why the relay did not connect, keeping the setting', async () => {
+    const problem = 'The relay refused the access code: it is wrong.';
+    const { run, printed } = setup(OFF, ['https://relay.example.com', 'bad'], undefined, {
+      connected: false,
+      problem,
+    });
+    await run;
+    expect(printed.at(-1)).toBe(
+      'Relay saved: https://relay.example.com, but not connected. ' + problem,
+    );
+  });
+
+  it('says it is still connecting when the relay did not answer in time', async () => {
+    const { run, printed } = setup(OFF, ['https://relay.example.com', 'c0de'], undefined, {
+      connected: false,
+    });
+    await run;
+    expect(printed.at(-1)).toContain(
+      'Relay saved: https://relay.example.com. Still connecting; the agent keeps trying.',
+    );
+  });
+
+  it('shows the reason in the current state too', async () => {
+    const { run, printed } = setup({ ...ON, connected: false, problem: 'Cannot reach it.' }, [
+      null,
+    ]);
+    await run;
+    expect(printed[0]).toBe('Relay: https://relay.example.com (not connected: Cannot reach it.)');
   });
 
   it('turns the relay off and forgets it on an empty URL', async () => {

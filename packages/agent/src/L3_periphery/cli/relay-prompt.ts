@@ -32,7 +32,33 @@ export function describeRelay(info: RelayInfo): string {
   if (!relayIsOn(info)) {
     return 'The relay is off: phones reach this computer on the local network only.';
   }
-  return 'Relay: ' + info.url + (info.connected ? ' (connected)' : ' (not connected yet)');
+  const state = info.connected
+    ? 'connected'
+    : info.problem
+      ? 'not connected: ' + info.problem
+      : 'still connecting';
+  return 'Relay: ' + info.url + ' (' + state + ')';
+}
+
+/** What a change came to: connected, refused or failed with the reason, or still trying. */
+export function describeChange(info: RelayInfo): string {
+  if (!relayIsOn(info)) {
+    return 'Relay turned off and forgotten. Phones reach this computer on the local network only.';
+  }
+  if (info.connected) {
+    return (
+      'Relay set and connected: ' +
+      info.url +
+      '. It is kept after a restart. Show the pairing QR again: the relay link comes first.'
+    );
+  }
+  if (info.problem) return 'Relay saved: ' + info.url + ', but not connected. ' + info.problem;
+  return (
+    'Relay saved: ' +
+    info.url +
+    '. Still connecting; the agent keeps trying. Show the pairing QR again: the relay link ' +
+    'comes first.'
+  );
 }
 
 /** Resolves once the person is done; rejects, like `qr`, when the agent cannot be asked. */
@@ -58,15 +84,7 @@ export async function showRelayPrompt(options: RelayPromptOptions): Promise<void
 async function apply(options: RelayPromptOptions, change: RelayChange): Promise<void> {
   const { request, print } = options;
   try {
-    const info = await request(change);
-    print(
-      relayIsOn(info)
-        ? 'Relay set: ' +
-            info.url +
-            '. The agent is connecting now and keeps it after a restart. Show the pairing QR ' +
-            'again: the relay link comes first.'
-        : 'Relay turned off and forgotten. Phones reach this computer on the local network only.',
-    );
+    print(describeChange(await request(change)));
   } catch (error) {
     print(error instanceof Error ? error.message : String(error));
   }

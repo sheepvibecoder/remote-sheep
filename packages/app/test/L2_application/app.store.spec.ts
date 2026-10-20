@@ -939,7 +939,7 @@ describe('Store', () => {
       const { store, changes } = withSessions();
       expect(store.state.relay).toBeNull();
       const off = { on: false, url: null, connected: false, fixed: false };
-      const on = { on: true, url: 'https://relay.example.com', connected: false, fixed: false };
+      const on = { on: true, url: 'https://relay.example.com', connected: true, fixed: false };
       const reader = new FakeAgent(off);
       await store.loadRelay(reader);
       expect(reader.asked).toEqual([{ kind: 'relay' }]);
@@ -959,6 +959,46 @@ describe('Store', () => {
       expect(switcher.asked).toEqual([{ kind: 'relay', set: { off: true } }]);
       expect(store.state.relay).toEqual(off);
       expect(store.state.relayCodeAccepted).toBe(false);
+    });
+
+    it('reads the relay again once when the computer was still connecting, to show how it went', async () => {
+      const { store } = withSessions();
+      const connecting = {
+        on: true,
+        url: 'https://relay.example.com',
+        connected: false,
+        fixed: false,
+      };
+      const connected = { ...connecting, connected: true };
+      const answers = [connecting, connected];
+      const asked: Request[] = [];
+      const agent = {
+        request: (request: Request) => {
+          asked.push(request);
+          return Promise.resolve(answers.shift() as never);
+        },
+      };
+      await store.setRelay(agent, 'https://relay.example.com', 'c0de', 0);
+      expect(asked).toEqual([
+        { kind: 'relay', set: { url: 'https://relay.example.com', code: 'c0de' } },
+        { kind: 'relay' },
+      ]);
+      expect(store.state.relay).toEqual(connected);
+    });
+
+    it('does not read again when the answer already says how it went', async () => {
+      const { store } = withSessions();
+      const refused = {
+        on: true,
+        url: 'https://relay.example.com',
+        connected: false,
+        fixed: false,
+        problem: 'The relay refused the access code.',
+      };
+      const agent = new FakeAgent(refused);
+      await store.setRelay(agent, 'https://relay.example.com', 'c0de', 0);
+      expect(agent.asked).toHaveLength(1);
+      expect(store.state.relay).toEqual(refused);
     });
 
     it('refuses a relay it cannot use before asking the agent, and keeps the reason of a refusal', async () => {

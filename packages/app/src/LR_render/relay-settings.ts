@@ -79,7 +79,12 @@ export function mountRelaySettings(
         relay === null
           ? 'Checking…'
           : relayIsOn(relay)
-            ? relay.url + (relay.connected ? ' — connected' : ' — not connected yet')
+            ? relay.url +
+              (relay.connected
+                ? ' — connected'
+                : relay.problem
+                  ? ' — not connected: ' + relay.problem
+                  : ' — still connecting')
             : 'Off: phones reach this computer on its network only.';
       if (fixed) statusHint.textContent += ' Set by variables on the computer.';
       form.classList.toggle('hidden', relay === null || fixed);

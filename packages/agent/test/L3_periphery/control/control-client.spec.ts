@@ -11,8 +11,10 @@ import {
   AGENT_IMPOSTOR,
   AGENT_NOT_RUNNING,
   requestPairing,
+  RELAY_ANSWER_TIMEOUT_MS,
   requestRelay,
 } from '../../../src/L3_periphery/control/control-client';
+import { RELAY_DIAL_WAIT_MS } from '../../../src/L2_application/relay-switch';
 import { saveControlFile } from '../../../src/L3_periphery/control/control-file';
 import { HttpControlServer } from '../../../src/L3_periphery/control/http-control-server';
 import { MemoryDeviceRegistry } from '../../fakes/memory-device-registry';
@@ -199,6 +201,62 @@ describe('requestRelay', () => {
     });
     expect(await requestRelay({ controlFile: file, change: { off: true } })).toEqual(OFF);
     expect(changes).toEqual([set, { off: true }]);
+  });
+
+  it('passes on why the relay did not connect, never the code', async () => {
+    const problem = 'The relay refused the access code.';
+    const server = new HttpControlServer(new PairingLinks(ORIGINS, pairingService()), {
+      relay: {
+        relay: () => OFF,
+        changeRelay: () =>
+          Promise.resolve({
+            on: true,
+            url: 'https://r.dev',
+            connected: false,
+            fixed: false,
+            problem,
+          }),
+      },
+    });
+    closers.push(() => server.stop());
+    const file = controlFile();
+    await saveControlFile(file, { port: await server.start(), secret: server.secret });
+    const info = await requestRelay({
+      controlFile: file,
+      change: { url: 'https://r.dev', code: 'c0de-9' },
+    });
+    expect(info).toEqual({
+      on: true,
+      url: 'https://r.dev',
+      connected: false,
+      fixed: false,
+      problem,
+    });
+    expect(JSON.stringify(info)).not.toContain('c0de-9');
+  });
+
+  it('waits for a change longer than the agent waits for the relay, and the server keeps the socket', async () => {
+    expect(RELAY_ANSWER_TIMEOUT_MS).toBeGreaterThan(RELAY_DIAL_WAIT_MS + 1000);
+    const server = new HttpControlServer(new PairingLinks(ORIGINS, pairingService()), {
+      timeoutMs: 200,
+      relay: {
+        relay: () => OFF,
+        changeRelay: () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({ on: true, url: 'https://r.dev', connected: true, fixed: false });
+            }, 600);
+          }),
+      },
+    });
+    closers.push(() => server.stop());
+    const file = controlFile();
+    await saveControlFile(file, { port: await server.start(), secret: server.secret });
+    const info = await requestRelay({
+      controlFile: file,
+      change: { url: 'https://r.dev', code: 'c0de' },
+    });
+    expect(info.connected).toBe(true);
   });
 
   it('passes on why the agent refused a change', async () => {

@@ -14,6 +14,15 @@ import type { Link, LinkServer } from '../../L1_domain/ports/link';
 
 export type RelayState = 'connected' | 'disconnected';
 
+/** Why an attempt to reach the relay failed: never anything that holds the access code. */
+export type RelayProblem =
+  /** HTTP 403: the code is not issued, or the room belongs to another code. Not retried. */
+  | { kind: 'refused' }
+  /** Any other HTTP answer instead of the upgrade. Retried. */
+  | { kind: 'status'; status: number }
+  /** No answer at all: DNS, refused connection, TLS. Retried. */
+  | { kind: 'unreachable'; message: string };
+
 export interface RelayOptions {
   /** Relay origin, http(s). https becomes wss and http becomes ws (local `wrangler dev`). */
   url: string;
@@ -23,6 +32,7 @@ export interface RelayOptions {
   code: string;
   log?: (message: string) => void;
   onState?: (state: RelayState) => void;
+  onProblem?: (problem: RelayProblem) => void;
   /** Tuning, exposed so tests do not wait for real intervals. */
   pingIntervalMs?: number;
   backoffInitialMs?: number;
@@ -158,15 +168,23 @@ export class RelayTransport implements LinkServer {
     });
     // The relay refuses with an HTTP status instead of upgrading: 403 is final (wrong access
     // code), anything else is an outage and is retried. the 'close' that follows decides which.
+    let answered = false;
     socket.on('unexpected-response', (_request, response) => {
+      answered = true;
       response.resume();
-      if (response.statusCode === 403) this.refused = true;
-      else this.log('relay answered HTTP ' + String(response.statusCode));
+      const status = response.statusCode ?? 0;
+      if (status === 403) this.refused = true;
+      else this.log('relay answered HTTP ' + String(status));
+      this.options.onProblem?.(status === 403 ? { kind: 'refused' } : { kind: 'status', status });
       // With a listener ws no longer aborts the handshake by itself; terminate ends in 'close'.
       socket.terminate();
     });
     // An unreachable host also ends in 'close'.
-    socket.on('error', (err) => this.log('relay connection error: ' + err.message));
+    socket.on('error', (err) => {
+      this.log('relay connection error: ' + err.message);
+      // After an HTTP answer the error only says the handshake was cut; the answer said why.
+      if (!answered) this.options.onProblem?.({ kind: 'unreachable', message: err.message });
+    });
     socket.on('close', () => this.dropped(socket));
   }
 

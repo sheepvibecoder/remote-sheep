@@ -18,6 +18,7 @@ import type { AddressInfo } from 'node:net';
 import { decodeRelayChange } from '@remote-sheep/protocol';
 import type { PairingRequests } from '../../L1_domain/ports/pairing-requests';
 import type { RelayRequests } from '../../L1_domain/ports/relay';
+import { RELAY_DIAL_WAIT_MS } from '../../L2_application/relay-switch';
 
 export interface HttpControlServerOptions {
   /** How long a connection may take to send its request; 5 s by default. */
@@ -128,6 +129,9 @@ export class HttpControlServer {
     }
     const relay = this.options.relay;
     if (relay && req.method === 'POST' && req.url === '/relay') {
+      // A change answers only once the relay connected, failed or kept it waiting, so this one
+      // connection may stay quiet that long without counting as a stalled client.
+      req.socket.setTimeout(RELAY_DIAL_WAIT_MS + (this.options.timeoutMs ?? REQUEST_TIMEOUT_MS));
       void this.changeRelay(relay, req, res);
       return;
     }

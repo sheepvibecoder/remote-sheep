@@ -36,6 +36,12 @@ export const AGENT_IMPOSTOR =
   'is shown. Restart remote-sheep: `remote-sheep stop`, then `remote-sheep start`.';
 
 const MAX_ANSWER_BYTES = 64 * 1024;
+
+/**
+ * How long a relay change may take to answer: the agent waits up to RELAY_DIAL_WAIT_MS for the
+ * relay before answering, so this leaves it room; anything slower reads as "not running".
+ */
+export const RELAY_ANSWER_TIMEOUT_MS = 10_000;
 const PLACES = new Set(['relay', 'network', 'this-pc']);
 
 export interface PairingRequest {
@@ -78,6 +84,7 @@ export async function requestRelay(options: RelayRequest): Promise<RelayInfo> {
   const address = loadControlFile(options.controlFile);
   if (!address) throw new Error(AGENT_NOT_RUNNING);
   const timeoutMs = options.timeoutMs ?? 3000;
+  const answerMs = options.timeoutMs ?? (options.change ? RELAY_ANSWER_TIMEOUT_MS : 3000);
   const challenge = randomBytes(32).toString('base64url');
   const identity = await post(address.port, '/identify', { 'x-challenge': challenge }, timeoutMs);
   const proof = identity.status === 200 ? readField(identity.body, 'proof') : null;
@@ -91,7 +98,7 @@ export async function requestRelay(options: RelayRequest): Promise<RelayInfo> {
     address.port,
     '/relay',
     { authorization: 'Bearer ' + address.secret, 'content-type': 'application/json' },
-    timeoutMs,
+    answerMs,
     body,
   );
   if (answer.status === 403) throw new Error(AGENT_REFUSED);
@@ -193,10 +200,11 @@ function readField(body: string, name: string): string | null {
 function parseRelayInfo(body: string): RelayInfo | null {
   const value = parseObject(body);
   if (!value) return null;
-  const { on, url, connected, fixed } = value;
+  const { on, url, connected, fixed, problem } = value;
   if (typeof on !== 'boolean' || typeof connected !== 'boolean' || typeof fixed !== 'boolean') {
     return null;
   }
   if (url !== null && typeof url !== 'string') return null;
-  return { on, url, connected, fixed };
+  if (problem !== undefined && typeof problem !== 'string') return null;
+  return { on, url, connected, fixed, ...(problem === undefined ? {} : { problem }) };
 }

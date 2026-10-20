@@ -25,6 +25,11 @@ export interface RelayInfo {
   connected: boolean;
   /** Set by the REMOTE_SHEEP_RELAY variables on the computer, which only they can change. */
   fixed: boolean;
+  /**
+   * Why the agent is not connected, for the person (a refused access code, an unreachable
+   * relay); absent while it is connected or still connecting. Older agents never send it.
+   */
+  problem?: string;
 }
 
 /** Whether there is a relay to show: on, with its URL. One rule for every reader of RelayInfo. */
