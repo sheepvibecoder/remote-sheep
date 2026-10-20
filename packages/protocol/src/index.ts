@@ -154,6 +154,12 @@ export type Request =
   /** Reads the relay, or changes it when `set` is given; the agent connects without a restart. */
   | { kind: 'relay'; set?: RelayChange }
   /**
+   * Reads which version the agent runs and whether it can update itself, or, with `run`, starts
+   * updating the Herdr plugin and answers at once; the agent restarts into a new build by itself.
+   * One update at a time per computer.
+   */
+  | { kind: 'update'; run?: boolean }
+  /**
    * Starts a coding agent (Claude Code when `agent` is absent, as older phones ask), or a plain
    * shell, in a new tab of this workspace.
    */
@@ -186,6 +192,25 @@ export interface UploadResult {
   bytes: number;
 }
 
+/** The agent's own version and its update, as a paired device sees them. */
+export interface UpdateState {
+  /** The version of the agent that answers. */
+  version: string;
+  /** Whether it runs as the Herdr plugin: only then can it update itself. */
+  plugin: boolean;
+  /** An update runs now, or the agent is restarting into one. */
+  updating: boolean;
+  /**
+   * How the last update this agent ran ended; absent while it runs or when it ran none. A run is
+   * answered at once (Herdr takes minutes), so the device reads this until it appears. `updated`:
+   * a new build was installed and the agent restarts into it now (the link drops, then comes
+   * back); `current`: there was nothing new; `failed`: see `error`, and the agent keeps running.
+   */
+  outcome?: 'updated' | 'current' | 'failed';
+  /** Why the last update failed; only with outcome `failed`. */
+  error?: string;
+}
+
 /** What each request kind answers with. */
 export interface Results {
   watch: undefined;
@@ -201,6 +226,7 @@ export interface Results {
   spaces: Workspace[];
   shells: { on: boolean };
   relay: RelayInfo;
+  update: UpdateState;
   /** The pane of the new session, ready to open as a chat. */
   'new-session': { target: string };
 }
@@ -345,6 +371,9 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
       const set = decodeRelayChange(value['set']);
       return set ? { kind: 'relay', set } : null;
     }
+    case 'update':
+      if (value['run'] !== undefined && typeof value['run'] !== 'boolean') return null;
+      return { kind: 'update', ...(value['run'] === undefined ? {} : { run: value['run'] }) };
     case 'new-session': {
       if (!isText(value['space'])) return null;
       // Absent from phones older than shells: they only ever start Claude Code.

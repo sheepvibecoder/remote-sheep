@@ -9,6 +9,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { agentHome } from './L3_periphery/files/agent-home';
 import { herdrExecutable } from './L3_periphery/herdr/herdr-multiplexer';
+import { runsAsPlugin } from './L3_periphery/herdr/herdr-plugin-updates';
 import { relayVariablesSet, resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
 
 // A .env in the folder the agent starts from saves typing the same variables on every
@@ -29,6 +30,8 @@ export const config = {
   /** The port saved by the first start or `remote-sheep port <n>`. */
   portFile: join(home, 'port.json'),
   herdr: herdrExecutable(process.env, process.platform),
+  /** Started by the Herdr plugin, so it can update itself from the app. */
+  plugin: runsAsPlugin(process.env),
 
   /** null when no relay is configured. */
   relay,

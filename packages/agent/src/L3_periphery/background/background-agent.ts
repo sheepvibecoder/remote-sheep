@@ -1,4 +1,4 @@
-// The agent as a background process: `remote-sheep start`, `stop` and `status`.
+// The agent as a background process: `remote-sheep start`, `stop`, `restart` and `status`.
 //
 // Herdr's startup hook is one-shot, not a supervisor, so the agent owns its own lifecycle: start
 // launches it detached with no window and records its PID and log in its data folder;
@@ -118,6 +118,12 @@ export class BackgroundAgent {
     if (!running) return { kind: 'not-running', message: 'remote-sheep was not running.' };
     await this.options.processes.stop(running.pid);
     return { kind: 'stopped', message: 'remote-sheep stopped (PID ' + String(running.pid) + ').' };
+  }
+
+  /** Stops the running agent, if any, and starts a new one: how an update reaches a new build. */
+  async restart(): Promise<StartResult> {
+    await this.stop();
+    return this.start();
   }
 
   async status(): Promise<StatusResult> {

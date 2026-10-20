@@ -100,6 +100,16 @@ start; the next pairing QR lists the relay link first. A paired phone or browser
 under **Settings → Relay**. The access code never goes to the log or back to the app. A relay set
 by the `REMOTE_SHEEP_RELAY` variables can only be changed there.
 
+To update, open **Settings → Update** in the app: it shows the version the PC runs, and
+**Update** has Herdr fetch and build the newest version (`herdr plugin update
+sheepvibecoder.remote-sheep --yes`, which needs a Herdr with `plugin update`). When there is a new
+build, the agent restarts into it through the action **Restart remote-sheep**
+(`sheepvibecoder.remote-sheep.restart`, also `remote-sheep restart`), with the same data, port
+and relay, and the app reconnects by itself and shows the new version; when there is none, it says
+the PC is up to date and nothing restarts. One update runs at a time. Herdr only updates a plugin
+installed from GitHub: a checkout linked with `herdr plugin link`, or an agent started by hand, is
+updated with `git pull` and `pnpm build` there, then `remote-sheep restart`.
+
 <p align="center">
   <a href="docs/">Docs</a> ·
   <a href=".github/SECURITY.md">Security</a> ·

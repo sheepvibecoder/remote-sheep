@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { encodeBase64Url, publicKeyId } from '@remote-sheep/protocol';
 import pkg from '../package.json' with { type: 'json' };
 import { PairingLinks } from './L1_domain/pairing-links';
+import { AgentUpdater } from './L2_application/agent-updater';
 import { PairingService } from './L2_application/pairing-service';
 import { PushNotifier } from './L2_application/push-notifier';
 import { RelaySwitch } from './L2_application/relay-switch';
@@ -35,6 +36,7 @@ import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
 import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
 import { FileUploadStore } from './L3_periphery/files/file-upload-store';
 import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
+import { herdrCommand, HerdrPluginUpdates } from './L3_periphery/herdr/herdr-plugin-updates';
 import { LanTransport } from './L3_periphery/lan/lan-transport';
 import { TcpPortProbe } from './L3_periphery/lan/tcp-port-probe';
 import { WebPushSender } from './L3_periphery/push/web-push-sender';
@@ -109,6 +111,15 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
   if (pushWarning) log(pushWarning);
   const push = await createPushNotifier(registry, relay, publicKeyId(keys.publicKey), log);
 
+  // Settings → Update: only the plugin can update itself. Phones read the state every few
+  // seconds while it runs, so the restart waits long enough for one to see the outcome.
+  const updates = new AgentUpdater({
+    version: pkg.version,
+    plugin: config.plugin ? new HerdrPluginUpdates(herdrCommand(config.herdr)) : null,
+    restartDelayMs: 3000,
+    log,
+  });
+
   const hub = new SessionHub({
     multiplexer: new HerdrMultiplexer(herdrRunner(config.herdr)),
     transcripts: new ClaudeTranscripts({
@@ -126,6 +137,7 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
     notifier: push,
     push,
     relay,
+    updates,
     log,
   });
   relay.onChange(() => {
@@ -345,6 +357,12 @@ async function main() {
     case 'stop':
       console.log((await backgroundAgent().stop()).message);
       return;
+    case 'restart': {
+      const result = await backgroundAgent().restart();
+      (result.kind === 'failed' ? console.error : console.log)(result.message);
+      if (result.kind === 'failed') process.exitCode = 1;
+      return;
+    }
     case 'status':
       console.log((await backgroundAgent().status()).message);
       return;

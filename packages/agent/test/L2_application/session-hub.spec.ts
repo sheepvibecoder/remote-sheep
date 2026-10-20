@@ -658,6 +658,43 @@ describe('SessionHub', () => {
     expect(asked).toEqual([set, { off: true }]);
   });
 
+  it('reads and runs the update for a paired phone, and says so when this agent cannot update', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await expect(hub.request(phone, { kind: 'update' })).rejects.toThrow(
+      'this agent cannot update itself',
+    );
+    const state = { version: '1.2.3', plugin: true, updating: false };
+    let runs = 0;
+    hub.stop();
+    hub = new SessionHub({
+      multiplexer: mux,
+      transcripts,
+      uploads,
+      devices: pairing,
+      listIntervalMs: LIST_MS,
+      terminalIntervalMs: TERMINAL_MS,
+      debounceMs: 0,
+      shells: new FakeShells(false),
+      updates: {
+        updateState: () => state,
+        runUpdate: async () => {
+          runs++;
+          return Promise.resolve({ ...state, outcome: 'current' as const });
+        },
+      },
+    });
+    hub.open(phone);
+    expect(await hub.request(phone, { kind: 'update' })).toEqual(state);
+    expect(await hub.request(phone, { kind: 'update', run: false })).toEqual(state);
+    expect(runs).toBe(0);
+    expect(await hub.request(phone, { kind: 'update', run: true })).toEqual({
+      ...state,
+      outcome: 'current',
+    });
+    expect(runs).toBe(1);
+  });
+
   describe('with consoles on', () => {
     beforeEach(() => {
       hub.stop();

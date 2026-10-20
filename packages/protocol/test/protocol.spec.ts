@@ -79,6 +79,8 @@ describe('client messages', () => {
         request: { kind: 'relay', set: { url: 'https://r.dev', code: 'c0de' } },
       },
       { type: 'request', id: 20, request: { kind: 'relay', set: { off: true } } },
+      { type: 'request', id: 21, request: { kind: 'update' } },
+      { type: 'request', id: 22, request: { kind: 'update', run: true } },
       { type: 'request', id: 14, request: { kind: 'new-session', space: 'w5', shell: true } },
       {
         type: 'request',
@@ -157,6 +159,14 @@ describe('client messages', () => {
     for (const on of ['yes', 1, null]) {
       expect(
         decodeClientMessage(raw({ type: 'request', id: 1, request: { kind: 'shells', on } })),
+      ).toBeNull();
+    }
+  });
+
+  it('refuses an update request whose run is not a boolean', () => {
+    for (const run of ['yes', 1, null]) {
+      expect(
+        decodeClientMessage(raw({ type: 'request', id: 1, request: { kind: 'update', run } })),
       ).toBeNull();
     }
   });

@@ -106,6 +106,12 @@ describe('parseArguments for the background agent', () => {
     expect(parseArguments(['start'])).toEqual({ kind: 'start' });
     expect(parseArguments(['stop'])).toEqual({ kind: 'stop' });
     expect(parseArguments(['status'])).toEqual({ kind: 'status' });
+    expect(parseArguments(['restart'])).toEqual({ kind: 'restart' });
+    expect(parseArguments(['restart', 'x'])).toEqual({
+      kind: 'error',
+      message: 'restart takes no arguments',
+    });
+    expect(USAGE).toContain('remote-sheep restart');
     expect(parseArguments(['start', 'x'])).toEqual({
       kind: 'error',
       message: 'start takes no arguments',

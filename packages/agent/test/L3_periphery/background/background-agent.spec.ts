@@ -132,6 +132,23 @@ describe('BackgroundAgent', () => {
     expect(existsSync(recordFile)).toBe(false);
   });
 
+  it('restarts: stops the running agent, then starts a new one with a new pid', async () => {
+    const { processes, agent, record } = setup();
+    await agent.start();
+    const result = await agent.restart();
+    expect(processes.stopped).toEqual([100]);
+    expect(processes.launched).toEqual([100, 101]);
+    expect(result.kind).toBe('started');
+    expect(record().pid).toBe(101);
+  });
+
+  it('restarts an agent that was not running by starting it', async () => {
+    const { processes, agent } = setup();
+    const result = await agent.restart();
+    expect(processes.stopped).toEqual([]);
+    expect(result.kind).toBe('started');
+  });
+
   it('never stops a program that took over a stale pid', async () => {
     const { processes, agent, recordFile } = setup();
     await agent.start();

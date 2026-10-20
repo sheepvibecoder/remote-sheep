@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ChatMessage,
   LinkedDevice,
@@ -6,6 +6,7 @@ import type {
   Request,
   ServerMessage,
   Session,
+  UpdateState,
 } from '@remote-sheep/protocol';
 import { RELAY_CODE_PROBLEM, RELAY_URL_PROBLEM } from '@remote-sheep/protocol';
 import type { PushSubscriptions, PushSupport } from '../../src/L1_domain/ports/push-subscriptions';
@@ -445,6 +446,159 @@ describe('Store', () => {
       const { store } = setup();
       await store.checkForUpdate(source(new Error('HTTP 404')), '0.5.1');
       expect(store.state.update).toEqual({ status: 'failed', error: 'HTTP 404' });
+    });
+  });
+
+  describe('updating the computer', () => {
+    const idle = { version: '1.0.0', plugin: true, updating: false };
+    const running = { ...idle, updating: true };
+
+    /** Plays the agent through an update: each answer in turn, an Error for a dropped link. */
+    class UpdatingAgent {
+      asked: Request[] = [];
+      constructor(private readonly answers: (UpdateState | Error)[]) {}
+      request: Agent['request'] = async (request) => {
+        this.asked.push(request);
+        const answer = this.answers.shift() ?? new Error('not connected to your computer');
+        if (answer instanceof Error) throw answer;
+        return answer as never;
+      };
+    }
+
+    /** A store that read the computer's state, as Settings does before the button works. */
+    async function known() {
+      const { store } = setup();
+      await store.loadAgentUpdate(new FakeAgent(idle));
+      return { store };
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reads the version the computer runs and whether it can update itself', async () => {
+      const { store, changes } = setup();
+      expect(store.state.agentUpdate.status).toBe('unknown');
+      expect(store.canUpdateAgent()).toBe(false);
+      const agent = new FakeAgent(idle);
+      await store.loadAgentUpdate(agent);
+      expect(agent.asked).toEqual([{ kind: 'update' }]);
+      expect(store.state.agentUpdate).toEqual({
+        status: 'idle',
+        version: '1.0.0',
+        plugin: true,
+        from: null,
+        error: null,
+      });
+      expect(store.canUpdateAgent()).toBe(true);
+      expect(changes).toContain('agent-update');
+    });
+
+    it('follows an update that takes minutes until the computer is back with the new version', async () => {
+      const { store } = await known();
+      // The run is answered at once; Herdr then works for 40 s, and the agent restarts.
+      const agent = new UpdatingAgent([
+        running,
+        ...Array.from({ length: 13 }, () => running),
+        new Error('not connected to your computer'),
+      ]);
+      const updating = store.updateAgent(agent);
+      expect(store.state.agentUpdate.status).toBe('updating');
+      expect(store.canUpdateAgent()).toBe(false);
+      await vi.advanceTimersByTimeAsync(45_000);
+      await updating;
+      expect(agent.asked[0]).toEqual({ kind: 'update', run: true });
+      expect(agent.asked.slice(1).every((asked) => asked.kind === 'update' && !asked.run)).toBe(
+        true,
+      );
+      expect(store.state.agentUpdate.status).toBe('restarting');
+      expect(store.canUpdateAgent()).toBe(false);
+      await store.afterReady(new FakeAgent({ ...idle, version: '1.1.0' }));
+      expect(store.state.agentUpdate).toMatchObject({
+        status: 'updated',
+        from: '1.0.0',
+        version: '1.1.0',
+        error: null,
+      });
+      expect(store.canUpdateAgent()).toBe(true);
+    });
+
+    it('waits for the restart once the agent says it updated', async () => {
+      const { store } = await known();
+      const agent = new UpdatingAgent([running, { ...running, outcome: 'updated' }]);
+      const updating = store.updateAgent(agent);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await updating;
+      expect(store.state.agentUpdate.status).toBe('restarting');
+    });
+
+    it('says the computer is up to date, with no restart to wait for', async () => {
+      const { store } = await known();
+      const agent = new UpdatingAgent([running, { ...idle, outcome: 'current' }]);
+      const updating = store.updateAgent(agent);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await updating;
+      expect(store.state.agentUpdate).toMatchObject({ status: 'current', version: '1.0.0' });
+      const later = new FakeAgent(idle);
+      await store.afterReady(later);
+      expect(later.asked).toEqual([]);
+    });
+
+    it('shows why an update failed on the computer, and lets the person try again', async () => {
+      const { store } = await known();
+      const agent = new UpdatingAgent([
+        running,
+        { ...idle, outcome: 'failed', error: 'Herdr could not update the plugin: offline' },
+      ]);
+      const updating = store.updateAgent(agent);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await updating;
+      expect(store.state.agentUpdate).toMatchObject({
+        status: 'failed',
+        error: 'Herdr could not update the plugin: offline',
+      });
+      expect(store.canUpdateAgent()).toBe(true);
+    });
+
+    it('keeps the reason of a refused update', async () => {
+      const { store } = await known();
+      const agent = new FakeAgent();
+      agent.failure = new Error('an update is already running on this computer');
+      await store.updateAgent(agent);
+      expect(store.state.agentUpdate).toMatchObject({
+        status: 'failed',
+        error: 'an update is already running on this computer',
+      });
+    });
+
+    it('sends no second update while one runs', async () => {
+      const { store } = await known();
+      const agent = new UpdatingAgent([running, { ...idle, outcome: 'current' }]);
+      const first = store.updateAgent(agent);
+      await store.updateAgent(agent);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await first;
+      expect(agent.asked.filter((asked) => asked.kind === 'update' && asked.run)).toHaveLength(1);
+    });
+
+    it('follows an update another device started, until the computer is back', async () => {
+      const { store } = setup();
+      const agent = new UpdatingAgent([running, new Error('not connected to your computer')]);
+      const loading = store.loadAgentUpdate(agent);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await loading;
+      expect(store.state.agentUpdate.status).toBe('restarting');
+      await store.afterReady(new FakeAgent({ ...idle, version: '1.1.0' }));
+      expect(store.state.agentUpdate).toMatchObject({ status: 'updated', version: '1.1.0' });
+    });
+
+    it('does not show an earlier update of another device as the outcome of nothing', async () => {
+      const { store } = setup();
+      await store.loadAgentUpdate(new FakeAgent({ ...idle, outcome: 'failed', error: 'old' }));
+      expect(store.state.agentUpdate).toMatchObject({ status: 'idle', error: null });
     });
   });
 

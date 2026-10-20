@@ -10,6 +10,7 @@ import type {
   RelayChange,
   RelayInfo,
   Request,
+  UpdateState,
   ServerMessage,
   Session,
   Workspace,
@@ -171,6 +172,24 @@ export interface AppState {
   push: { support: PushSupport; on: boolean; error: string | null };
   /** The last "check for updates" and what it found. */
   update: UpdateCheck;
+  /** The computer's own agent: its version and its update from Settings → Update. */
+  agentUpdate: AgentUpdate;
+}
+
+/**
+ * The computer's update as the phone follows it: `restarting` waits for the link to come back
+ * after an update; the agent answers before it restarts, so the new version is read then.
+ */
+export interface AgentUpdate {
+  status: 'unknown' | 'idle' | 'updating' | 'restarting' | 'updated' | 'current' | 'failed';
+  /** The version the computer runs, as it last said; null until it did. */
+  version: string | null;
+  /** Whether it runs as the Herdr plugin, the only way it can update itself; null until it said. */
+  plugin: boolean | null;
+  /** The version it ran before the update, while restarting and once updated. */
+  from: string | null;
+  /** Why it could not be read or updated; null otherwise. */
+  error: string | null;
 }
 
 export type UpdateCheck =
@@ -211,7 +230,8 @@ export type Change =
   | 'devices'
   | 'profiles'
   | 'push'
-  | 'update';
+  | 'update'
+  | 'agent-update';
 
 type Listener = (change: Change) => void;
 
@@ -219,6 +239,9 @@ type Listener = (change: Change) => void;
 export type Agent = Pick<AgentConnection, 'request'>;
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** How often the phone reads the computer's state while it updates itself. */
+const AGENT_UPDATE_POLL_MS = 3000;
 
 /** A value per session, kept in preferences as JSON; anything unreadable starts empty. */
 function readMap<T>(preferences: Preferences, key: string, valid: (value: unknown) => value is T) {
@@ -249,6 +272,8 @@ export class Store {
   private readonly lastStatus: Map<string, string>;
   /** Settles the person has not looked at yet, per session. */
   private readonly unreadCounts: Map<string, number>;
+  /** True while a loop reads the computer's update, so a second one does not start. */
+  private followingUpdate = false;
   /** When the phone saw each session's status change: the time a row shows and sorts by. */
   private readonly changeTimes: Map<string, number>;
   /**
@@ -300,6 +325,7 @@ export class Store {
       relay: null,
       relayError: null,
       relayCodeAccepted: false,
+      agentUpdate: { status: 'unknown', version: null, plugin: null, from: null, error: null },
       homeError: null,
       target: preferences.getItem('target') || '',
       showTerm: false,
@@ -1107,6 +1133,115 @@ export class Store {
     if (space === null) return null;
     const found = groupSpaces(this.state.sessions, this.state.spaces).find((s) => s.id === space);
     return found?.label ?? space;
+  }
+
+  /** Reads the computer's version, and whether it can update itself, for Settings. */
+  async loadAgentUpdate(agent: Agent): Promise<void> {
+    await this.readAgentUpdate(agent);
+    await this.followAgentUpdate(agent);
+  }
+
+  /** Whether the Update button can be used: the state is known and no update is under way. */
+  canUpdateAgent(): boolean {
+    const status = this.state.agentUpdate.status;
+    return status !== 'unknown' && status !== 'updating' && status !== 'restarting';
+  }
+
+  /**
+   * Has the computer update itself. The agent answers at once and Herdr works for minutes, so
+   * the state is read every few seconds until the outcome; a new build restarts the agent, the
+   * link comes back by itself, and `afterReady` reads the new version.
+   */
+  async updateAgent(agent: Agent): Promise<void> {
+    if (!this.canUpdateAgent()) return;
+    const update = this.state.agentUpdate;
+    update.status = 'updating';
+    update.error = null;
+    this.emit('agent-update');
+    try {
+      const answer = await agent.request({ kind: 'update', run: true });
+      update.from = answer.version;
+      this.applyAgentUpdate(answer);
+    } catch (error) {
+      update.status = 'failed';
+      update.error = describe(error);
+    }
+    this.emit('agent-update');
+    await this.followAgentUpdate(agent);
+  }
+
+  /** Runs on every ready: after an update's restart, reads the version that runs now. */
+  async afterReady(agent: Agent): Promise<void> {
+    const status = this.state.agentUpdate.status;
+    if (status === 'restarting' || status === 'updating') await this.loadAgentUpdate(agent);
+  }
+
+  /** Reads the state every few seconds while an update runs; one reader at a time. */
+  private async followAgentUpdate(agent: Agent): Promise<void> {
+    if (this.followingUpdate) return;
+    this.followingUpdate = true;
+    try {
+      // A method, not the field: the status can change while the loop waits.
+      while (this.agentUpdating()) {
+        await new Promise((resolve) => setTimeout(resolve, AGENT_UPDATE_POLL_MS));
+        if (!this.agentUpdating()) return;
+        await this.readAgentUpdate(agent);
+      }
+    } finally {
+      this.followingUpdate = false;
+    }
+  }
+
+  private agentUpdating(): boolean {
+    return this.state.agentUpdate.status === 'updating';
+  }
+
+  private async readAgentUpdate(agent: Agent): Promise<void> {
+    const update = this.state.agentUpdate;
+    try {
+      this.applyAgentUpdate(await agent.request({ kind: 'update' }));
+    } catch (error) {
+      // While an update runs, a dropped link is the restart; the next ready reads what runs.
+      if (update.status === 'updating' || update.status === 'restarting') {
+        update.status = 'restarting';
+      } else {
+        update.status = 'failed';
+        update.error = describe(error);
+      }
+    }
+    this.emit('agent-update');
+  }
+
+  /** What the agent said, read against what this phone was following. */
+  private applyAgentUpdate(answer: UpdateState): void {
+    const update = this.state.agentUpdate;
+    const following = update.status === 'updating' || update.status === 'restarting';
+    update.version = answer.version;
+    update.plugin = answer.plugin;
+    update.error = null;
+    if (!following) {
+      // An update another device started is followed too; an older outcome is not news.
+      if (answer.updating) {
+        update.status = 'updating';
+        update.from = answer.version;
+      } else {
+        update.status = 'idle';
+      }
+      return;
+    }
+    if (answer.outcome === 'failed') {
+      update.status = 'failed';
+      update.error = answer.error ?? 'the update failed';
+    } else if (answer.outcome === 'current') {
+      update.status = 'current';
+    } else if (answer.outcome === 'updated') {
+      update.status = 'restarting';
+    } else if (!answer.updating) {
+      // No outcome and nothing running: the agent that answers was started by the restart.
+      update.status = update.from === null ? 'idle' : 'updated';
+    } else {
+      update.status = 'updating';
+    }
   }
 
   /** Asks the server which version it serves now, against the one this page runs. */

@@ -184,6 +184,23 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem \
 A self-signed certificate warns once and blocks installing the app to the
 home screen; a real certificate removes both.
 
+### Updating
+
+**Settings → Update** shows the version the computer runs. When the agent runs as the Herdr
+plugin, **Update** asks Herdr to fetch and build the newest version
+(`herdr plugin update sheepvibecoder.remote-sheep --yes`); the app says **Updating…** meanwhile,
+which can take a few minutes. If there is a new build, the agent restarts into it through the
+plugin's **Restart remote-sheep** action, keeping its data folder, port and relay; the app
+reconnects by itself and shows `old → new` version. If there is none, it says **already up to
+date** and nothing restarts. One update runs at a time: a second request, from any device, is
+told an update is already running. A failed update leaves the agent running and shows Herdr's
+reason.
+
+Herdr updates only a plugin installed from GitHub (`herdr plugin install`), and needs a Herdr
+that has `herdr plugin update`. A plugin linked with `herdr plugin link`, or an agent started with
+`pnpm start` or `remote-sheep start` outside Herdr, cannot update itself; the app says so. Update
+that copy with `git pull` and `pnpm build`, then `remote-sheep restart` (stop, then start again).
+
 ### Settings
 
 Set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder

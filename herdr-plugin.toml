@@ -34,6 +34,15 @@ title = "Stop remote-sheep"
 contexts = ["workspace"]
 command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "stop"]
 
+# Stops the running agent and starts it again from this installation, with the same data, port
+# and relay. After the app's Settings → Update, the agent asks Herdr to run this action: Herdr
+# runs it from the newly built installation, so the new version is the one that starts.
+[[actions]]
+id = "restart"
+title = "Restart remote-sheep"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "restart"]
+
 [[actions]]
 id = "status"
 title = "remote-sheep status"

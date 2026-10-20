@@ -1,5 +1,7 @@
-// What the Herdr plugin runs: `start`, `stop`, `status`, `qr` or `relay` of the built agent, and
-// `open-qr` or `open-relay`, which ask Herdr to open the plugin's pane of that name.
+// What the Herdr plugin runs: `start`, `stop`, `restart`, `status`, `qr` or `relay` of the built
+// agent, and
+// `open-qr` or `open-relay`, which ask Herdr to open the plugin's pane of that name. `restart` is
+// also how an update from the app reaches the new build: Herdr runs it from the new installation.
 //
 // Herdr runs plugin commands with no shell and, on Windows, in a `\\?\C:\...` folder where Node
 // cannot resolve a relative script (EISDIR on lstat 'C:'). So herdr-plugin.toml starts Node with
@@ -19,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 const COMMANDS = new Map([
   ['start', ['start']],
   ['stop', ['stop']],
+  ['restart', ['restart']],
   ['status', ['status']],
   ['qr', ['qr']],
   ['relay', ['relay', 'change']],
@@ -49,7 +52,7 @@ if (pane) {
   if (result.error) console.error(result.error.message);
   process.exitCode = result.status ?? 1;
 } else if (!args) {
-  console.error('usage: plugin.mjs start|stop|status|qr|relay|open-qr|open-relay');
+  console.error('usage: plugin.mjs start|stop|restart|status|qr|relay|open-qr|open-relay');
   process.exitCode = 2;
 } else if (!existsSync(agent)) {
   console.error('remote-sheep is not built: run `pnpm install` and `pnpm build` in ' + root);

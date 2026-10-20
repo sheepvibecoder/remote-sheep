@@ -17,6 +17,7 @@ import type { Multiplexer } from '../L1_domain/ports/multiplexer';
 import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
 import type { Notifier } from '../L1_domain/ports/notifier';
+import type { UpdateRequests } from '../L1_domain/ports/plugin-updates';
 import type { RelayRequests } from '../L1_domain/ports/relay';
 import type { UploadStore } from '../L1_domain/ports/upload-store';
 import type { PairingService } from './pairing-service';
@@ -52,6 +53,8 @@ export interface HubOptions {
   push?: PushSubscriptions;
   /** Lets a paired phone read the relay and set or turn it off; absent where it cannot change. */
   relay?: RelayRequests;
+  /** Lets a paired phone read the agent's version and update it; absent where it cannot. */
+  updates?: UpdateRequests;
   log?: (message: string) => void;
 }
 
@@ -177,6 +180,11 @@ export class SessionHub implements ConnectionEvents {
         const relay = this.options.relay;
         if (!relay) throw new Error('this agent cannot change its relay');
         return request.set ? relay.changeRelay(request.set) : relay.relay();
+      }
+      case 'update': {
+        const updates = this.options.updates;
+        if (!updates) throw new Error('this agent cannot update itself');
+        return request.run ? updates.runUpdate() : updates.updateState();
       }
       case 'new-session':
         return this.newSession(request.space, request.shell, request.agent ?? 'claude');

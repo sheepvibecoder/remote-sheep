@@ -8,6 +8,7 @@ export type Command =
   | { kind: 'qr' }
   | { kind: 'start' }
   | { kind: 'stop' }
+  | { kind: 'restart' }
   | { kind: 'status' }
   | { kind: 'devices' }
   | { kind: 'revoke'; id: string }
@@ -36,6 +37,7 @@ To keep the agent running with no window (the Herdr plugin does this for you):
   remote-sheep start         start it in the background; does nothing if it already runs;
                              pair with remote-sheep qr
   remote-sheep stop          stop the agent started with remote-sheep start
+  remote-sheep restart       stop it and start it again, with the same data, port and relay
   remote-sheep status        say whether it runs, with its PID, port and log file
 
 The first start listens on port 3999, or the next free one up to 4049, and saves it so the
@@ -78,6 +80,7 @@ export function parseArguments(args: readonly string[]): Command {
     case 'qr':
     case 'start':
     case 'stop':
+    case 'restart':
     case 'status':
     case 'devices':
       return rest.length

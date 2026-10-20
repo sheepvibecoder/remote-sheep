@@ -47,6 +47,7 @@ import { $, must, say } from './dom';
 import { hideEditor, markUp } from './photo-editor';
 import { canScan, scanQr } from './qr-scanner';
 import { mountRelaySettings } from './relay-settings';
+import { mountUpdateSettings } from './update-settings';
 import { renderRich } from './rich-text';
 import { SessionListComponent } from './session-list/session-list.component';
 import { autoSpeak, drawSpeed, speak, startSpeeds } from './speech';
@@ -203,6 +204,7 @@ function onChange(change: Change): void {
       if (state.view === 'settings') {
         void store.loadShells(agent);
         void store.loadRelay(agent);
+        void store.loadAgentUpdate(agent);
       }
       if (listShown()) renderList();
       if (state.view === 'devices') renderDevices();
@@ -237,6 +239,9 @@ function onChange(change: Change): void {
       return;
     case 'relay':
       renderRelay();
+      return;
+    case 'agent-update':
+      agentUpdateSettings.render(state.agentUpdate, store.canUpdateAgent());
       return;
     case 'quick':
       drawQuick();
@@ -1355,6 +1360,7 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
   renderQuickSettings();
   renderComputerSettings();
   renderShells();
+  agentUpdateSettings.render(state.agentUpdate, store.canUpdateAgent());
   store.subscribe(onChange);
   document.addEventListener('visibilitychange', () => {
     store.setVisible(document.visibilityState === 'visible');
@@ -1369,6 +1375,8 @@ export function startApp(dependencies: AppDependencies, angular: AngularHost): v
         watch();
         // Failures show in the Devices view through push.error.
         void store.syncPush(agent);
+        // After an update's restart the Store reads the new version; it reports by itself.
+        void store.afterReady(agent);
       },
       error: (message) => say(message, true),
       restart: () => {
@@ -1614,3 +1622,10 @@ function renderRelay(): void {
   if (state.relayCodeAccepted) relaySettings.clearCode();
   if (state.relayError && state.view === 'settings') say(state.relayError, true);
 }
+
+// ---- settings: update ----
+
+const agentUpdateSettings = mountUpdateSettings($('settings'), () => {
+  // The outcome arrives as an 'agent-update' change; nothing else waits for it.
+  void store.updateAgent(agent);
+});
