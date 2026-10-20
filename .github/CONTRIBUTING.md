@@ -1,6 +1,7 @@
 # Contributing
 
-remote-sheep is proprietary: **ask the owner before you start**. Then:
+remote-sheep is free to use but owned by its author ([LICENSE](../LICENSE)): **ask the owner before you
+start**, and know that a contribution is licensed to the owner, who may relicense and sell it. Then:
 
 ## Setup
 

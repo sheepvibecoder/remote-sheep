@@ -1,11 +1,56 @@
+remote-sheep Free Use License 1.0
+
 Copyright (c) 2026 sheepvibecoder. All rights reserved.
 
-This software and its source code are proprietary.
+remote-sheep (the "Software") is owned by sheepvibecoder (the "Owner"). It is free to use under
+the terms below. Nothing in this license transfers ownership of the Software or of any part of it.
 
-No permission is granted to use, copy, modify, merge, publish, distribute, sublicense or sell
-this software, in whole or in part, without the prior written permission of the copyright holder.
-Being able to read the source code does not grant any of these rights.
+1. WHAT YOU MAY DO, FREE OF CHARGE
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT
-SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE
-SOFTWARE OR ITS USE.
+   a. Download, install, build and run the Software, including through `herdr plugin install` and
+      `herdr plugin update`, on computers you use, for personal use or for your work.
+   b. Deploy the relay included with the Software to your own Cloudflare account, for your own use
+      and for people in your household or organization.
+   c. Read the source code to understand the Software, evaluate it or check its security.
+   d. Change the Software for your own use, as long as you do not distribute your changes.
+
+2. WHAT YOU MAY NOT DO WITHOUT THE OWNER'S WRITTEN PERMISSION
+
+   a. Sell, license, rent or charge for the Software or any part of it, alone or bundled with
+      anything else.
+   b. Offer the Software, or a service built on it (including a hosted relay), to others for a
+      fee or for any other commercial benefit.
+   c. Distribute copies of the Software, changed or not, or publish a fork of it. To share it,
+      share a link to the official repository.
+   d. Remove or change the copyright notice or this license.
+   e. Use the name "remote-sheep" or its logo to promote another product.
+
+3. THE OWNER'S RIGHTS
+
+   The Owner keeps every right not expressly granted in this license, including the right to use,
+   sell and license the Software commercially and to grant other licenses.
+
+4. CONTRIBUTIONS
+
+   If you send a contribution (a pull request, a patch or any other change), you confirm that you
+   have the right to send it, and you grant the Owner a perpetual, worldwide, irrevocable and
+   royalty-free license to use, change, relicense and sell it as part of the Software or
+   otherwise.
+
+5. TERMINATION
+
+   If you break this license, your permission to use the Software ends automatically.
+
+6. NEW VERSIONS OF THIS LICENSE
+
+   The Owner may publish new versions of this license. Each release of the Software stays under
+   the license it was released with.
+
+7. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT
+   SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE
+   OR ITS USE.
+
+For any use this license does not allow, including commercial use, ask the Owner through the
+official repository.

@@ -11,6 +11,7 @@ Short records of the decisions that shape remote-sheep: what was decided, and wh
 | [0005](0005-relay-reads-nothing.md)              | The relay forwards sealed frames and reads none |
 | [0006](0006-proprietary-private-until-public.md) | Proprietary, private until it goes public       |
 | [0007](0007-angular-for-the-phone-app.md)        | The phone app moves to Angular                  |
+| [0008](0008-free-use-license.md)                 | Free to use, owned and sold only by the owner   |
 
 New decision: copy the shape of any record — **Context**, **Decision**, **Consequences** — and
 take the next number. A record is never edited to say something else; a new one replaces it.

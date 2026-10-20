@@ -1,7 +1,7 @@
 {
   "name": "remote-sheep",
   "version": "0.9.0",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "description": "Drive the coding agents running in Herdr from your phone, by chat and voice",
   "type": "module",
