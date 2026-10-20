@@ -74,3 +74,16 @@ describe('parseArguments', () => {
     expect(parseArguments(['pair'])).toEqual({ kind: 'error', message: 'unknown command: pair' });
   });
 });
+
+describe('parseArguments for the background agent', () => {
+  it('starts, stops and reports the agent in the background', () => {
+    expect(parseArguments(['start'])).toEqual({ kind: 'start' });
+    expect(parseArguments(['stop'])).toEqual({ kind: 'stop' });
+    expect(parseArguments(['status'])).toEqual({ kind: 'status' });
+    expect(parseArguments(['start', 'x'])).toEqual({
+      kind: 'error',
+      message: 'start takes no arguments',
+    });
+    expect(USAGE).toContain('remote-sheep start');
+  });
+});

@@ -1,19 +1,21 @@
 // Paths and tuning in one place, so no module invents its own.
 //
-// Everything the agent writes lives in ~/.remote-sheep, never next to the
-// code: the agent key and certificate are secrets, the paired devices decide
-// who may drive the panes, and photos are private.
+// Everything the agent writes lives in ~/.remote-sheep (or the state folder Herdr gives
+// the plugin), never next to the code: the agent key and certificate are secrets, the
+// paired devices decide who may drive the panes, and photos are private.
 
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { agentHome } from './L3_periphery/files/agent-home';
+import { herdrExecutable } from './L3_periphery/herdr/herdr-multiplexer';
 import { resolveRelaySettings } from './L3_periphery/relay/relay-settings-file';
 
 // A .env in the folder the agent starts from saves typing the same variables on every
 // start. Node never overrides a variable already set, so the shell still wins.
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-const home = process.env['REMOTE_SHEEP_HOME'] || join(homedir(), '.remote-sheep');
+const home = agentHome(process.env, homedir());
 const relayFile = join(home, 'relay.json');
 
 // Optional: the variables (which override) or `remote-sheep relay set`; with neither the
@@ -23,7 +25,7 @@ const claudeHome = join(homedir(), '.claude');
 
 export const config = {
   port: Number(process.env['PORT'] || 3999),
-  herdr: process.env['HERDR'] || (process.platform === 'win32' ? 'herdr.exe' : 'herdr'),
+  herdr: herdrExecutable(process.env, process.platform),
 
   /** null when no relay is configured. */
   relay,

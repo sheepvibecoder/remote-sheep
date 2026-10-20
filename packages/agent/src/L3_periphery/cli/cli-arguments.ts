@@ -2,6 +2,9 @@
 
 export type Command =
   | { kind: 'serve' }
+  | { kind: 'start' }
+  | { kind: 'stop' }
+  | { kind: 'status' }
   | { kind: 'devices' }
   | { kind: 'revoke'; id: string }
   | { kind: 'relay-set'; url: string; code: string }
@@ -17,6 +20,11 @@ export const USAGE = `Usage:
   remote-sheep devices       list paired phones: id, paired, last used, expires
   remote-sheep revoke <id>   unpair a phone; a running agent disconnects it within 5 seconds
   remote-sheep --help        show this help
+
+To keep the agent running with no window (the Herdr plugin does this for you):
+  remote-sheep start         start it in the background; does nothing if it already runs
+  remote-sheep stop          stop the agent started with remote-sheep start
+  remote-sheep status        say whether it runs, with its PID, port and log file
 
 To also serve phones outside this network, save your relay once:
   remote-sheep relay set <url> <code>   https URL of your relay and the access code its owner
@@ -38,6 +46,9 @@ export function parseArguments(args: readonly string[]): Command {
     case 'help':
       return { kind: 'help' };
     case 'serve':
+    case 'start':
+    case 'stop':
+    case 'status':
     case 'devices':
       return rest.length
         ? { kind: 'error', message: command + ' takes no arguments' }

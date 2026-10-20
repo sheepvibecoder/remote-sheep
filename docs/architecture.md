@@ -27,6 +27,11 @@ The composition roots — `src/main.ts` in each package, `src/config.ts` in the 
 `src/app.config.ts` (the Angular providers) in the app — are the only files that import every
 layer. They build the adapters and hand them to the core and the view.
 
+The Herdr plugin sits outside the four layers, like the build scripts: `herdr-plugin.toml` at the
+root and `herdr-plugin/plugin.mjs`, which only finds the built agent and runs its `start`,
+`stop` or `status`. The background lifecycle itself is an agent L3 adapter
+(`L3_periphery/background`).
+
 ### What is forbidden, and what enforces it
 
 | Rule                                                                                         | Enforced by                              |

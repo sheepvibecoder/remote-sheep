@@ -10,6 +10,7 @@ import pkg from '../package.json' with { type: 'json' };
 import { PairingService } from './L2_application/pairing-service';
 import { PushNotifier } from './L2_application/push-notifier';
 import { SessionHub } from './L2_application/session-hub';
+import { BackgroundAgent, nodeAgentProcesses } from './L3_periphery/background/background-agent';
 import { SecureChannel } from './L3_periphery/channel/secure-channel';
 import { parseArguments, USAGE } from './L3_periphery/cli/cli-arguments';
 import { formatDevices, formatTime } from './L3_periphery/cli/device-table';
@@ -180,6 +181,16 @@ async function serve(registry: FileDeviceRegistry) {
   process.on('SIGTERM', () => void shutdown());
 }
 
+function backgroundAgent() {
+  return new BackgroundAgent({
+    dir: config.home,
+    port: config.port,
+    // The built bundle starts itself again, from its data folder: a plugin's working folder
+    // on Windows is a \\?\ path that Node cannot resolve modules from.
+    processes: nodeAgentProcesses(fileURLToPath(import.meta.url), config.home),
+  });
+}
+
 async function main() {
   const command = parseArguments(process.argv.slice(2));
   const registry = new FileDeviceRegistry(config.devicesFile);
@@ -225,6 +236,18 @@ async function main() {
       return;
     case 'serve':
       await serve(registry);
+      return;
+    case 'start': {
+      const result = await backgroundAgent().start();
+      (result.kind === 'failed' ? console.error : console.log)(result.message);
+      if (result.kind === 'failed') process.exitCode = 1;
+      return;
+    }
+    case 'stop':
+      console.log((await backgroundAgent().stop()).message);
+      return;
+    case 'status':
+      console.log((await backgroundAgent().status()).message);
       return;
   }
 }

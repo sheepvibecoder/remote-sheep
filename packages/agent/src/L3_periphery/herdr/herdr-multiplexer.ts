@@ -14,6 +14,18 @@ import type { Multiplexer } from '../../L1_domain/ports/multiplexer';
 /** Runs herdr with these arguments and resolves with its stdout. */
 export type HerdrRunner = (args: string[]) => Promise<string>;
 
+/**
+ * The herdr to run: HERDR when the user names one, else the binary Herdr hands its plugins
+ * (HERDR_BIN_PATH, which reaches the Herdr that started the agent even when another one is
+ * first on PATH), else herdr on PATH.
+ */
+export function herdrExecutable(
+  env: Readonly<Record<string, string | undefined>>,
+  platform: string,
+): string {
+  return env['HERDR'] || env['HERDR_BIN_PATH'] || (platform === 'win32' ? 'herdr.exe' : 'herdr');
+}
+
 // Arguments go straight to the executable, so prompt text never reaches a shell.
 export function herdrRunner(executable: string): HerdrRunner {
   return (args) =>

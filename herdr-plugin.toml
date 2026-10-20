@@ -1,0 +1,41 @@
+id = "sheepvibecoder.remote-sheep"
+name = "remote-sheep"
+version = "0.9.0"
+min_herdr_version = "0.8.0"
+description = "Drive the coding agents running in Herdr from your phone, by chat and voice"
+platforms = ["linux", "macos", "windows"]
+
+# Needs Node 22+ and pnpm on PATH. On Windows Herdr finds pnpm.cmd through PATHEXT.
+[[build]]
+command = ["pnpm", "install", "--frozen-lockfile"]
+
+[[build]]
+command = ["pnpm", "build"]
+
+# Every command is the same Node loader: Herdr runs it with no shell and, on Windows, in a
+# \\?\C:\... folder where `node <relative path>` fails. The loader strips that prefix from
+# HERDR_PLUGIN_ROOT, moves there and imports herdr-plugin/plugin.mjs, which runs the built
+# agent's `start`, `stop` or `status`. One command for all platforms keeps the action ids the
+# same everywhere (ids must be unique inside a plugin).
+
+# One-shot per Herdr start: starts the agent in the background unless it already runs.
+[[startup]]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "start"]
+
+[[actions]]
+id = "start"
+title = "Start remote-sheep"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "start"]
+
+[[actions]]
+id = "stop"
+title = "Stop remote-sheep"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "stop"]
+
+[[actions]]
+id = "status"
+title = "remote-sheep status"
+contexts = ["workspace"]
+command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cwd()).replace(/^\\\\\?\\/, ""); process.chdir(r); import(require("url").pathToFileURL(require("path").join(r, "herdr-plugin", "plugin.mjs")).href)', "status"]

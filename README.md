@@ -63,6 +63,20 @@ pnpm install && pnpm build && pnpm start
 
 Scan the QR with your phone. That's it.
 
+## 🐑 Run as a Herdr plugin
+
+Herdr can keep the agent running in the background, with no tab. From a checkout, built as above:
+
+```sh
+herdr plugin link /path/to/remote-sheep
+```
+
+Herdr starts it on its own start; the actions `start`, `stop` and `status` do it by hand
+(`herdr plugin action invoke sheepvibecoder.remote-sheep.status`), and so do
+`remote-sheep start|stop|status` outside Herdr. Start leaves an agent that already runs alone.
+The plugin keeps its data, its PID (`agent-process.json`) and its log (`agent.log`, with the
+pairing QR) in the state folder Herdr gives it; `REMOTE_SHEEP_HOME` still wins when set.
+
 <p align="center">
   <a href="docs/">Docs</a> ·
   <a href=".github/SECURITY.md">Security</a> ·
