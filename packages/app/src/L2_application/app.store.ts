@@ -7,6 +7,8 @@ import type {
   AgentKind,
   ChatMessage,
   LinkedDevice,
+  PairingOffer,
+  PortState,
   RelayChange,
   RelayInfo,
   Request,
@@ -35,6 +37,7 @@ import type { Preferences } from '../L1_domain/ports/preferences';
 import type { PushSubscriptions, PushSupport } from '../L1_domain/ports/push-subscriptions';
 import type { UpdateSource } from '../L1_domain/ports/update-source';
 import { isNewer } from '../L1_domain/version';
+import { addressOnPort, isThisPcHost } from '../L1_domain/this-pc';
 import { PALETTES, paletteId } from '../L1_domain/palette';
 import { speechRate } from '../L1_domain/speech-rate';
 import { isDark, THEME_KEY, THEMES, themeChoice, type ThemeChoice } from '../L1_domain/theme';
@@ -174,6 +177,22 @@ export interface AppState {
   update: UpdateCheck;
   /** The computer's own agent: its version and its update from Settings → Update. */
   agentUpdate: AgentUpdate;
+  /** Settings → Add a device: the last pairing the computer made, or why it could not. */
+  pairing: { offer: PairingOffer | null; error: string | null };
+  /** Settings → Port. */
+  port: PortSettings;
+}
+
+/** The computer's port as Settings shows it, and what a change did. */
+export interface PortSettings {
+  /** As the computer last said; null until it did. */
+  state: PortState | null;
+  /** Why the port could not be read or changed; null otherwise. */
+  error: string | null;
+  /** What the person must know after a change; null otherwise. */
+  notice: string | null;
+  /** The page's new address once the computer restarted there; only for a page on this PC. */
+  moveTo: string | null;
 }
 
 /**
@@ -231,7 +250,9 @@ export type Change =
   | 'profiles'
   | 'push'
   | 'update'
-  | 'agent-update';
+  | 'agent-update'
+  | 'pairing'
+  | 'port';
 
 type Listener = (change: Change) => void;
 
@@ -242,6 +263,21 @@ const describe = (error: unknown) => (error instanceof Error ? error.message : S
 
 /** How often the phone reads the computer's state while it updates itself. */
 const AGENT_UPDATE_POLL_MS = 3000;
+
+/** How long a page on this PC waits for the computer to restart on its new port. */
+const PORT_MOVE_DELAY_MS = 6000;
+
+export const BAD_PORT_TEXT = 'a port is a whole number from 1024 to 65535, or auto';
+
+const PORT_SOURCES = {
+  variable: 'set by the PORT variable on the computer',
+  saved: 'saved',
+  picked: 'picked as free',
+};
+
+export const PORT_MOVED =
+  'The computer restarts on the new port. Phones paired over its network need the new address; ' +
+  'phones on the relay are unaffected.';
 
 /** A value per session, kept in preferences as JSON; anything unreadable starts empty. */
 function readMap<T>(preferences: Preferences, key: string, valid: (value: unknown) => value is T) {
@@ -292,6 +328,8 @@ export class Store {
    * the open chat, so a list row shows the last value this phone saw for that session.
    */
   private readonly contexts = new Map<string, { used: number; model: string | null }>();
+  /** The id the agent knows this browser by, from its last `ready`; null until then. */
+  private device: string | null = null;
 
   constructor(
     private readonly preferences: Preferences,
@@ -351,6 +389,8 @@ export class Store {
       devicesError: null,
       push: { support: push.support(), on: false, error: null },
       update: { status: 'idle' },
+      pairing: { offer: null, error: null },
+      port: { state: null, error: null, notice: null, moveTo: null },
     };
   }
 
@@ -553,6 +593,102 @@ export class Store {
       this.state.relayCodeAccepted = false;
     }
     this.emit('relay');
+  }
+
+  /**
+   * Settings → Add a device: asks the computer for a new pairing (relay link first, and its QR
+   * code). It voids the one shown before, so only the newest QR pairs.
+   */
+  async addDevice(agent: Agent): Promise<void> {
+    try {
+      this.state.pairing = { offer: await agent.request({ kind: 'pairing' }), error: null };
+    } catch (error) {
+      this.state.pairing = { offer: null, error: describe(error) };
+    }
+    this.emit('pairing');
+  }
+
+  /**
+   * The port as Settings says it: where it comes from and why it cannot change; while the
+   * computer restarts, where it is going, since the port it still names is the one it leaves.
+   */
+  portLine(): string {
+    const { state, notice } = this.state.port;
+    if (state === null) return 'Checking…';
+    const line = state.restarting
+      ? 'Moving to ' + (state.saved === null ? 'a free port' : String(state.saved)) + '…'
+      : String(state.port) +
+        ' — ' +
+        PORT_SOURCES[state.source] +
+        (state.reason === null ? '' : '. ' + state.reason);
+    return notice ? line + ' ' + notice : line;
+  }
+
+  /** The id the agent knows this browser by; the link says it on every ready. */
+  setThisDevice(id: string): void {
+    this.device = id;
+  }
+
+  thisDevice(): string | null {
+    return this.device;
+  }
+
+  /** Reads the computer's port for Settings. */
+  async loadPort(agent: Agent): Promise<void> {
+    const port = this.state.port;
+    try {
+      port.state = await agent.request({ kind: 'port' });
+      port.error = null;
+    } catch (error) {
+      port.error = describe(error);
+    }
+    this.emit('port');
+  }
+
+  /**
+   * Has the computer move to another port (a number, or `auto` for a free one) and restart there.
+   * The computer checks the range and that the port is free. A page opened on this PC follows
+   * it to the new address once it had time to restart; phones keep the address they have.
+   */
+  async setPort(
+    agent: Agent,
+    text: string,
+    page: { protocol: string; hostname: string },
+    delayMs = PORT_MOVE_DELAY_MS,
+  ): Promise<void> {
+    const port = this.state.port;
+    const wanted = text.trim().toLowerCase();
+    const set = wanted === 'auto' ? 'auto' : /^\d+$/.test(wanted) ? Number(wanted) : null;
+    port.notice = null;
+    port.moveTo = null;
+    if (set === null) {
+      port.error = BAD_PORT_TEXT;
+      this.emit('port');
+      return;
+    }
+    let answer: PortState;
+    try {
+      answer = await agent.request({ kind: 'port', set });
+    } catch (error) {
+      port.error = describe(error);
+      this.emit('port');
+      return;
+    }
+    port.state = answer;
+    port.error = null;
+    port.notice = answer.restarting ? PORT_MOVED : null;
+    this.emit('port');
+    if (!answer.restarting || answer.saved === null || !isThisPcHost(page.hostname)) return;
+    // The new address is another origin, with its own storage: the page pairs there as a new
+    // device. So this one is forgotten now, before the agent restarts, and the list shows one
+    // browser. If it fails, the old device expires by itself as any unused pairing does.
+    const device = this.device;
+    if (device !== null) {
+      await agent.request({ kind: 'unlink', id: device }).catch(() => undefined);
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    port.moveTo = addressOnPort(page, answer.saved);
+    this.emit('port');
   }
 
   /** The kinds the New sheet offers: Console only while consoles are not turned off. */

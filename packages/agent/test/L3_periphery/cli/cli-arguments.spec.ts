@@ -129,6 +129,12 @@ describe('parseArguments for the port', () => {
     expect(USAGE).toContain('remote-sheep port auto');
   });
 
+  it('says where a browser on this PC opens the app, and that Settings can move the port', () => {
+    expect(USAGE).toContain('http://localhost:<port>');
+    expect(USAGE).toContain('Settings → Port');
+    expect(USAGE).toContain('port 3998');
+  });
+
   it('refuses a value that is not a usable port', () => {
     for (const value of ['80', '65536', 'abc', '4000.5']) {
       expect(parseArguments(['port', value])).toEqual({

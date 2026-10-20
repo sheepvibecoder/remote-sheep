@@ -160,6 +160,17 @@ export type Request =
    */
   | { kind: 'update'; run?: boolean }
   /**
+   * A new pairing for another device (Settings → Add a device): the links of one new invite,
+   * relay first, and the first one as a QR code. It voids the previous invite. An agent older than
+   * this answers it as an unknown request.
+   */
+  | { kind: 'pairing' }
+  /**
+   * Reads the port the agent listens on, or, with `set`, saves a port (or `auto`, a free one at
+   * the next start) and restarts the agent on it. Only the Herdr plugin can restart itself.
+   */
+  | { kind: 'port'; set?: number | 'auto' }
+  /**
    * Starts a coding agent (Claude Code when `agent` is absent, as older phones ask), or a plain
    * shell, in a new tab of this workspace.
    */
@@ -211,6 +222,39 @@ export interface UpdateState {
   error?: string;
 }
 
+/** One link of a pairing: where it works from and the URL that carries the invite. */
+export interface PairingOfferLink {
+  /** The relay works from anywhere, the network from this LAN, this-pc from the computer's browser. */
+  where: 'relay' | 'network' | 'this-pc';
+  url: string;
+}
+
+/** A new pairing for another device, as Settings → Add a device shows it. */
+export interface PairingOffer {
+  /** Relay first, then the network, then this PC. */
+  links: PairingOfferLink[];
+  /** Epoch milliseconds: the invite is refused from then on. */
+  expiresAt: number;
+  /** The first link as a QR code: an SVG image, to be shown as an image, never as markup. */
+  qr: string;
+}
+
+/** The port the agent listens on, as Settings shows it. */
+export interface PortState {
+  /** The port it listens on now. */
+  port: number;
+  /** Where that port came from: the PORT variable, the saved port, or picked as free. */
+  source: 'variable' | 'saved' | 'picked';
+  /** The port saved for the next start; null when the next start picks a free one. */
+  saved: number | null;
+  /** Whether it can restart itself on another port: only as the Herdr plugin, without PORT set. */
+  canChange: boolean;
+  /** Why it cannot change, for the person; null when it can. */
+  reason: string | null;
+  /** A change was saved and the agent restarts on it now; the link drops. */
+  restarting: boolean;
+}
+
 /** What each request kind answers with. */
 export interface Results {
   watch: undefined;
@@ -227,6 +271,8 @@ export interface Results {
   shells: { on: boolean };
   relay: RelayInfo;
   update: UpdateState;
+  pairing: PairingOffer;
+  port: PortState;
   /** The pane of the new session, ready to open as a chat. */
   'new-session': { target: string };
 }
@@ -374,6 +420,15 @@ function parseRequest(value: unknown, bytes: Uint8Array | null): Request | null 
     case 'update':
       if (value['run'] !== undefined && typeof value['run'] !== 'boolean') return null;
       return { kind: 'update', ...(value['run'] === undefined ? {} : { run: value['run'] }) };
+    case 'pairing':
+      return { kind: 'pairing' };
+    case 'port': {
+      const set = value['set'];
+      if (set === undefined) return { kind: 'port' };
+      return set === 'auto' || Number.isSafeInteger(set)
+        ? { kind: 'port', set: set as number | 'auto' }
+        : null;
+    }
     case 'new-session': {
       if (!isText(value['space'])) return null;
       // Absent from phones older than shells: they only ever start Claude Code.

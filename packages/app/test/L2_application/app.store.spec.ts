@@ -10,7 +10,7 @@ import type {
 } from '@remote-sheep/protocol';
 import { RELAY_CODE_PROBLEM, RELAY_URL_PROBLEM } from '@remote-sheep/protocol';
 import type { PushSubscriptions, PushSupport } from '../../src/L1_domain/ports/push-subscriptions';
-import { Store, type Agent, type Change } from '../../src/L2_application/app.store';
+import { PORT_MOVED, Store, type Agent, type Change } from '../../src/L2_application/app.store';
 
 function session(target: string, status: Session['status'] = 'idle'): Session {
   return {
@@ -1309,6 +1309,166 @@ describe('Store', () => {
     });
     expect(store.takeNewReply()).toBe('listo');
     expect(store.takeNewReply()).toBeNull();
+  });
+
+  describe('adding a device', () => {
+    const offer = {
+      links: [
+        { where: 'relay' as const, url: 'https://relay.example.com/#pair=x' },
+        { where: 'this-pc' as const, url: 'http://127.0.0.1:3998/#pair=x' },
+      ],
+      expiresAt: 5,
+      qr: '<svg/>',
+    };
+
+    it('asks the computer for a new pairing and keeps its links and QR code', async () => {
+      const { store, changes } = setup();
+      expect(store.state.pairing).toEqual({ offer: null, error: null });
+      const agent = new FakeAgent(offer);
+      await store.addDevice(agent);
+      expect(agent.asked).toEqual([{ kind: 'pairing' }]);
+      expect(store.state.pairing).toEqual({ offer, error: null });
+      expect(changes).toContain('pairing');
+    });
+
+    it('keeps why a pairing could not be made, and drops the previous QR', async () => {
+      const { store } = setup();
+      await store.addDevice(new FakeAgent(offer));
+      const old = new FakeAgent();
+      old.failure = new Error('unknown request: pairing');
+      await store.addDevice(old);
+      expect(store.state.pairing).toEqual({ offer: null, error: 'unknown request: pairing' });
+    });
+  });
+
+  describe('the port', () => {
+    const state = {
+      port: 3998,
+      source: 'saved' as const,
+      saved: 3998,
+      canChange: true,
+      reason: null,
+    };
+    const local = { protocol: 'http:', hostname: 'localhost' };
+    const lan = { protocol: 'http:', hostname: '192.168.1.20' };
+
+    it('reads the port the computer listens on', async () => {
+      const { store, changes } = setup();
+      const agent = new FakeAgent({ ...state, restarting: false });
+      await store.loadPort(agent);
+      expect(agent.asked).toEqual([{ kind: 'port' }]);
+      expect(store.state.port.state).toEqual({ ...state, restarting: false });
+      expect(changes).toContain('port');
+    });
+
+    it('refuses what is neither a whole number nor auto before asking the computer', async () => {
+      const { store } = setup();
+      const agent = new FakeAgent();
+      for (const text of ['', 'abc', '40.5', '-1']) {
+        await store.setPort(agent, text, lan, 0);
+        expect(store.state.port.error).toBe('a port is a whole number from 1024 to 65535, or auto');
+      }
+      expect(agent.asked).toEqual([]);
+    });
+
+    it('moves a page on this PC to the new address once the computer restarts there', async () => {
+      const { store } = setup();
+      const agent = new FakeAgent({ ...state, saved: 4100, restarting: true });
+      await store.setPort(agent, ' 4100 ', local, 0);
+      expect(agent.asked).toEqual([{ kind: 'port', set: 4100 }]);
+      expect(store.state.port.error).toBeNull();
+      expect(store.state.port.notice).toBe(
+        'The computer restarts on the new port. Phones paired over its network need the new ' +
+          'address; phones on the relay are unaffected.',
+      );
+      expect(store.state.port.moveTo).toBe('http://localhost:4100/');
+    });
+
+    it('has the agent forget this browser before a page on this PC moves, so it is listed once', async () => {
+      const { store } = setup();
+      store.setThisDevice('dev1');
+      const agent = new FakeAgent({ ...state, saved: 4100, restarting: true });
+      await store.setPort(agent, '4100', local, 0);
+      expect(agent.asked).toEqual([
+        { kind: 'port', set: 4100 },
+        { kind: 'unlink', id: 'dev1' },
+      ]);
+      expect(store.state.port.moveTo).toBe('http://localhost:4100/');
+    });
+
+    it('moves all the same when forgetting fails; never forgets from elsewhere or when staying', async () => {
+      const { store } = setup();
+      store.setThisDevice('dev1');
+      let asked = 0;
+      const failing: Agent = {
+        request: async (request) => {
+          asked++;
+          if (request.kind === 'unlink') throw new Error('not connected to your computer');
+          return { ...state, saved: 4100, restarting: true } as never;
+        },
+      };
+      await store.setPort(failing, '4100', local, 0);
+      expect(asked).toBe(2);
+      expect(store.state.port.moveTo).toBe('http://localhost:4100/');
+      const lanAgent = new FakeAgent({ ...state, saved: 4100, restarting: true });
+      await store.setPort(lanAgent, '4100', lan, 0);
+      expect(lanAgent.asked).toEqual([{ kind: 'port', set: 4100 }]);
+      const staying = new FakeAgent({ ...state, restarting: false });
+      await store.setPort(staying, '3998', local, 0);
+      expect(staying.asked).toEqual([{ kind: 'port', set: 3998 }]);
+    });
+
+    it('never moves a page served from elsewhere, and sends auto as auto', async () => {
+      const { store } = setup();
+      const agent = new FakeAgent({ ...state, saved: 4100, restarting: true });
+      await store.setPort(agent, '4100', lan, 0);
+      expect(store.state.port.moveTo).toBeNull();
+      const auto = new FakeAgent({ ...state, saved: null, restarting: true });
+      await store.setPort(auto, 'Auto', local, 0);
+      expect(auto.asked).toEqual([{ kind: 'port', set: 'auto' }]);
+      // The free port is picked by the new start, so the address is not known here.
+      expect(store.state.port.moveTo).toBeNull();
+    });
+
+    it('describes the port: where it comes from, why it cannot change, where it is moving', async () => {
+      const { store } = setup();
+      expect(store.portLine()).toBe('Checking…');
+      await store.loadPort(new FakeAgent({ ...state, restarting: false }));
+      expect(store.portLine()).toBe('3998 — saved');
+      const fixed = 'The PORT variable on the computer sets it.';
+      await store.loadPort(
+        new FakeAgent({
+          ...state,
+          source: 'variable',
+          saved: null,
+          canChange: false,
+          reason: fixed,
+          restarting: false,
+        }),
+      );
+      expect(store.portLine()).toBe('3998 — set by the PORT variable on the computer. ' + fixed);
+      await store.setPort(new FakeAgent({ ...state, saved: 3986, restarting: true }), '3986', {
+        protocol: 'http:',
+        hostname: '192.168.1.20',
+      });
+      // The old port no longer says where the computer is going.
+      expect(store.portLine()).toBe('Moving to 3986… ' + PORT_MOVED);
+      await store.setPort(new FakeAgent({ ...state, saved: null, restarting: true }), 'auto', {
+        protocol: 'http:',
+        hostname: '192.168.1.20',
+      });
+      expect(store.portLine()).toBe('Moving to a free port… ' + PORT_MOVED);
+    });
+
+    it('keeps the reason of a refusal', async () => {
+      const { store } = setup();
+      const agent = new FakeAgent();
+      agent.failure = new Error('port 4000 is in use on the computer; choose another');
+      await store.setPort(agent, '4000', local, 0);
+      expect(store.state.port.error).toBe('port 4000 is in use on the computer; choose another');
+      expect(store.state.port.moveTo).toBeNull();
+      expect(store.state.port.notice).toBeNull();
+    });
   });
 
   describe('linked devices', () => {

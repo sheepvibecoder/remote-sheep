@@ -38,6 +38,8 @@ export interface AgentProcessRecord {
 export interface StartResult {
   kind: 'started' | 'already-running' | 'not-ready' | 'failed';
   message: string;
+  /** The port the agent says it listens on; null when it does not (yet). */
+  port: number | null;
 }
 export interface StopResult {
   kind: 'stopped' | 'not-running';
@@ -46,6 +48,8 @@ export interface StopResult {
 export interface StatusResult {
   kind: 'running' | 'stopped';
   message: string;
+  /** The port the running agent says it listens on; null when stopped or not known yet. */
+  port: number | null;
 }
 
 export interface BackgroundAgentOptions {
@@ -55,6 +59,14 @@ export interface BackgroundAgentOptions {
   /** How long a start waits for the agent to say it listens. */
   readyTimeoutMs?: number;
   pollMs?: number;
+  /** Who hears how a start, restart or stop ended (Herdr, for the plugin); never fails them. */
+  announce?: LifecycleAnnouncer;
+}
+
+/** Tells the person the outcome where they look; resolves even when it could not. */
+export interface LifecycleAnnouncer {
+  started(result: StartResult): Promise<void>;
+  stopped(): Promise<void>;
 }
 
 /** What the agent prints once it listens (main.ts); the sign that a start worked. */
@@ -76,11 +88,33 @@ export class BackgroundAgent {
   }
 
   async start(): Promise<StartResult> {
+    const result = await this.launch();
+    await this.options.announce?.started(result);
+    return result;
+  }
+
+  async stop(): Promise<StopResult> {
+    const result = await this.halt();
+    await this.options.announce?.stopped();
+    return result;
+  }
+
+  /**
+   * Stops the running agent, if any, and starts a new one: how an update reaches a new build.
+   * Announced once, as the start it ends with.
+   */
+  async restart(): Promise<StartResult> {
+    await this.halt();
+    return this.start();
+  }
+
+  private async launch(): Promise<StartResult> {
     const running = await this.running();
     if (running) {
       return {
         kind: 'already-running',
         message: 'remote-sheep already runs: ' + this.describe(running),
+        port: this.port(),
       };
     }
     mkdirSync(this.options.dir, { recursive: true });
@@ -92,26 +126,32 @@ export class BackgroundAgent {
     const deadline = Date.now() + this.readyTimeoutMs;
     for (;;) {
       if (this.log().includes(LISTENING)) {
-        return { kind: 'started', message: 'remote-sheep started: ' + this.describe(record) };
+        return {
+          kind: 'started',
+          message: 'remote-sheep started: ' + this.describe(record),
+          port: this.port(),
+        };
       }
       if (!(await this.options.processes.isAgent(pid))) {
         rmSync(this.recordFile, { force: true });
         return {
           kind: 'failed',
           message: 'remote-sheep could not start. ' + this.logFile + ' ends with:\n' + this.tail(),
+          port: null,
         };
       }
       if (Date.now() >= deadline) {
         return {
           kind: 'not-ready',
           message: 'remote-sheep runs but does not listen yet: ' + this.describe(record),
+          port: null,
         };
       }
       await sleep(this.pollMs);
     }
   }
 
-  async stop(): Promise<StopResult> {
+  private async halt(): Promise<StopResult> {
     const running = await this.running();
     // A stale file goes either way; its PID may name another program now, which stays.
     rmSync(this.recordFile, { force: true });
@@ -120,17 +160,15 @@ export class BackgroundAgent {
     return { kind: 'stopped', message: 'remote-sheep stopped (PID ' + String(running.pid) + ').' };
   }
 
-  /** Stops the running agent, if any, and starts a new one: how an update reaches a new build. */
-  async restart(): Promise<StartResult> {
-    await this.stop();
-    return this.start();
-  }
-
   async status(): Promise<StatusResult> {
     const running = await this.running();
     return running
-      ? { kind: 'running', message: 'remote-sheep is running: ' + this.describe(running) }
-      : { kind: 'stopped', message: 'remote-sheep is stopped. Log: ' + this.logFile };
+      ? {
+          kind: 'running',
+          message: 'remote-sheep is running: ' + this.describe(running),
+          port: this.port(),
+        }
+      : { kind: 'stopped', message: 'remote-sheep is stopped. Log: ' + this.logFile, port: null };
   }
 
   /** The recorded agent while it still runs; null when there is none or the file is stale. */
@@ -152,13 +190,18 @@ export class BackgroundAgent {
     }
   }
 
-  private describe(record: AgentProcessRecord): string {
+  private port(): number | null {
     const port = LISTENING_PORT.exec(this.log())?.[1];
+    return port === undefined ? null : Number(port);
+  }
+
+  private describe(record: AgentProcessRecord): string {
+    const port = this.port();
     return (
       'PID ' +
       String(record.pid) +
       ', ' +
-      (port ? 'port ' + port : 'port not known yet') +
+      (port === null ? 'port not known yet' : 'port ' + String(port)) +
       ', log ' +
       record.log +
       '.'

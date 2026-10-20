@@ -21,8 +21,8 @@ pnpm start
 
 It prints a QR code. Scan it with your phone, on the same network as the
 computer running Herdr, and the phone is paired. To use it in a browser on the
-same computer instead, open the link labelled "On this PC's browser"
-(`http://127.0.0.1:<port>/#pair=…`).
+same computer instead, open `http://localhost:<port>` (the port it prints): the
+page pairs itself with no QR and shows the sessions.
 
 ### Pairing
 
@@ -35,6 +35,22 @@ same computer instead, open the link labelled "On this PC's browser"
   `control.json`, readable by you alone). Enter shows a new one; q or Esc
   closes it, and the agent keeps running. The background agent's log never
   holds a pairing link.
+- A page opened from the agent at `http://localhost:<port>` or
+  `http://127.0.0.1:<port>` in a browser on this computer, with no pairing yet,
+  pairs itself: it asks the agent that served it for an invite (`POST
+/local-pairing`). The agent answers only a request that comes over loopback,
+  names its own `localhost` or `127.0.0.1` address as the Host (which stops DNS
+  rebinding) and carries that same address as its Origin; another site's page,
+  a request with no Origin, another machine and the relay are refused, and it
+  never sends CORS headers. Any program running on this computer can still ask,
+  as it could read the agent's files: that is the trade-off of "only from your
+  PC". The pairing is the usual one, listed by `remote-sheep devices`. If that
+  page kept a pairing the agent no longer accepts (its data folder was
+  replaced), it drops it and pairs itself again; a page on the network or the
+  relay asks for a new QR instead.
+- **Settings → Add a device** asks the computer for a new QR code and its links
+  (relay first, then the network, then this PC) to pair another phone or
+  browser; any paired device can ask, and it voids the previous code.
 - Every connection runs a fresh key exchange (X25519, triple Diffie-Hellman)
   and every frame is sealed with ChaCha20-Poly1305. Only the phone and this
   computer hold the keys.
@@ -203,12 +219,21 @@ that copy with `git pull` and `pnpm build`, then `remote-sheep restart` (stop, t
 
 ### Settings
 
-Set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
+**Settings → Port** in the app shows the port and moves the agent to another one (or **Auto**, a
+free one from 3998). Only the Herdr plugin can do it: it saves the port and restarts through its
+**Restart remote-sheep** action, and a page open on this computer moves to the new address,
+where it pairs itself again; it has the agent forget the device it was, so it is listed once. Phones
+paired over the network need the new address; phones on the relay are unaffected. An agent run by
+hand says to use `remote-sheep port <n>` and restart it; with `PORT` set, change that instead.
+A port counts as taken when any program listens on it, even on `localhost` only: the first start
+skips it, and Settings and `remote-sheep port <n>` refuse it and save nothing.
+
+The variables: set them in the shell, or once in a `.env` file (`NAME=value` per line) in the folder
 `pnpm start` runs from; the file is ignored by git, and a variable set in the shell wins.
 
 | Variable            | Default                                                     |                                                                                       |
 | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `PORT`              | the saved port, else 3999 or the next free one              | Port the phone connects to; overrides `remote-sheep port`                             |
+| `PORT`              | the saved port, else 3998 or the next free one              | Port the phone connects to; overrides `remote-sheep port`                             |
 | `HERDR`             | `herdr` (`herdr.exe` on Windows)                            | Herdr executable                                                                      |
 | `REMOTE_SHEEP_HOME` | `~/.remote-sheep`, or the plugin's state folder under Herdr | Agent key, paired phones, VAPID keys, certificate, uploaded photos and the saved port |
 

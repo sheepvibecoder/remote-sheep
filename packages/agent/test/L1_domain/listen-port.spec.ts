@@ -23,9 +23,9 @@ describe('parseListenPort', () => {
 });
 
 describe('listenPortCandidates', () => {
-  it('tries 3999 first, then the next ports up to the last one', () => {
+  it('tries 3998 first, then the next ports up to the last one', () => {
     const ports = listenPortCandidates();
-    expect(ports[0]).toBe(3999);
+    expect(ports[0]).toBe(3998);
     expect(ports[0]).toBe(FIRST_LISTEN_PORT);
     expect(ports.at(-1)).toBe(LAST_LISTEN_PORT);
     expect(ports).toHaveLength(LAST_LISTEN_PORT - FIRST_LISTEN_PORT + 1);

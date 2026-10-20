@@ -6,4 +6,6 @@ export interface SavedPort {
   /** null when none is saved. */
   load(): Promise<number | null>;
   save(port: number): Promise<void>;
+  /** Drops the saved port, so the next start picks a free one; false when none was saved. */
+  forget(): Promise<boolean>;
 }

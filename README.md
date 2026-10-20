@@ -74,20 +74,33 @@ herdr plugin link /path/to/remote-sheep
 Herdr starts it on its own start; the actions `start`, `stop` and `status` do it by hand
 (`herdr plugin action invoke sheepvibecoder.remote-sheep.status`), and so do
 `remote-sheep start|stop|status` outside Herdr. Start leaves an agent that already runs alone.
+Started from Herdr, it says so with a Herdr notification: **remote-sheep ✓ — open
+http://localhost:&lt;port&gt;** with the port it listens on, or why it could not start.
+
+Open that address in a browser on this PC and the page pairs itself, with no QR, and shows the
+sessions. Only a browser on this same PC can do it: the agent hands that pairing only to the page
+it served on `localhost` or `127.0.0.1`, over loopback, and refuses other sites' pages, other
+addresses and the relay. Any program running on this PC could ask for it the same way; that is the
+trade-off of pairing "only from your PC", as it could also read the agent's files. In that page,
+**Settings → Add a device** shows a QR code and links to pair a phone, and **Settings → Port**
+moves the agent to another port.
 The plugin keeps its data, its PID (`agent-process.json`) and its log (`agent.log`) in the state
 folder Herdr gives it; `REMOTE_SHEEP_HOME` still wins when set.
 
-To pair, run the action **Show pairing QR** (`sheepvibecoder.remote-sheep.qr`), or
+To pair from Herdr instead, run the action **Show pairing QR** (`sheepvibecoder.remote-sheep.qr`), or
 `remote-sheep qr` in any terminal. It opens a pane with a new QR code and its links: scan the QR
 with the phone, or, to use remote-sheep in a browser on this PC, open the link labelled
 "On this PC's browser" (`http://127.0.0.1:<port>/#pair=…`). Enter shows a new code, q or Esc
 closes the pane, and the agent keeps running; only `stop` stops it. The agent's log never holds
 a pairing link.
 
-The first start listens on port 3999, or on the next free port up to 4049 when 3999 is taken,
+The first start listens on port 3998, or on the next free port up to 4049 when 3998 is taken,
 and saves it (`port.json`), so the phone's address stays the same; `status` shows the port in
-use. To change it, run `remote-sheep port 4100` (any port from 1024 to 65535), then
-`remote-sheep stop` and `remote-sheep start`, or restart Herdr. `remote-sheep port` shows the
+use. To change it, use **Settings → Port** in the app (a port, or **Auto**): the plugin saves it
+and restarts on it, and a page open on this PC moves to the new address. Phones paired over the
+network then need the new address; phones on the relay are unaffected. Without the plugin, run
+`remote-sheep port 4100` (any port from 1024 to 65535), then `remote-sheep stop` and
+`remote-sheep start`, or restart Herdr. `remote-sheep port` shows the
 port and where it comes from, and `remote-sheep port auto` lets the next start pick again. The
 `PORT` variable still overrides the saved port.
 

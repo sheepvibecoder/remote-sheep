@@ -6,6 +6,7 @@ import {
   presetListenPort,
   type PortSource,
 } from '../../L1_domain/listen-port';
+import type { PortProbe } from '../../L1_domain/ports/port-probe';
 
 /** How to get off a busy port, depending on who chose it. */
 export function busyPortHint(source: PortSource): string {
@@ -38,5 +39,22 @@ export function describePort({ variable, saved, file }: PortSettings): string {
     ' to ' +
     String(LAST_LISTEN_PORT) +
     ' and saves it.'
+  );
+}
+
+/**
+ * Why `remote-sheep port <n>` must not save this port: another program holds it, and the next
+ * start would fail on it or share it. null when it is free, or is the running agent's own port.
+ */
+export async function refusePortChoice(
+  port: number,
+  probe: PortProbe,
+  runningPort: number | null,
+): Promise<string | null> {
+  if (port === runningPort || (await probe.isFree(port))) return null;
+  return (
+    'Port ' +
+    String(port) +
+    ' is in use on this computer; choose another, or `remote-sheep port auto`.'
   );
 }

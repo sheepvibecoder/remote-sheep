@@ -35,18 +35,20 @@ export const USAGE = `Usage:
 
 To keep the agent running with no window (the Herdr plugin does this for you):
   remote-sheep start         start it in the background; does nothing if it already runs;
-                             pair with remote-sheep qr
+                             open http://localhost:<port> in this PC's browser, which pairs
+                             it at once, or pair a phone with remote-sheep qr
   remote-sheep stop          stop the agent started with remote-sheep start
   remote-sheep restart       stop it and start it again, with the same data, port and relay
   remote-sheep status        say whether it runs, with its PID, port and log file
 
-The first start listens on port 3999, or the next free one up to 4049, and saves it so the
+The first start listens on port 3998, or the next free one up to 4049, and saves it so the
 phone's address stays the same:
   remote-sheep port          show the port and where it comes from
   remote-sheep port <n>      save another port (1024-65535); restart the agent to use it:
                              remote-sheep stop, then remote-sheep start (or restart Herdr)
   remote-sheep port auto     forget the saved port; the next start picks a free one again
-The environment variable PORT still overrides the saved port when set.
+The environment variable PORT still overrides the saved port when set. In the app,
+Settings → Port does the same for the Herdr plugin, which restarts on the new port.
 
 To also serve phones outside this network, save your relay once:
   remote-sheep relay set <url> <code>   https URL of your relay and the access code its owner

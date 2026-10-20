@@ -5,11 +5,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { encodeBase64Url, publicKeyId } from '@remote-sheep/protocol';
+import { encodeBase64Url, encodeInvite, publicKeyId } from '@remote-sheep/protocol';
 import pkg from '../package.json' with { type: 'json' };
 import { PairingLinks } from './L1_domain/pairing-links';
 import { AgentUpdater } from './L2_application/agent-updater';
 import { PairingService } from './L2_application/pairing-service';
+import { PortChanger } from './L2_application/port-changer';
 import { PushNotifier } from './L2_application/push-notifier';
 import { RelaySwitch } from './L2_application/relay-switch';
 import type { RelayOrigin } from './L1_domain/ports/relay';
@@ -24,7 +25,7 @@ import { BACKGROUND_PAIRING_HINT, describePairing } from './L3_periphery/cli/pai
 import { showPairingPrompt } from './L3_periphery/cli/pairing-prompt';
 import { showRelayPrompt } from './L3_periphery/cli/relay-prompt';
 import { TerminalQuestions } from './L3_periphery/cli/terminal-questions';
-import { busyPortHint, describePort } from './L3_periphery/cli/port-messages';
+import { busyPortHint, describePort, refusePortChoice } from './L3_periphery/cli/port-messages';
 import { requestPairing, requestRelay } from './L3_periphery/control/control-client';
 import { removeControlFile, saveControlFile } from './L3_periphery/control/control-file';
 import { HttpControlServer } from './L3_periphery/control/http-control-server';
@@ -36,9 +37,11 @@ import { loadShellSetting } from './L3_periphery/files/file-shell-setting';
 import { loadVapidKeys } from './L3_periphery/files/file-vapid-keys';
 import { FileUploadStore } from './L3_periphery/files/file-upload-store';
 import { HerdrMultiplexer, herdrRunner } from './L3_periphery/herdr/herdr-multiplexer';
+import { herdrAnnouncer } from './L3_periphery/herdr/herdr-notifications';
 import { herdrCommand, HerdrPluginUpdates } from './L3_periphery/herdr/herdr-plugin-updates';
 import { LanTransport } from './L3_periphery/lan/lan-transport';
 import { TcpPortProbe } from './L3_periphery/lan/tcp-port-probe';
+import { QrPairingOffers } from './L3_periphery/pairing/qr-pairing-offers';
 import { WebPushSender } from './L3_periphery/push/web-push-sender';
 import { relayPushWarning } from './L3_periphery/relay/relay-settings';
 import {
@@ -113,12 +116,39 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
 
   // Settings → Update: only the plugin can update itself. Phones read the state every few
   // seconds while it runs, so the restart waits long enough for one to see the outcome.
+  const plugin = config.plugin ? new HerdrPluginUpdates(herdrCommand(config.herdr)) : null;
   const updates = new AgentUpdater({
     version: pkg.version,
-    plugin: config.plugin ? new HerdrPluginUpdates(herdrCommand(config.herdr)) : null,
+    plugin,
     restartDelayMs: 3000,
     log,
   });
+
+  const variable = portFromVariable(config.portVariable);
+  const savedPort = new FileSavedPort(config.portFile);
+  const probe = new TcpPortProbe();
+  const chosen = await chooseListenPort({ variable, saved: savedPort, probe });
+  const { port, source } = chosen;
+  // Settings → Port: moving restarts the agent through the plugin, like an update.
+  const portChanger = new PortChanger({
+    current: chosen,
+    variable,
+    saved: savedPort,
+    probe,
+    restart: plugin && (() => plugin.restart()),
+    restartDelayMs: 1000,
+    log,
+  });
+
+  const scheme = tls ? 'https' : 'http';
+  const links = new PairingLinks(
+    {
+      relay: () => relay.origin(),
+      network: lanAddresses().map((address) => scheme + '://' + address + ':' + String(port)),
+      local: scheme + '://127.0.0.1:' + String(port),
+    },
+    pairing,
+  );
 
   const hub = new SessionHub({
     multiplexer: new HerdrMultiplexer(herdrRunner(config.herdr)),
@@ -138,6 +168,8 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
     push,
     relay,
     updates,
+    pairing: new QrPairingOffers(links),
+    port: portChanger,
     log,
   });
   relay.onChange(() => {
@@ -152,31 +184,19 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
     checkIntervalMs: config.pairingCheckIntervalMs,
     log,
   });
-  const { port, source } = await chooseListenPort({
-    variable: portFromVariable(config.portVariable),
-    saved: new FileSavedPort(config.portFile),
-    probe: new TcpPortProbe(),
-  });
   const transport = new LanTransport({
     port,
     appDir: join(dirname(fileURLToPath(import.meta.url)), 'app'),
     tls,
     busyHint: busyPortHint(source),
+    // The app page opened in this PC's browser pairs it with no QR (loopback only).
+    localInvite: () => encodeInvite(pairing.createInvite()),
   });
   await transport.start((link) => channel.accept(link));
 
   // The relay serves the app too, so its address leads the QR code; the LAN stays listed.
   await relay.start();
 
-  const scheme = tls ? 'https' : 'http';
-  const links = new PairingLinks(
-    {
-      relay: () => relay.origin(),
-      network: lanAddresses().map((address) => scheme + '://' + address + ':' + String(port)),
-      local: scheme + '://127.0.0.1:' + String(port),
-    },
-    pairing,
-  );
   const interactive = !background && process.stdin.isTTY;
 
   // Same PC only: `remote-sheep qr` asks here for a new pairing while the agent keeps running.
@@ -194,6 +214,9 @@ async function serve(registry: FileDeviceRegistry, background: boolean) {
 
   console.log(
     'remote-sheep ' + pkg.version + ' is listening on port ' + String(port) + ' over ' + scheme,
+  );
+  console.log(
+    'Open ' + scheme + '://localhost:' + String(port) + ' in a browser on this PC to use it there.',
   );
   if (!tls) {
     console.log('Serving over plain http: frames are end-to-end encrypted, but someone on this');
@@ -241,6 +264,8 @@ function backgroundAgent() {
     // The built bundle starts itself again, from its data folder: a plugin's working folder
     // on Windows is a \\?\ path that Node cannot resolve modules from.
     processes: nodeAgentProcesses(fileURLToPath(import.meta.url), config.home),
+    // Run as the plugin, the outcome shows in Herdr too: an action's output is easy to miss.
+    ...(config.plugin ? { announce: herdrAnnouncer(herdrCommand(config.herdr)) } : {}),
   });
 }
 
@@ -295,7 +320,17 @@ async function main() {
       if (status.kind === 'running') console.log(status.message);
       return;
     }
-    case 'port-set':
+    case 'port-set': {
+      const refusal = await refusePortChoice(
+        command.port,
+        new TcpPortProbe(),
+        (await backgroundAgent().status()).port,
+      );
+      if (refusal) {
+        console.error(refusal);
+        process.exitCode = 1;
+        return;
+      }
       await new FileSavedPort(config.portFile).save(command.port);
       console.log('Port ' + String(command.port) + ' saved. ' + RESTART);
       if (
@@ -304,6 +339,7 @@ async function main() {
         console.log('PORT is set, though, and overrides it while it stays set.');
       }
       return;
+    }
     case 'port-auto':
       console.log(
         (await new FileSavedPort(config.portFile).forget())
@@ -348,8 +384,10 @@ async function main() {
       });
       return;
     }
-    case 'start': {
-      const result = await backgroundAgent().start();
+    case 'start':
+    case 'restart': {
+      const agent = backgroundAgent();
+      const result = command.kind === 'start' ? await agent.start() : await agent.restart();
       (result.kind === 'failed' ? console.error : console.log)(result.message);
       if (result.kind === 'failed') process.exitCode = 1;
       return;
@@ -357,12 +395,6 @@ async function main() {
     case 'stop':
       console.log((await backgroundAgent().stop()).message);
       return;
-    case 'restart': {
-      const result = await backgroundAgent().restart();
-      (result.kind === 'failed' ? console.error : console.log)(result.message);
-      if (result.kind === 'failed') process.exitCode = 1;
-      return;
-    }
     case 'status':
       console.log((await backgroundAgent().status()).message);
       return;

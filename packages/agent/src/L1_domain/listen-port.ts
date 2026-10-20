@@ -1,10 +1,10 @@
 // Which port the agent listens on when nobody chose one.
 //
-// The phone keeps the agent's address, port included, so the port is picked once and kept: 3999
+// The phone keeps the agent's address, port included, so the port is picked once and kept: 3998
 // when it is free, otherwise the next free one in a short range. The range stays small so a
 // phone that lost the address can still be pointed at a handful of likely ports.
 
-export const FIRST_LISTEN_PORT = 3999;
+export const FIRST_LISTEN_PORT = 3998;
 export const LAST_LISTEN_PORT = 4049;
 
 /** Below 1024 a port needs administrator rights on most systems. */

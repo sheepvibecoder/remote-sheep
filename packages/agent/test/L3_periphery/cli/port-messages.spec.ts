@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { busyPortHint, describePort } from '../../../src/L3_periphery/cli/port-messages';
+import {
+  busyPortHint,
+  describePort,
+  refusePortChoice,
+} from '../../../src/L3_periphery/cli/port-messages';
 
 describe('busyPortHint', () => {
   it('points at PORT when the variable chose the port', () => {
@@ -27,7 +31,24 @@ describe('describePort', () => {
       'Port 4005, saved in port.json.',
     );
     expect(describePort({ variable: null, saved: null, file: 'port.json' })).toBe(
-      'No port saved yet: the next start takes the first free port from 3999 to 4049 and saves it.',
+      'No port saved yet: the next start takes the first free port from 3998 to 4049 and saves it.',
     );
+  });
+});
+
+describe('refusePortChoice', () => {
+  const probe = (busy: number[]) => ({
+    isFree: (port: number) => Promise.resolve(!busy.includes(port)),
+  });
+
+  it('refuses a port another program holds, so `port <n>` saves nothing', async () => {
+    expect(await refusePortChoice(3986, probe([3986]), null)).toBe(
+      'Port 3986 is in use on this computer; choose another, or `remote-sheep port auto`.',
+    );
+  });
+
+  it('accepts a free port, and the port the running agent itself holds', async () => {
+    expect(await refusePortChoice(3987, probe([3986]), null)).toBeNull();
+    expect(await refusePortChoice(3986, probe([3986]), 3986)).toBeNull();
   });
 });

@@ -695,6 +695,58 @@ describe('SessionHub', () => {
     expect(runs).toBe(1);
   });
 
+  it('hands a paired phone a new pairing and its port, and says so where it cannot', async () => {
+    const phone = new FakeConnection();
+    hub.open(phone);
+    await expect(hub.request(phone, { kind: 'pairing' })).rejects.toThrow(
+      'this agent cannot pair another device from the app',
+    );
+    await expect(hub.request(phone, { kind: 'port' })).rejects.toThrow(
+      'this agent cannot tell its port',
+    );
+    const offer = {
+      links: [{ where: 'this-pc' as const, url: 'http://127.0.0.1:3998/#pair=x' }],
+      expiresAt: 1,
+      qr: '<svg/>',
+    };
+    const port = {
+      port: 3998,
+      source: 'saved' as const,
+      saved: 3998,
+      canChange: true,
+      reason: null,
+    };
+    const changes: (number | 'auto')[] = [];
+    hub.stop();
+    hub = new SessionHub({
+      multiplexer: mux,
+      transcripts,
+      uploads,
+      devices: pairing,
+      listIntervalMs: LIST_MS,
+      terminalIntervalMs: TERMINAL_MS,
+      debounceMs: 0,
+      shells: new FakeShells(false),
+      pairing: { offerPairing: () => Promise.resolve(offer) },
+      port: {
+        portState: () => Promise.resolve({ ...port, restarting: false }),
+        changePort: (set) => {
+          changes.push(set);
+          return Promise.resolve({ ...port, restarting: true });
+        },
+      },
+    });
+    hub.open(phone);
+    expect(await hub.request(phone, { kind: 'pairing' })).toEqual(offer);
+    expect(await hub.request(phone, { kind: 'port' })).toEqual({ ...port, restarting: false });
+    expect(changes).toEqual([]);
+    expect(await hub.request(phone, { kind: 'port', set: 4100 })).toMatchObject({
+      restarting: true,
+    });
+    await hub.request(phone, { kind: 'port', set: 'auto' });
+    expect(changes).toEqual([4100, 'auto']);
+  });
+
   describe('with consoles on', () => {
     beforeEach(() => {
       hub.stop();

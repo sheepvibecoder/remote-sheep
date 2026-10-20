@@ -62,8 +62,22 @@ describe('BackgroundAgent', () => {
   it('reports the port the agent says it listens on, whichever it picked', async () => {
     const { processes, agent } = setup();
     processes.output = 'remote-sheep 1.0.0 is listening on port 4007 over http\n';
-    expect((await agent.start()).message).toContain('port 4007');
+    const started = await agent.start();
+    expect(started.message).toContain('port 4007');
+    expect(started.port).toBe(4007);
     expect((await agent.status()).message).toContain('port 4007');
+    expect((await agent.status()).port).toBe(4007);
+    expect((await agent.start()).port).toBe(4007);
+  });
+
+  it('gives no port for a start that failed or does not listen yet', async () => {
+    const { processes, agent } = setup();
+    processes.output = 'loading\n';
+    expect(await agent.start()).toMatchObject({ kind: 'not-ready', port: null });
+    const dead = setup();
+    dead.processes.diesAtStart = true;
+    dead.processes.output = 'boom\n';
+    expect(await dead.agent.start()).toMatchObject({ kind: 'failed', port: null });
   });
 
   it('says the port is not known yet while the agent does not listen', async () => {
@@ -140,6 +154,32 @@ describe('BackgroundAgent', () => {
     expect(processes.launched).toEqual([100, 101]);
     expect(result.kind).toBe('started');
     expect(record().pid).toBe(101);
+  });
+
+  it('announces each start, restart and stop once, with the outcome', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'sheep-background-')), 'state');
+    const said: string[] = [];
+    const agent = new BackgroundAgent({
+      dir,
+      processes: new FakeProcesses(),
+      readyTimeoutMs: 500,
+      pollMs: 5,
+      announce: {
+        started: (result) => {
+          said.push(result.kind + ' ' + String(result.port));
+          return Promise.resolve();
+        },
+        stopped: () => {
+          said.push('stopped');
+          return Promise.resolve();
+        },
+      },
+    });
+    await agent.start();
+    await agent.start();
+    await agent.restart();
+    await agent.stop();
+    expect(said).toEqual(['started 3996', 'already-running 3996', 'started 3996', 'stopped']);
   });
 
   it('restarts an agent that was not running by starting it', async () => {

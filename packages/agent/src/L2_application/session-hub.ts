@@ -17,7 +17,9 @@ import type { Multiplexer } from '../L1_domain/ports/multiplexer';
 import type { Chat, TranscriptSource } from '../L1_domain/ports/transcript';
 import type { Connection, ConnectionEvents } from '../L1_domain/ports/connection';
 import type { Notifier } from '../L1_domain/ports/notifier';
+import type { PairingOffers } from '../L1_domain/ports/pairing-requests';
 import type { UpdateRequests } from '../L1_domain/ports/plugin-updates';
+import type { PortRequests } from '../L1_domain/ports/port-requests';
 import type { RelayRequests } from '../L1_domain/ports/relay';
 import type { UploadStore } from '../L1_domain/ports/upload-store';
 import type { PairingService } from './pairing-service';
@@ -55,6 +57,10 @@ export interface HubOptions {
   relay?: RelayRequests;
   /** Lets a paired phone read the agent's version and update it; absent where it cannot. */
   updates?: UpdateRequests;
+  /** Lets a paired phone show a QR to pair another device (Settings → Add a device). */
+  pairing?: PairingOffers;
+  /** Lets a paired phone read the port and move the agent to another one. */
+  port?: PortRequests;
   log?: (message: string) => void;
 }
 
@@ -185,6 +191,17 @@ export class SessionHub implements ConnectionEvents {
         const updates = this.options.updates;
         if (!updates) throw new Error('this agent cannot update itself');
         return request.run ? updates.runUpdate() : updates.updateState();
+      }
+      case 'pairing': {
+        // Any paired device may ask: whoever drives the sessions can already do far more.
+        const pairing = this.options.pairing;
+        if (!pairing) throw new Error('this agent cannot pair another device from the app');
+        return pairing.offerPairing();
+      }
+      case 'port': {
+        const port = this.options.port;
+        if (!port) throw new Error('this agent cannot tell its port');
+        return request.set === undefined ? port.portState() : port.changePort(request.set);
       }
       case 'new-session':
         return this.newSession(request.space, request.shell, request.agent ?? 'claude');

@@ -19,8 +19,16 @@ All notable changes to remote-sheep are recorded here. The format follows
   `restart`, `qr` (a pane with the QR code and the pairing links, including `127.0.0.1` for a
   browser on the same computer, that closes and leaves the agent running) and `relay` (a pane
   that sets or turns off the relay).
-- **Port picked once and saved**: the first start takes 3999 or the next free port and keeps it;
+- **Port picked once and saved**: the first start takes 3998 or the next free port and keeps it;
   `remote-sheep port`, `port <n>` and `port auto` show and change it. `PORT` still wins.
+- **This PC's browser pairs itself**: opening `http://localhost:<port>` on the computer pairs that
+  browser at once, with no QR, and shows the sessions. Only a page served on loopback to a browser
+  on that computer can do it.
+- **Settings → Add a device** shows a QR code and the links to pair another phone or browser, and
+  **Settings → Port** shows the port and moves the agent to another one (plugin only: it restarts
+  on it, and a page on this PC follows).
+- **Herdr notification** when the plugin starts or restarts: **remote-sheep ✓ — open
+  http://localhost:&lt;port&gt;**, or why it could not start; **remote-sheep stopped** on stop.
 - **Settings → Relay** sets or turns off the relay from the phone or the web; the agent switches
   at once, notifications included, with no restart. The access code is never shown back.
 - **Settings → Update** updates the plugin through Herdr and restarts the agent into the new

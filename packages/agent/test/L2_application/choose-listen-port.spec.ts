@@ -16,6 +16,10 @@ class FakeSavedPort implements SavedPort {
     this.port = port;
     return Promise.resolve();
   }
+
+  forget() {
+    return Promise.resolve(false);
+  }
 }
 
 class FakeProbe implements PortProbe {
@@ -46,20 +50,20 @@ describe('chooseListenPort', () => {
     expect(probe.asked).toEqual([]);
   });
 
-  it('picks 3999 on a first start and saves it', async () => {
+  it('picks 3998 on a first start and saves it', async () => {
     const saved = new FakeSavedPort();
     const chosen = await chooseListenPort({ variable: null, saved, probe: new FakeProbe() });
-    expect(chosen).toEqual({ port: 3999, source: 'picked' });
-    expect(saved.saves).toEqual([3999]);
+    expect(chosen).toEqual({ port: 3998, source: 'picked' });
+    expect(saved.saves).toEqual([3998]);
   });
 
   it('skips busy ports and saves the first free one', async () => {
     const saved = new FakeSavedPort();
-    const probe = new FakeProbe(new Set([3999, 4000]));
+    const probe = new FakeProbe(new Set([3998, 3999]));
     const chosen = await chooseListenPort({ variable: null, saved, probe });
-    expect(chosen).toEqual({ port: 4001, source: 'picked' });
-    expect(probe.asked).toEqual([3999, 4000, 4001]);
-    expect(saved.saves).toEqual([4001]);
+    expect(chosen).toEqual({ port: 4000, source: 'picked' });
+    expect(probe.asked).toEqual([3998, 3999, 4000]);
+    expect(saved.saves).toEqual([4000]);
   });
 
   it('says how to choose one when every candidate is busy', async () => {

@@ -75,7 +75,17 @@ class FakeConnection implements AgentConnection {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function setup(stored: StoredPairing[] = [], active: string | null = stored[0]?.id ?? null) {
+/** The page's host name and what its agent answers when this browser asks to pair itself. */
+interface LocalPage {
+  hostname: string;
+  answer?: () => Promise<string>;
+}
+
+function setup(
+  stored: StoredPairing[] = [],
+  active: string | null = stored[0]?.id ?? null,
+  page: LocalPage = { hostname: '192.168.1.20' },
+) {
   const pairings = new MemoryPairings();
   pairings.saved = [...stored];
   const preferences = new Map<string, string>();
@@ -93,6 +103,8 @@ function setup(stored: StoredPairing[] = [], active: string | null = stored[0]?.
   const readies: number[] = [];
   const restarts: number[] = [];
   const errors: string[] = [];
+  const pairs: string[] = [];
+  let localAsks = 0;
   const fresh: KeyPair = generateKeyPair();
   const starter = new LinkStarter(
     store,
@@ -106,14 +118,40 @@ function setup(stored: StoredPairing[] = [], active: string | null = stored[0]?.
       ready: () => readies.push(1),
       error: (message) => errors.push(message),
       restart: () => restarts.push(1),
+      pair: (fragment) => pairs.push(fragment),
     },
     {
       getItem: (key) => preferences.get(key) ?? null,
       setItem: (key, value) => preferences.set(key, value),
     },
-    { now: () => NOW, generateKeys: () => fresh, probeTimeoutMs: 50 },
+    {
+      now: () => NOW,
+      generateKeys: () => fresh,
+      probeTimeoutMs: 50,
+      page: {
+        hostname: page.hostname,
+        localPairing: {
+          invite: () => {
+            localAsks++;
+            return page.answer ? page.answer() : Promise.resolve(pairLink);
+          },
+        },
+      },
+    },
   );
-  return { starter, store, pairings, preferences, connections, readies, restarts, errors, fresh };
+  return {
+    starter,
+    store,
+    pairings,
+    preferences,
+    connections,
+    readies,
+    restarts,
+    errors,
+    fresh,
+    pairs,
+    localAsks: () => localAsks,
+  };
 }
 
 const storedPairing = (key = agentKey, name = 'Office', device = 'dev1'): StoredPairing => ({
@@ -227,6 +265,47 @@ describe('LinkStarter', () => {
     expect(starter.connection).toBeNull();
   });
 
+  it('pairs a browser on this PC by itself when it has no profile, as a scanned QR would', async () => {
+    for (const hostname of ['127.0.0.1', 'localhost']) {
+      const { starter, store, connections, pairs, localAsks } = setup([], null, { hostname });
+      await starter.start('');
+      expect(localAsks()).toBe(1);
+      expect(pairs).toEqual([pairLink]);
+      expect(connections).toHaveLength(0);
+      expect(store.state.gate).toBeNull();
+    }
+  });
+
+  it('never asks to pair itself from another address, or with a profile already kept', async () => {
+    const lan = setup();
+    await lan.starter.start('');
+    expect(lan.localAsks()).toBe(0);
+    expect(lan.store.state.gate).toBe('scan');
+    const kept = setup([storedPairing()], agentId, { hostname: '127.0.0.1' });
+    await kept.starter.start('');
+    expect(kept.localAsks()).toBe(0);
+    expect(kept.connections).toHaveLength(1);
+    const linked = setup([], null, { hostname: 'localhost' });
+    await linked.starter.start(pairLink);
+    expect(linked.localAsks()).toBe(0);
+    expect(linked.pairs).toEqual([]);
+  });
+
+  it('asks to scan and says why when this PC refuses to pair the browser', async () => {
+    const refused = setup([], null, {
+      hostname: '127.0.0.1',
+      answer: () => Promise.reject(new Error('HTTP 403')),
+    });
+    await refused.starter.start('');
+    expect(refused.store.state.gate).toBe('scan');
+    expect(refused.pairs).toEqual([]);
+    expect(refused.errors).toEqual(['this browser could not pair itself: HTTP 403']);
+    const odd = setup([], null, { hostname: '127.0.0.1', answer: () => Promise.resolve('#x') });
+    await odd.starter.start('');
+    expect(odd.store.state.gate).toBe('scan');
+    expect(odd.pairs).toEqual([]);
+  });
+
   it('asks to scan and says why when the stored pairings cannot be read', async () => {
     const { starter, store, pairings, connections, errors } = setup();
     pairings.failList = true;
@@ -271,6 +350,38 @@ describe('LinkStarter', () => {
     await settle();
     expect(pairings.saved).toHaveLength(1);
     expect(store.state.gate).toBe('unauthorized');
+  });
+
+  it('on this PC, drops a profile the agent refuses (an old identity) and pairs itself again', async () => {
+    const { starter, store, pairings, connections, pairs, localAsks } = setup(
+      [storedPairing()],
+      agentId,
+      { hostname: '127.0.0.1' },
+    );
+    await starter.start('');
+    connections[0]?.handlers.state('unauthorized');
+    await settle();
+    await settle();
+    expect(pairings.saved).toEqual([]);
+    expect(localAsks()).toBe(1);
+    expect(pairs).toEqual([pairLink]);
+    expect(store.state.profiles).toEqual([]);
+  });
+
+  it('never pairs itself again after a refused pairing link, so it cannot loop', async () => {
+    const { starter, connections, pairs, localAsks } = setup([], null, { hostname: 'localhost' });
+    await starter.start(pairLink);
+    connections[0]?.handlers.state('unauthorized');
+    await settle();
+    expect(localAsks()).toBe(0);
+    expect(pairs).toEqual([]);
+  });
+
+  it('tells the store which device this browser is once the agent says ready', async () => {
+    const { starter, store, connections } = setup([storedPairing()]);
+    await starter.start('');
+    connections[0]?.handlers.ready('dev1');
+    expect(store.thisDevice()).toBe('dev1');
   });
 
   it('hands pushes to the store and closes the connection on request', async () => {
