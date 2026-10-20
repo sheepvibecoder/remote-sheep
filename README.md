@@ -65,7 +65,14 @@ Scan the QR with your phone. That's it.
 
 ## 🐑 Run as a Herdr plugin
 
-Herdr can keep the agent running in the background, with no tab. From a checkout, built as above:
+Herdr can keep the agent running in the background, with no tab. It needs Herdr 0.9.5 or newer,
+Node.js and pnpm (Herdr builds the plugin on this PC). Install it from GitHub:
+
+```sh
+herdr plugin install sheepvibecoder/remote-sheep
+```
+
+Or, from a checkout built as above:
 
 ```sh
 herdr plugin link /path/to/remote-sheep
@@ -76,6 +83,16 @@ Herdr starts it on its own start; the actions `start`, `stop` and `status` do it
 `remote-sheep start|stop|status` outside Herdr. Start leaves an agent that already runs alone.
 Started from Herdr, it says so with a Herdr notification: **remote-sheep ✓ — open
 http://localhost:&lt;port&gt;** with the port it listens on, or why it could not start.
+
+> **Windows:** if no notification shows up inside Herdr, have Herdr send them to Windows instead.
+> Add this to Herdr's `config.toml` (`%APPDATA%\herdr\config.toml`) and run
+> `herdr server reload-config`; they then appear in the Windows notification center (as a banner
+> unless Do not disturb is on). Herdr's own notices, such as an agent that finished, go there too.
+>
+> ```toml
+> [ui.toast]
+> delivery = "system"
+> ```
 
 Open that address in a browser on this PC and the page pairs itself, with no QR, and shows the
 sessions. Only a browser on this same PC can do it: the agent hands that pairing only to the page

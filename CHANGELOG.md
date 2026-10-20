@@ -18,7 +18,7 @@ All notable changes to remote-sheep are recorded here. The format follows
   starts in the background on its own. Herdr gets the actions `start`, `stop`, `status`,
   `restart`, `qr` (a pane with the QR code and the pairing links, including `127.0.0.1` for a
   browser on the same computer, that closes and leaves the agent running) and `relay` (a pane
-  that sets or turns off the relay).
+  that sets or turns off the relay). It needs Herdr 0.9.5 or newer, Node.js and pnpm.
 - **Port picked once and saved**: the first start takes 3998 or the next free port and keeps it;
   `remote-sheep port`, `port <n>` and `port auto` show and change it. `PORT` still wins.
 - **This PC's browser pairs itself**: opening `http://localhost:<port>` on the computer pairs that
