@@ -69,6 +69,16 @@ The first time, this starts remote-sheep: Herdr starts plugins only when its ser
 nothing runs right after the install. From then on it starts with Herdr. The pane shows the
 address, usually **http://localhost:3998**, and the QR code.
 
+> [!TIP]
+> **Nothing on http://localhost:3998?** Start it yourself, then check the port it took:
+>
+> ```sh
+> herdr plugin action invoke start --plugin sheepvibecoder.remote-sheep
+> ```
+>
+> `invoke` prints no result; see [If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start)
+> to read the port and any error.
+
 **3. Open it**
 
 - **On this PC:** open that address in your browser. It pairs at once — no QR, no password.
@@ -82,6 +92,20 @@ address, usually **http://localhost:3998**, and the QR code.
 
 That's it. Updates come from the app: **Settings → Update**. Something does not work? See
 [If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start).
+
+### Plugin actions
+
+Run them from Herdr's plugin actions, or from a terminal with
+`herdr plugin action invoke <action> --plugin sheepvibecoder.remote-sheep`.
+
+| Action    | Title in Herdr       | What it does                                                     |
+| --------- | -------------------- | ---------------------------------------------------------------- |
+| `start`   | Start remote-sheep   | Starts the agent in the background (nothing if it already runs). |
+| `stop`    | Stop remote-sheep    | Stops the agent.                                                 |
+| `restart` | Restart remote-sheep | Stops and starts it again, keeping its data, port and relay.     |
+| `status`  | remote-sheep status  | Says whether it runs, its port and its log file.                 |
+| `qr`      | Show pairing QR      | Starts the agent if needed and shows the pairing QR and links.   |
+| `relay`   | Set the relay        | Starts the agent if needed and sets or turns off the relay.      |
 
 ## 🌍 Use it away from home (optional)
 
