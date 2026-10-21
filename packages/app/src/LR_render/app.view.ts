@@ -365,7 +365,26 @@ function syncHistory(view: typeof state.view): void {
   else if (view === 'list' && inside) history.back();
 }
 
+// An enlarged screenshot gets a history entry of its own too, so the back gesture
+// closes it instead of leaving the chat.
+let enlargedImage: HTMLImageElement | null = null;
+
+function toggleEnlarged(img: HTMLImageElement): void {
+  if (enlargedImage === img) {
+    history.back();
+    return;
+  }
+  img.classList.add('enlarged');
+  enlargedImage = img;
+  history.pushState({ inside: true, enlarged: true }, '');
+}
+
 window.addEventListener('popstate', () => {
+  if (enlargedImage) {
+    enlargedImage.classList.remove('enlarged');
+    enlargedImage = null;
+    return;
+  }
   if (state.view !== 'list') store.back();
 });
 
@@ -895,7 +914,9 @@ function renderImage(bubble: HTMLElement, message: ChatMessage): void {
   img.alt = 'loading screenshot';
   img.loading = 'lazy';
   // Enlarged in the page: opening the blob URL would load it as a document of the PWA's origin.
-  img.addEventListener('click', () => img.classList.toggle('enlarged'));
+  img.addEventListener('click', () => {
+    toggleEnlarged(img);
+  });
   bubble.append(img);
   if (watcher) watcher.observe(img);
   else void loadImage(img);
