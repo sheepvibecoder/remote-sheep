@@ -4,7 +4,7 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
-import { CLOSE_PROTOCOL } from '@remote-sheep/protocol';
+import { CLOSE_PROTOCOL, SECURITY_HEADERS } from '@remote-sheep/protocol';
 import { LanTransport } from '../../../src/L3_periphery/lan/lan-transport';
 import type { Link } from '../../../src/L1_domain/ports/link';
 
@@ -36,6 +36,16 @@ describe('LanTransport', () => {
     await transport.start(accept);
     return transport.port();
   }
+
+  it('sends the security headers with the page and with a static asset', async () => {
+    const port = await start();
+    for (const path of ['/', '/index.html']) {
+      const response = await fetch('http://127.0.0.1:' + port + path);
+      for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+        expect(response.headers.get(name), path + ' ' + name).toBe(value);
+      }
+    }
+  });
 
   it('moves binary frames both ways without reading them', async () => {
     const received: Uint8Array[] = [];

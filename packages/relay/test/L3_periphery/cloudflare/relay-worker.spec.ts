@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SECURITY_HEADERS } from '@remote-sheep/protocol';
 import {
   handleWorkerRequest,
   type RoomNamespace,
@@ -37,6 +38,15 @@ const upgrade = (path: string) =>
   new Request('https://relay.test' + path, { headers: { Upgrade: 'websocket' } });
 
 describe('handleWorkerRequest', () => {
+  it('adds the security headers to what the app assets answer', async () => {
+    const { env } = fakeEnv();
+    const response = await handleWorkerRequest(new Request('https://relay.test/'), env);
+    expect(await response.text()).toBe('app');
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+      expect(response.headers.get(name), name).toBe(value);
+    }
+  });
+
   it('sends the agent socket to the room named in its path', async () => {
     const { env, asked } = fakeEnv();
     const response = await handleWorkerRequest(upgrade('/agent/' + ROOM), env);

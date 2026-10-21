@@ -15,6 +15,7 @@ import { decodeBase64Url } from './secure/base64url';
 export { decodeFrame, encodeFrame, type Frame } from './frame';
 export { PROTOCOL } from './version';
 export { DISPLAYABLE_IMAGE_TYPES, isDisplayableImage } from './image-media';
+export { SECURITY_HEADERS } from './security-headers';
 export {
   decodeRelayEnvelope,
   encodeRelayEnvelope,

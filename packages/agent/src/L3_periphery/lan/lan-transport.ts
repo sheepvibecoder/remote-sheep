@@ -23,7 +23,7 @@ import { createServer as createHttps } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import { type RawData, WebSocket, WebSocketServer } from 'ws';
-import { CLOSE_PROTOCOL, RELAY_PING, RELAY_PONG } from '@remote-sheep/protocol';
+import { CLOSE_PROTOCOL, RELAY_PING, RELAY_PONG, SECURITY_HEADERS } from '@remote-sheep/protocol';
 import type { Link, LinkServer } from '../../L1_domain/ports/link';
 import { isLoopbackAddress } from '../control/http-control-server';
 
@@ -199,6 +199,7 @@ export class LanTransport implements LinkServer {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
       'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-store',
       'x-content-type-options': 'nosniff',
+      ...SECURITY_HEADERS,
     });
     res.end(req.method === 'HEAD' ? undefined : body);
   }
