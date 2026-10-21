@@ -27,8 +27,10 @@ release, October 2026:
 
 - 🔍 **Static analysis** of the code with SonarQube and Semgrep.
 - 📦 **Dependency audit** with `pnpm audit --prod` and Trivy: no known vulnerabilities.
-- 🔑 **Secret scanning** with Trivy and on every commit and pull request.
+- 🔑 **Secret scanning** with Trivy and on every commit and pull request; GitHub push protection
+  refuses a push that carries a known secret.
 - 🤖 **Dependabot alerts** watch the dependencies for vulnerabilities and malware after release.
+- 🔬 **CodeQL** scans every push and pull request to `main`, and once a week.
 - 🕷️ **Dynamic scan** of the running app with OWASP ZAP (baseline): no failures.
 - 🧠 **Design review** of the encrypted channel, pairing, relay, LAN server, command execution,
   uploads and the phone app, read as an attacker would.
