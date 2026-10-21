@@ -6,6 +6,16 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-10-21
+
+### Fixed
+
+- **First start of the Herdr plugin**: Herdr starts a plugin only when its server starts, so
+  nothing ran right after `herdr plugin install`. **Show pairing QR** and **Set the relay** now
+  start the agent when it is not running.
+- **Install instructions**: the README now lists pnpm 11 and the restart Herdr needs after an
+  update, and the guide gains [If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start).
+
 ## [0.10.1] — 2026-10-21
 
 ### Fixed
