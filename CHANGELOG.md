@@ -6,6 +6,8 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-21
+
 ### Added
 
 - **Context %** of a Claude Code session: next to the model in the message box (`Opus 5.5 · 12%`,
@@ -52,6 +54,16 @@ All notable changes to remote-sheep are recorded here. The format follows
 ### Fixed
 
 - The unread dot on the **Sessions** tab is round again instead of a stretched oval.
+
+### Security
+
+- **Images that could run script are refused**: the agent offers only png, jpeg, gif and webp
+  from a transcript, and the phone enlarges a tapped image in the page instead of opening it.
+- **Security headers on every page** the agent or the relay serves: a Content-Security-Policy
+  with no inline script, anti-framing, Permissions-Policy and cross-origin isolation.
+- **LAN server**: a page from another origin can no longer open `/ws`, and at most 8 links may
+  wait for the handshake, so unauthenticated sockets cannot exhaust the agent's memory.
+- [docs/security-checks.md](docs/security-checks.md): the checks every release runs.
 
 ## [0.9.0] — 2026-10-19
 
