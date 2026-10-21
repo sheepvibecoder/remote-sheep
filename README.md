@@ -6,55 +6,28 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-0.9.0-7c3aed?style=flat-square" alt="version 0.9.0">
   <img src="https://img.shields.io/badge/Herdr-plugin-22c55e?style=flat-square" alt="Herdr plugin">
-  <img src="https://img.shields.io/badge/web%20%2B%20phone-PWA-7c3aed?style=flat-square" alt="web and phone">
+  <img src="https://img.shields.io/badge/web%20%2B%20phone-PWA-7c3aed?style=flat-square" alt="web and phone PWA">
+  <img src="https://img.shields.io/badge/TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Angular-dd0031?style=flat-square&logo=angular&logoColor=white" alt="Angular">
+  <img src="https://img.shields.io/badge/Cloudflare-f38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare">
   <img src="https://img.shields.io/badge/E2E-encrypted-10b981?style=flat-square" alt="end-to-end encrypted">
   <img src="https://img.shields.io/badge/license-free%20to%20use-0ea5e9?style=flat-square" alt="free to use">
 </p>
 
 <p align="center">
-  <img src=".github/assets/demo-web.gif" alt="Driving Claude Code from a browser" width="560">
-  &nbsp;
-  <img src=".github/assets/demo-phone.gif" alt="Driving Claude Code from a phone" width="220">
+  <img src=".github/assets/demo-duo.gif" alt="A session finishes in the PC browser, the phone gets a notification, the reply is dictated on the phone and appears on both screens at once" width="100%">
 </p>
 
-## ✨ One plugin, web and phone
+## ⚙️ How it works
 
 <p align="center">
-  <img src=".github/assets/desktop.png" alt="remote-sheep in a browser on the PC: sessions on the left, a chat with code on the right" width="820">
-  <br><sub>💻 <b>In your browser</b> — every session and its chat, side by side, on the PC.</sub>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/how-it-works-dark.png">
+    <img src=".github/assets/how-it-works-light.png" alt="How remote-sheep works: your PC runs Herdr and your AI agents; it reaches your browser and your phone directly on your home network (LAN), or from anywhere through your own Cloudflare relay. Everything is end-to-end encrypted and the relay reads nothing. Features: notifications when an agent finishes or asks, chat like a messenger, voice dictation and read aloud, mark up photos and screenshots, installs as an app (PWA), several sessions at once." width="100%">
+  </picture>
 </p>
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src=".github/assets/notify.png" alt="Sessions list on a phone, one waiting for an answer" width="220"><br>
-      <b>🔔 Know who needs you</b><br><sub>A notification the moment a session finishes or asks something.</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src=".github/assets/chat.png" alt="A chat with Claude Code on a phone" width="220"><br>
-      <b>💬 Chat like a messenger</b><br><sub>Read the reply, send the next order, keep it moving.</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src=".github/assets/voice.png" alt="Dictating an order on a phone" width="220"><br>
-      <b>🎙️ Just say it</b><br><sub>Dictate orders and hear the replies read aloud.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src=".github/assets/editor.png" alt="Drawing on a screenshot in the photo editor" width="220"><br>
-      <b>✏️ Mark it up</b><br><sub>Circle the bug on a photo or a screenshot before you send it.</sub>
-    </td>
-    <td align="center">
-      <img src=".github/assets/photo.png" alt="A marked-up photo sent in a chat and the agent's fix" width="220"><br>
-      <b>📸 Show, don't type</b><br><sub>Send the picture; the agent sees it and fixes it.</sub>
-    </td>
-    <td align="center">
-      <img src=".github/assets/demo-photo.gif" alt="Marking a photo and sending it from a phone" width="220"><br>
-      <b>📱 Install it like an app</b><br><sub>Add it to the home screen on Android or iPhone.</sub>
-    </td>
-  </tr>
-</table>
 
 ## 🐑 Why remote-sheep
 
