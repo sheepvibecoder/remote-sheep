@@ -253,6 +253,20 @@ describe('ClaudeTranscripts', () => {
     expect(transcripts.image(file, 'garbage')).toBeNull();
   });
 
+  it('does not offer an image whose type could carry script', () => {
+    const file = transcriptPath('s1');
+    const block = (media_type: string) => ({
+      type: 'image',
+      source: { type: 'base64', media_type, data: 'iVBO' },
+    });
+    writeFileSync(file, user('u1', [block('image/svg+xml'), block('image/png')]));
+    expect(transcripts.read(file).messages).toEqual([
+      { id: 'u1:1', role: 'user', kind: 'image', media: 'image/png' },
+    ]);
+    expect(transcripts.image(file, 'u1:0')).toBeNull();
+    expect(transcripts.image(file, 'u1:1')).toMatchObject({ media: 'image/png' });
+  });
+
   it('notices when the transcript grows', async () => {
     const file = transcriptPath('s1');
     writeFileSync(file, user('u1', 'hola'));

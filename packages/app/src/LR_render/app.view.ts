@@ -20,7 +20,13 @@ import {
   type ComponentRef,
   type EnvironmentInjector,
 } from '@angular/core';
-import type { ChatMessage, Request, ResultOf, UploadResult } from '@remote-sheep/protocol';
+import {
+  isDisplayableImage,
+  type ChatMessage,
+  type Request,
+  type ResultOf,
+  type UploadResult,
+} from '@remote-sheep/protocol';
 import type { LinkState } from '../L1_domain/link-state';
 import { modelLabel } from '../L1_domain/chat';
 import type { ContextFill } from '../L1_domain/context-window';
@@ -867,7 +873,9 @@ async function loadImage(img: HTMLImageElement): Promise<void> {
       id: must(img.dataset['id'], 'image id'),
     });
     img.src = URL.createObjectURL(
-      new Blob([found.data as Uint8Array<ArrayBuffer>], { type: found.media }),
+      new Blob([found.data as Uint8Array<ArrayBuffer>], {
+        type: isDisplayableImage(found.media) ? found.media : 'application/octet-stream',
+      }),
     );
     img.alt = 'screenshot';
   } catch {
@@ -886,7 +894,8 @@ function renderImage(bubble: HTMLElement, message: ChatMessage): void {
   img.dataset['id'] = message.id;
   img.alt = 'loading screenshot';
   img.loading = 'lazy';
-  img.addEventListener('click', () => window.open(img.src, '_blank'));
+  // Enlarged in the page: opening the blob URL would load it as a document of the PWA's origin.
+  img.addEventListener('click', () => img.classList.toggle('enlarged'));
   bubble.append(img);
   if (watcher) watcher.observe(img);
   else void loadImage(img);

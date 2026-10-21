@@ -18,7 +18,12 @@ import {
   watch,
 } from 'node:fs';
 import { join } from 'node:path';
-import type { ChatMessage, ImageResult, Role } from '@remote-sheep/protocol';
+import {
+  isDisplayableImage,
+  type ChatMessage,
+  type ImageResult,
+  type Role,
+} from '@remote-sheep/protocol';
 import type { Chat, Located, TranscriptSource } from '../../L1_domain/ports/transcript';
 
 export interface ClaudeOptions {
@@ -165,6 +170,8 @@ export class ClaudeTranscripts implements TranscriptSource {
         const id = uuid + ':' + i;
         if (block?.type === 'image' && block.source?.data) {
           const media = block.source.media_type || 'image/png';
+          // The type is untrusted and the phone builds a blob of it: see isDisplayableImage.
+          if (!isDisplayableImage(media)) return;
           messages.push({ id, role, kind: 'image', media, ...at });
           return;
         }
@@ -190,8 +197,10 @@ export class ClaudeTranscripts implements TranscriptSource {
       if (!entry || (entry.uuid || entry.messageId) !== uuid) continue;
       const block = blocksOf(entry)[index];
       if (block?.type !== 'image' || !block.source?.data) return null;
+      const media = block.source.media_type || 'image/png';
+      if (!isDisplayableImage(media)) return null;
       return {
-        media: block.source.media_type || 'image/png',
+        media,
         data: Buffer.from(block.source.data, 'base64'),
       };
     }
