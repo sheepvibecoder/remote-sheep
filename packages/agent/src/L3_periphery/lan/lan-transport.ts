@@ -11,6 +11,11 @@
 // the Origin is that same address (another site's page, or a request with no Origin, is refused).
 // No CORS header is ever sent. Any program on this PC can still ask, as it could read the agent's
 // files: that is the trade-off of pairing "only from your PC".
+//
+// The `/ws` upgrade is open to any page the user visits (a WebSocket ignores CORS) and the
+// handshake limit runs only after `ws` has buffered a whole message, so two guards bound what a
+// stranger can cost before the secure channel has authenticated it: a browser Origin must be this
+// agent's own, and only a few links may be mid-handshake at once.
 
 import { readFileSync } from 'node:fs';
 import {
@@ -23,7 +28,13 @@ import { createServer as createHttps } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import { type RawData, WebSocket, WebSocketServer } from 'ws';
-import { CLOSE_PROTOCOL, RELAY_PING, RELAY_PONG, SECURITY_HEADERS } from '@remote-sheep/protocol';
+import {
+  AUTH_TIMEOUT_MS,
+  CLOSE_PROTOCOL,
+  RELAY_PING,
+  RELAY_PONG,
+  SECURITY_HEADERS,
+} from '@remote-sheep/protocol';
 import type { Link, LinkServer } from '../../L1_domain/ports/link';
 import { isLoopbackAddress } from '../control/http-control-server';
 
@@ -36,6 +47,10 @@ export interface LanOptions {
   busyHint?: string;
   /** A new encoded invite for a browser on this PC; without it there is no `/local-pairing`. */
   localInvite?: () => string;
+  /** Links allowed to be mid-handshake at once; the next upgrade is refused with 503. */
+  maxPending?: number;
+  /** How long a link counts as mid-handshake; only tests shorten it. */
+  pendingMs?: number;
 }
 
 const LOCAL_PAIRING = '/local-pairing';
@@ -44,6 +59,15 @@ const LOOPBACK_NAMES = ['localhost', '127.0.0.1'];
 // Above the 12 MB upload limit, so a photo just over it is refused with a
 // message by the upload store instead of a dropped socket.
 const MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
+
+// A link that has not authenticated may hold up to MAX_MESSAGE_BYTES in `ws`'s buffer, so this
+// cap is the worst case of that memory: 8 x 16 MB = 128 MB. A phone opens one link at a time, so
+// eight leaves room for several devices reconnecting together.
+const MAX_PENDING_LINKS = 8;
+
+// The channel closes an unauthenticated link at AUTH_TIMEOUT_MS; the extra second keeps this
+// count from deciding "authenticated" a moment before that close is issued.
+const PENDING_GRACE_MS = 1000;
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -108,6 +132,10 @@ export class LanTransport implements LinkServer {
   private server: Server | null = null;
   private sockets: WebSocketServer | null = null;
   private readonly appDir: string;
+  // Links that may still be unauthenticated. The Link port does not say when the channel accepts
+  // one, but the channel closes the others by its deadline, so a link still open after it is a
+  // phone; one the channel is closing stays counted until the socket is really gone.
+  private readonly pending = new Set<WebSocket>();
 
   constructor(private readonly options: LanOptions) {
     this.appDir = resolve(options.appDir);
@@ -118,8 +146,21 @@ export class LanTransport implements LinkServer {
     const server = this.options.tls
       ? createHttps({ cert: this.options.tls.cert, key: this.options.tls.key }, serveFile)
       : createHttp(serveFile);
-    const sockets = new WebSocketServer({ server, path: '/ws', maxPayload: MAX_MESSAGE_BYTES });
-    sockets.on('connection', (socket) => accept(new LanLink(socket)));
+    const sockets = new WebSocketServer({
+      server,
+      path: '/ws',
+      maxPayload: MAX_MESSAGE_BYTES,
+      verifyClient: (info, done) => {
+        if (!this.sameOrigin(info.req)) done(false, 403, 'forbidden');
+        else if (this.pending.size >= (this.options.maxPending ?? MAX_PENDING_LINKS)) {
+          done(false, 503, 'busy');
+        } else done(true);
+      },
+    });
+    sockets.on('connection', (socket) => {
+      this.track(socket);
+      accept(new LanLink(socket));
+    });
     // The socket server re-emits every error of the http server; the listen
     // below already reports them, and an unheard error would end the process.
     sockets.on('error', ignore);
@@ -144,6 +185,7 @@ export class LanTransport implements LinkServer {
   }
 
   async stop(): Promise<void> {
+    this.pending.clear();
     for (const client of this.sockets?.clients ?? []) client.terminate();
     this.sockets?.close();
     await new Promise<void>((done) => (this.server ? this.server.close(() => done()) : done()));
@@ -153,6 +195,37 @@ export class LanTransport implements LinkServer {
 
   port(): number {
     return (this.server?.address() as AddressInfo | null)?.port ?? 0;
+  }
+
+  private track(socket: WebSocket): void {
+    this.pending.add(socket);
+    const release = () => this.pending.delete(socket);
+    socket.once('close', release);
+    const timer = setTimeout(
+      () => {
+        if (socket.readyState === WebSocket.OPEN) release();
+      },
+      this.options.pendingMs ?? AUTH_TIMEOUT_MS + PENDING_GRACE_MS,
+    );
+    socket.once('close', () => clearTimeout(timer));
+  }
+
+  /**
+   * A browser always sends its page's Origin, and the phone dials the host that served it, so a
+   * legitimate page has the Host it was served from (also behind the Angular dev proxy, which
+   * keeps the Host). Native clients and the relay send no Origin and are let through.
+   */
+  private sameOrigin(req: IncomingMessage): boolean {
+    const origin = req.headers.origin;
+    if (origin === undefined) return true;
+    try {
+      const url = new URL(origin);
+      return (
+        (url.protocol === 'http:' || url.protocol === 'https:') && url.host === req.headers.host
+      );
+    } catch {
+      return false;
+    }
   }
 
   private serve(req: IncomingMessage, res: ServerResponse): void {

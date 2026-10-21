@@ -8,8 +8,10 @@ import { CLOSE_PROTOCOL, SECURITY_HEADERS } from '@remote-sheep/protocol';
 import { LanTransport } from '../../../src/L3_periphery/lan/lan-transport';
 import type { Link } from '../../../src/L1_domain/ports/link';
 
-function connect(port: number, path = '/ws') {
-  const socket = new WebSocket('ws://127.0.0.1:' + port + path);
+function connect(port: number, path = '/ws', headers: Record<string, string> = {}) {
+  const socket = new WebSocket('ws://127.0.0.1:' + port + path, { headers });
+  // A refused upgrade is an expected outcome here, not an unhandled error.
+  socket.on('error', () => undefined);
   const inbox: Buffer[] = [];
   socket.on('message', (data) => inbox.push(data as Buffer));
   const closed = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)));
@@ -29,10 +31,13 @@ describe('LanTransport', () => {
     transport = undefined;
   });
 
-  async function start(accept: (link: Link) => void = () => {}) {
+  async function start(
+    accept: (link: Link) => void = () => {},
+    extra: { maxPending?: number; pendingMs?: number } = {},
+  ) {
     const appDir = mkdtempSync(join(tmpdir(), 'sheep-app-'));
     writeFileSync(join(appDir, 'index.html'), '<h1>sheep</h1>');
-    transport = new LanTransport({ port: 0, appDir });
+    transport = new LanTransport({ port: 0, appDir, ...extra });
     await transport.start(accept);
     return transport.port();
   }
@@ -108,6 +113,45 @@ describe('LanTransport', () => {
     expect(await phone.closed).toBe(4003);
     await until(() => ended);
     expect(ended).toBe(true);
+  });
+
+  describe('the /ws upgrade', () => {
+    /** Resolves with the HTTP status of a refused upgrade, or 101 when it opened. */
+    function outcome(phone: ReturnType<typeof connect>): Promise<number> {
+      return new Promise((resolve) => {
+        phone.socket.on('unexpected-response', (_req, res) => resolve(res.statusCode ?? 0));
+        phone.socket.on('open', () => resolve(101));
+      });
+    }
+
+    it('refuses a page from another origin, and accepts the own origin or none', async () => {
+      const port = await start();
+      const own = 'http://127.0.0.1:' + String(port);
+      expect(await outcome(connect(port, '/ws', { origin: 'https://evil.example' }))).toBe(403);
+      expect(await outcome(connect(port, '/ws', { origin: 'null' }))).toBe(403);
+      expect(await outcome(connect(port, '/ws', { origin: 'http://127.0.0.1:1' }))).toBe(403);
+      expect(await outcome(connect(port, '/ws', { origin: own }))).toBe(101);
+      expect(await outcome(connect(port))).toBe(101);
+    });
+
+    it('refuses the link past the pending cap, and takes one again when one closes', async () => {
+      const port = await start(() => {}, { maxPending: 2, pendingMs: 60_000 });
+      const first = connect(port);
+      expect(await outcome(first)).toBe(101);
+      expect(await outcome(connect(port))).toBe(101);
+      expect(await outcome(connect(port))).toBe(503);
+      first.socket.close();
+      await first.closed;
+      expect(await outcome(connect(port))).toBe(101);
+    });
+
+    it('stops counting a link that is still open after the handshake time', async () => {
+      const port = await start(() => {}, { maxPending: 1, pendingMs: 100 });
+      expect(await outcome(connect(port))).toBe(101);
+      expect(await outcome(connect(port))).toBe(503);
+      await new Promise((r) => setTimeout(r, 200));
+      expect(await outcome(connect(port))).toBe(101);
+    });
   });
 
   it('reports a port already in use instead of crashing', async () => {

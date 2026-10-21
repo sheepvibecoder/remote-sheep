@@ -48,6 +48,9 @@ page pairs itself with no QR and shows the sessions.
   page kept a pairing the agent no longer accepts (its data folder was
   replaced), it drops it and pairs itself again; a page on the network or the
   relay asks for a new QR instead.
+- The network socket (`/ws`) refuses a browser page served from another address
+  (HTTP 403) and allows at most 8 links mid-handshake at once (HTTP 503), so a
+  web page or a stranger cannot fill the agent's memory before pairing.
 - **Settings → Add a device** asks the computer for a new QR code and its links
   (relay first, then the network, then this PC) to pair another phone or
   browser; any paired device can ask, and it voids the previous code.
