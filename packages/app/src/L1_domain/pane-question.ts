@@ -10,7 +10,14 @@ export interface PaneChoice {
   selected: boolean;
 }
 
-const OPTION = /^\s*([❯>›]\s*)?(\d+)\.\s+(\S.*?)\s*$/;
+// The label runs to the end of the line and its trailing blanks are trimmed in code: a lazy
+// `(.*?)\s*$` would backtrack quadratically on a long run of spaces.
+const OPTION = /^\s*([❯>›]\s*)?(\d+)\.\s+(\S.*)/;
+
+function option(line: string): RegExpExecArray | null {
+  const match = OPTION.exec(line);
+  return match && line.slice(match[0].length).trim() === '' ? match : null;
+}
 
 /** Lines after the last option that may still belong to the prompt (a blank line, "Esc to cancel"). */
 const MAX_FOOTER_LINES = 3;
@@ -22,7 +29,7 @@ export function paneChoices(terminal: string): PaneChoice[] {
 
   let last = -1;
   for (let i = lines.length - 1; i >= 0 && i >= lines.length - 1 - MAX_FOOTER_LINES; i--) {
-    if (OPTION.test(lines[i] ?? '')) {
+    if (option(lines[i] ?? '')) {
       last = i;
       break;
     }
@@ -31,11 +38,11 @@ export function paneChoices(terminal: string): PaneChoice[] {
 
   const choices: PaneChoice[] = [];
   for (let i = last; i >= 0; i--) {
-    const match = OPTION.exec(lines[i] ?? '');
+    const match = option(lines[i] ?? '');
     if (!match) break;
     choices.unshift({
       key: match[2] ?? '',
-      label: match[3] ?? '',
+      label: (match[3] ?? '').trimEnd(),
       selected: match[1] !== undefined,
     });
   }

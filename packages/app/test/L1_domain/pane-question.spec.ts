@@ -49,6 +49,17 @@ describe('paneChoices', () => {
     expect(paneChoices(footer(4))).toEqual([]);
   });
 
+  it('trims the blanks after a label, a carriage return included', () => {
+    expect(paneChoices('1. Yes   \r\n2.  No \t\n').map((c) => c.label)).toEqual(['Yes', 'No']);
+  });
+
+  it('refuses a line whose label is cut by a carriage return, and stays fast on long blanks', () => {
+    expect(paneChoices('1. Yes\rmore\n2. No\n')).toEqual([]);
+    const started = Date.now();
+    expect(paneChoices('1. a' + ' '.repeat(50000) + '\rx\n2. b\n')).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
   it('reads only the last question when two are on screen', () => {
     const text = '1. old\n2. old\n\n' + PERMISSION;
     expect(paneChoices(text)).toHaveLength(3);

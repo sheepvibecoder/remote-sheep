@@ -4,7 +4,8 @@
 export type Piece =
   { kind: 'text'; text: string } | { kind: 'code'; language: string; code: string };
 
-const FENCE = /^```([\w+-]*)[^\n]*$/;
+// Tested on one line at a time, so the info text after the language needs no pattern of its own.
+const FENCE = /^```([\w+-]*)/;
 
 /** Prose and fenced code, in order. A fence still being written runs to the end. */
 export function splitCode(raw: string): Piece[] {
