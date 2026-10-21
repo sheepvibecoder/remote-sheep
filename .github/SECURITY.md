@@ -20,6 +20,21 @@ Please do not open a public issue. Only the latest version gets fixes.
 - 🗝️ **Secrets stay home.** Keys and paired phones live in `~/.remote-sheep`, never in the repository.
 - ⏱️ **Pairings expire.** A QR code lasts 5 minutes; an unused pairing ends after 24 hours.
 
+## Checks we run
+
+Every release follows [docs/security-checks.md](../docs/security-checks.md). Last run before
+release, October 2026:
+
+- 🔍 **Static analysis** of the code with SonarQube and Semgrep.
+- 📦 **Dependency audit** with `pnpm audit --prod` and Trivy: no known vulnerabilities.
+- 🔑 **Secret scanning** with Trivy and on every commit and pull request.
+- 🤖 **Dependabot alerts** watch the dependencies for vulnerabilities and malware after release.
+- 🕷️ **Dynamic scan** of the running app with OWASP ZAP (baseline): no failures.
+- 🧠 **Design review** of the encrypted channel, pairing, relay, LAN server, command execution,
+  uploads and the phone app, read as an attacker would.
+- 🛡️ **Browser hardening**: a strict Content-Security-Policy and anti-framing, permissions and
+  cross-origin headers on every page the agent or the relay serves.
+
 ## Known limit
 
 On the local network the app is served over plain HTTP, so the browser cannot keep the keys as
