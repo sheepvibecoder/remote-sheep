@@ -33,6 +33,12 @@ describe('projectDirName', () => {
   it('flattens a cwd the way Claude Code names its project folders', () => {
     expect(projectDirName('C:\\Users\\me\\remote-sheep\\')).toBe('C--Users-me-remote-sheep');
   });
+
+  it('drops every trailing separator, of either kind', () => {
+    expect(projectDirName('/home/me/app/\\//')).toBe('-home-me-app');
+    expect(projectDirName('/home/me')).toBe('-home-me');
+    expect(projectDirName('///')).toBe('');
+  });
 });
 
 describe('ClaudeTranscripts', () => {

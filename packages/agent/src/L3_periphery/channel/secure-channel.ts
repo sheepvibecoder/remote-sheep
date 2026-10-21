@@ -90,18 +90,21 @@ class PhoneLink {
   // Frames are handled strictly in order: the handshake awaits the registry,
   // and the session cipher expects frames in the order they were sent.
   private queue: Promise<void> = Promise.resolve();
-  private readonly deadline: ReturnType<typeof setTimeout>;
+  private deadline: ReturnType<typeof setTimeout> | null = null;
   private check: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly link: Link,
     private readonly options: SecureChannelOptions,
-  ) {
+  ) {}
+
+  /** Starts the handshake deadline and listens to the link until it closes. */
+  start(): void {
     this.deadline = setTimeout(
       () => this.refuse(CLOSE_UNAUTHORIZED, 'unauthorized'),
-      options.authTimeoutMs ?? AUTH_TIMEOUT_MS,
+      this.options.authTimeoutMs ?? AUTH_TIMEOUT_MS,
     );
-    link.onMessage((data) => {
+    this.link.onMessage((data) => {
       this.queue = this.queue.then(
         () => this.handle(data),
         () => undefined,
@@ -112,7 +115,7 @@ class PhoneLink {
         this.refuse(CLOSE_UNAUTHORIZED, 'unauthorized');
       });
     });
-    link.onClose(() => this.ended());
+    this.link.onClose(() => this.ended());
   }
 
   private async handle(data: Uint8Array): Promise<void> {
@@ -189,7 +192,7 @@ class PhoneLink {
       return;
     }
 
-    clearTimeout(this.deadline);
+    if (this.deadline) clearTimeout(this.deadline);
     const connection = new SecureConnection(device.id, this.link, accepted.session);
     this.connection = connection;
     connection.send({
@@ -269,13 +272,13 @@ class PhoneLink {
   private refuse(code: number, reason: string): void {
     if (this.closed) return;
     this.closed = true;
-    clearTimeout(this.deadline);
+    if (this.deadline) clearTimeout(this.deadline);
     this.link.close(code, reason);
   }
 
   private ended(): void {
     this.closed = true;
-    clearTimeout(this.deadline);
+    if (this.deadline) clearTimeout(this.deadline);
     if (this.check) clearInterval(this.check);
     if (this.connection) this.options.events.close(this.connection);
   }
@@ -289,6 +292,6 @@ export class SecureChannel implements Channel {
   constructor(private readonly options: SecureChannelOptions) {}
 
   accept(link: Link): void {
-    new PhoneLink(link, this.options);
+    new PhoneLink(link, this.options).start();
   }
 }

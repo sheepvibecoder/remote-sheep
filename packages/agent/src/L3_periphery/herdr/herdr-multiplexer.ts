@@ -60,7 +60,14 @@ interface HerdrPane {
 
 const ABSOLUTE_PATH = /^([a-zA-Z]:[\\/]|\/)/;
 
-const lastSegment = (path: string) => basename(path.replace(/[\\/]+$/, '').replace(/\\/g, '/'));
+// A loop, not /[\\/]+$/: that regex rescans a run of separators from each of its positions.
+function withoutTrailingSeparators(path: string): string {
+  let end = path.length;
+  while (end > 0 && (path[end - 1] === '/' || path[end - 1] === '\\')) end--;
+  return path.slice(0, end);
+}
+
+const lastSegment = (path: string) => basename(withoutTrailingSeparators(path).replace(/\\/g, '/'));
 
 function toSession(pane: HerdrPane, kind: SessionKind): Session {
   const target = pane.pane_id ?? '';
@@ -113,11 +120,14 @@ export function parseWorkspaceList(raw: string): Workspace[] {
 const RULER = /([─-╿=_-])\1{19,}/g;
 
 export function tidyTerminal(raw: string): string {
-  return raw
+  const text = raw
     .split('\n')
-    .map((line) => line.replace(/\s+$/, '').replace(RULER, (_run, char: string) => char.repeat(20)))
-    .join('\n')
-    .replace(/\n+$/, '');
+    .map((line) => line.trimEnd().replace(RULER, (_run, char: string) => char.repeat(20)))
+    .join('\n');
+  // A loop, not /\n+$/: that regex rescans a run of newlines from each of its positions.
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '\n') end--;
+  return text.slice(0, end);
 }
 
 const PID_TTL_MS = 15000;

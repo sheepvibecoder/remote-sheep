@@ -259,6 +259,8 @@ export interface StopWaits {
   killMs: number;
 }
 
+const STOP_WAITS: StopWaits = { termMs: 5000, killMs: 2000 };
+
 const SYSTEM_SIGNALS: ProcessSignals = {
   alive,
   kill: (pid, signal) => process.kill(pid, signal),
@@ -281,7 +283,7 @@ export function nodeAgentProcesses(
   script: string,
   cwd: string,
   signals: ProcessSignals = SYSTEM_SIGNALS,
-  waits: StopWaits = { termMs: 5000, killMs: 2000 },
+  waits: StopWaits = STOP_WAITS,
 ): AgentProcesses {
   const name = basename(script);
   return {

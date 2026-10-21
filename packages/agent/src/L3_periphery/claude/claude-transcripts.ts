@@ -54,7 +54,14 @@ export function stripEnvelopes(raw: string): string {
 
 /** Claude Code names a project folder after its cwd, every non-alphanumeric turned into a dash. */
 export function projectDirName(cwd: string): string {
-  return cwd.replace(/[\\/]+$/, '').replace(/[^a-zA-Z0-9]/g, '-');
+  return withoutTrailingSeparators(cwd).replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+// A loop, not /[\\/]+$/: that regex rescans a run of separators from each of its positions.
+function withoutTrailingSeparators(path: string): string {
+  let end = path.length;
+  while (end > 0 && (path[end - 1] === '/' || path[end - 1] === '\\')) end--;
+  return path.slice(0, end);
 }
 
 interface Block {
@@ -149,7 +156,7 @@ export class ClaudeTranscripts implements TranscriptSource {
       if (role === 'assistant' && named !== SYNTHETIC && usage && typeof usage === 'object') {
         usedTokens = contextOf(usage);
       }
-      const time = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
+      const time = entry.timestamp ? Date.parse(entry.timestamp) : Number.NaN;
       const at = Number.isFinite(time) ? { at: time } : {};
       // The id is uuid:index, so it points straight back at its block when the
       // image bytes are asked for later.

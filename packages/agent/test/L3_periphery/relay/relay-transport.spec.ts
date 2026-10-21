@@ -170,6 +170,8 @@ describe('RelayTransport', () => {
     fake.sockets[0]!.terminate();
     await until(() => ended === 2);
     await until(() => fake.sockets.length === 2);
+    expect(ended).toBe(2);
+    expect(fake.sockets).toHaveLength(2);
   });
 
   it('does not reconnect or report connected after the relay answers 403', async () => {
@@ -221,6 +223,7 @@ describe('RelayTransport', () => {
     await until(() => states.includes('connected'));
     fake.sockets[0]!.terminate();
     await until(() => states.includes('disconnected'));
+    expect(states.indexOf('disconnected')).toBeGreaterThan(states.indexOf('connected'));
   });
 
   it('stop closes the socket, ends links and stops reconnecting', async () => {
