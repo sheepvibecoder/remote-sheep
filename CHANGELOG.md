@@ -6,6 +6,12 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-21
+
+### Fixed
+
+- The back gesture closes an enlarged screenshot instead of leaving the chat.
+
 ## [0.10.0] — 2026-10-21
 
 ### Added
