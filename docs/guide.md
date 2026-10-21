@@ -205,6 +205,32 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem \
 A self-signed certificate warns once and blocks installing the app to the
 home screen; a real certificate removes both.
 
+### If the plugin does not start
+
+- **Nothing answers right after the install.** Herdr runs a plugin's startup hook only when its
+  server starts, not on `herdr plugin install`. Run **Show pairing QR** (it starts the agent
+  first), `herdr plugin action invoke start --plugin sheepvibecoder.remote-sheep`, or restart
+  Herdr.
+- **See what happened.** `herdr plugin action invoke` prints no result; each action's output goes
+  to the plugin log. In PowerShell:
+
+  ```powershell
+  herdr plugin log list --plugin sheepvibecoder.remote-sheep | ConvertFrom-Json |
+    ForEach-Object { $_.result.logs } |
+    Select-Object action_id, status, exit_code, stdout, stderr | Format-List
+  ```
+
+  `start` and `status` print the port (3998, or the next free one) and the path of `agent.log`.
+
+- **"plugin requires Herdr 0.9.5 or newer; current Herdr is 0.9.0" after `herdr update`.** The
+  server that was running still is the old version. `herdr server stop` (it closes every Herdr
+  pane, so save your work first), then start Herdr again and install.
+- **`pnpm install` fails with "os error 183" or "already exists" in the pnpm store.** A previous
+  install left a folder half written. Install again; if it fails the same way, run
+  `pnpm store prune` and install again.
+- **The phone cannot reach the address.** Windows Firewall blocks Node the first time; allow it on
+  private networks. The phone must be on the same network as the computer.
+
 ### Updating
 
 **Settings → Update** shows the version the computer runs. When the agent runs as the Herdr

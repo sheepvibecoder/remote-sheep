@@ -31,6 +31,10 @@ const PANES = new Map([
   ['open-relay', 'relay'],
 ]);
 const PLUGIN_ID = 'sheepvibecoder.remote-sheep';
+// Herdr runs the [[startup]] hook only when its server starts, not on `plugin install`, so right
+// after an install nothing is running yet. The panes start the agent first (a no-op when it
+// already runs), so install, then Show pairing QR, works with no extra step.
+const NEEDS_AGENT = new Set(['qr', 'relay']);
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const agent = join(root, 'packages', 'agent', 'dist', 'remote-sheep.js');
@@ -58,11 +62,16 @@ if (pane) {
   console.error('remote-sheep is not built: run `pnpm install` and `pnpm build` in ' + root);
   process.exitCode = 1;
 } else {
-  const result = spawnSync(process.execPath, [agent, ...args], {
+  const started = NEEDS_AGENT.has(command) ? runAgent(['start']) : 0;
+  process.exitCode = started === 0 ? runAgent(args) : started;
+}
+
+function runAgent(agentArgs) {
+  const result = spawnSync(process.execPath, [agent, ...agentArgs], {
     cwd: root,
     stdio: 'inherit',
     windowsHide: true,
   });
   if (result.error) console.error(result.error.message);
-  process.exitCode = result.status ?? 1;
+  return result.status ?? 1;
 }

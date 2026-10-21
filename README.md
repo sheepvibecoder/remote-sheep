@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.10.1-7c3aed?style=flat-square" alt="version 0.10.1">
+  <img src="https://img.shields.io/badge/version-0.10.2-7c3aed?style=flat-square" alt="version 0.10.2">
   <img src="https://img.shields.io/badge/Herdr-plugin-22c55e?style=flat-square" alt="Herdr plugin">
   <img src="https://img.shields.io/badge/web%20%2B%20phone-PWA-7c3aed?style=flat-square" alt="web and phone PWA">
   <img src="https://img.shields.io/badge/TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
@@ -43,10 +43,11 @@
 - **Voice, photos and notifications** — built for the moments you are away from the keyboard.
 - **Runs itself** — starts with Herdr, picks a free port, updates from the app.
 
-## 🚀 Get started in two steps
+## 🚀 Get started in three steps
 
 You need [Herdr](https://herdr.dev) 0.9.5 or newer, [Node.js](https://nodejs.org) 22+ and
-[pnpm](https://pnpm.io).
+[pnpm](https://pnpm.io) 11. Just updated Herdr? Restart it first: the server that was already
+running keeps the old version.
 
 **1. Install the plugin**
 
@@ -54,10 +55,21 @@ You need [Herdr](https://herdr.dev) 0.9.5 or newer, [Node.js](https://nodejs.org
 herdr plugin install sheepvibecoder/remote-sheep
 ```
 
-Herdr builds it and starts it in the background. A notification tells you the address:
-**remote-sheep ✓ — open http://localhost:3998**.
+Herdr downloads and builds it, which takes a few minutes.
 
-**2. Open it**
+**2. Show the pairing QR**
+
+In Herdr, run the plugin action **Show pairing QR**, or:
+
+```sh
+herdr plugin action invoke qr --plugin sheepvibecoder.remote-sheep
+```
+
+The first time, this starts remote-sheep: Herdr starts plugins only when its server starts, so
+nothing runs right after the install. From then on it starts with Herdr. The pane shows the
+address, usually **http://localhost:3998**, and the QR code.
+
+**3. Open it**
 
 - **On this PC:** open that address in your browser. It pairs at once — no QR, no password.
 - **On your phone:** in that page, open **Settings → Add a device** and scan the QR code.
@@ -68,7 +80,8 @@ Herdr builds it and starts it in the background. A notification tells you the ad
 </p>
 -->
 
-That's it. Updates come from the app: **Settings → Update**.
+That's it. Updates come from the app: **Settings → Update**. Something does not work? See
+[If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start).
 
 ## 🌍 Use it away from home (optional)
 
