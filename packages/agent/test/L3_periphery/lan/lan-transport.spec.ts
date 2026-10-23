@@ -1,5 +1,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
+import { connect as connectTcp } from 'node:net';
 import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -33,7 +34,7 @@ describe('LanTransport', () => {
 
   async function start(
     accept: (link: Link) => void = () => {},
-    extra: { maxPending?: number; pendingMs?: number } = {},
+    extra: { maxPending?: number; pendingMs?: number; timeoutMs?: number } = {},
   ) {
     const appDir = mkdtempSync(join(tmpdir(), 'sheep-app-'));
     writeFileSync(join(appDir, 'index.html'), '<h1>sheep</h1>');
@@ -152,6 +153,30 @@ describe('LanTransport', () => {
       await new Promise((r) => setTimeout(r, 200));
       expect(await outcome(connect(port))).toBe(101);
     });
+  });
+
+  it('closes a connection that sends nothing, or its headers too slowly, soon after its timeout', async () => {
+    const port = await start(() => {}, { timeoutMs: 200 });
+    for (const sent of ['', 'GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n']) {
+      const socket = connectTcp(port, '127.0.0.1', () => {
+        if (sent) socket.write(sent);
+      });
+      socket.on('error', () => undefined);
+      // Read what the server sends (its 408), or the socket never sees the end.
+      socket.resume();
+      const began = Date.now();
+      await new Promise<void>((resolve) => socket.on('close', () => resolve()));
+      expect(Date.now() - began).toBeLessThan(3000);
+    }
+  }, 15_000);
+
+  it('keeps an open phone link past the request timeout', async () => {
+    const port = await start(() => {}, { timeoutMs: 200 });
+    const phone = connect(port);
+    await phone.opened;
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(phone.socket.readyState).toBe(WebSocket.OPEN);
+    phone.socket.close();
   });
 
   it('reports a port already in use instead of crashing', async () => {

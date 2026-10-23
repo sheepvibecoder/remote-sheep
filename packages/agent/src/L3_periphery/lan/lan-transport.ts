@@ -51,6 +51,8 @@ export interface LanOptions {
   maxPending?: number;
   /** How long a link counts as mid-handshake; only tests shorten it. */
   pendingMs?: number;
+  /** How long a connection may take to send its request; 10 s by default, tests shorten it. */
+  timeoutMs?: number;
 }
 
 const LOCAL_PAIRING = '/local-pairing';
@@ -68,6 +70,14 @@ const MAX_PENDING_LINKS = 8;
 // The channel closes an unauthenticated link at AUTH_TIMEOUT_MS; the extra second keeps this
 // count from deciding "authenticated" a moment before that close is issued.
 const PENDING_GRACE_MS = 1000;
+
+// Every request is a GET of the app or a small pairing POST, sent at once even over a weak Wi-Fi;
+// a connection slower than this is holding a socket open, not loading the page. A phone link
+// outlives it because `ws` turns the socket's timeout off once it upgrades.
+const REQUEST_TIMEOUT_MS = 10_000;
+// Node enforces the timeouts on a timer that runs every 30 s by default; checking every second
+// closes a slow connection right after its timeout.
+const CHECK_INTERVAL_MS = 1000;
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -143,9 +153,21 @@ export class LanTransport implements LinkServer {
 
   async start(accept: (link: Link) => void): Promise<void> {
     const serveFile = (req: IncomingMessage, res: ServerResponse) => this.serve(req, res);
+    const timeout = this.options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    const limits = {
+      requestTimeout: timeout,
+      headersTimeout: timeout,
+      connectionsCheckingInterval: Math.min(CHECK_INTERVAL_MS, timeout),
+    };
     const server = this.options.tls
-      ? createHttps({ cert: this.options.tls.cert, key: this.options.tls.key }, serveFile)
-      : createHttp(serveFile);
+      ? createHttps(
+          { ...limits, cert: this.options.tls.cert, key: this.options.tls.key },
+          serveFile,
+        )
+      : createHttp(limits, serveFile);
+    // The request timeouts start with the first byte; a connection that sends nothing at all
+    // is closed by the socket's own inactivity timeout.
+    server.timeout = timeout;
     const sockets = new WebSocketServer({
       server,
       path: '/ws',

@@ -14632,6 +14632,8 @@ var LOOPBACK_NAMES = ["localhost", "127.0.0.1"];
 var MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
 var MAX_PENDING_LINKS = 8;
 var PENDING_GRACE_MS = 1e3;
+var REQUEST_TIMEOUT_MS2 = 1e4;
+var CHECK_INTERVAL_MS2 = 1e3;
 var TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -14696,7 +14698,17 @@ var LanTransport = class {
   pending = /* @__PURE__ */ new Set();
   async start(accept) {
     const serveFile = (req, res) => this.serve(req, res);
-    const server = this.options.tls ? createHttps({ cert: this.options.tls.cert, key: this.options.tls.key }, serveFile) : createHttp(serveFile);
+    const timeout = this.options.timeoutMs ?? REQUEST_TIMEOUT_MS2;
+    const limits = {
+      requestTimeout: timeout,
+      headersTimeout: timeout,
+      connectionsCheckingInterval: Math.min(CHECK_INTERVAL_MS2, timeout)
+    };
+    const server = this.options.tls ? createHttps(
+      { ...limits, cert: this.options.tls.cert, key: this.options.tls.key },
+      serveFile
+    ) : createHttp(limits, serveFile);
+    server.timeout = timeout;
     const sockets = new import_websocket_server.default({
       server,
       path: "/ws",
