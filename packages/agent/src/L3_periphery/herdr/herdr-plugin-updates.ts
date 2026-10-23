@@ -1,8 +1,8 @@
 // The plugin's update through Herdr: `herdr plugin update` fetches the commit the install asked
-// for, builds it in a new installation folder and registers it; nothing already running changes.
-// So the agent then restarts through the plugin's `restart` action, which Herdr runs from the new
-// installation, with the same state folder: the new build starts with the same data, port and
-// relay. What Herdr prints is read as of Herdr 0.9.5 (src/cli/plugin.rs).
+// for into a new installation folder and registers it (the built agent is committed, so there is
+// no build step); nothing already running changes. So the agent then restarts through the
+// plugin's `restart` action, which Herdr runs from the new installation, with the same state
+// folder: the new build starts with the same data, port and relay. What Herdr prints is read as of Herdr 0.9.5 (src/cli/plugin.rs).
 
 import { execFile } from 'node:child_process';
 import type { PluginUpdate, PluginUpdates } from '../../L1_domain/ports/plugin-updates';
@@ -11,12 +11,13 @@ export const PLUGIN_ID = 'sheepvibecoder.remote-sheep';
 
 export const LINKED_PLUGIN =
   'This plugin is linked from a folder on the computer (herdr plugin link), which Herdr does ' +
-  'not update: run `git pull` and `pnpm build` in that folder, then restart the agent.';
+  'not update: run `git pull` in that folder (it holds the built agent; run `pnpm build` only if ' +
+  'you changed the code), then restart the agent.';
 
 export const TOO_OLD_HERDR =
   'This Herdr cannot update plugins yet: update Herdr on the computer, then try again.';
 
-/** The update clones and builds (pnpm install, pnpm build), which takes minutes on a slow link. */
+/** The update clones the repository, built agent included, which takes minutes on a slow link. */
 const UPDATE_TIMEOUT_MS = 15 * 60_000;
 const RESTART_TIMEOUT_MS = 60_000;
 

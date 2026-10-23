@@ -6,6 +6,23 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-10-23
+
+### Changed
+
+- **The plugin installs with Node alone**: the built agent, with its dependencies inside, is now
+  in the repository, so `herdr plugin install` and **Settings → Update** no longer run pnpm or
+  build anything. Installing needs only Node 22+ and Herdr 0.9.5+, and takes seconds.
+- **Release check**: `pnpm bundle:check`, and CI after its build, fail when the committed bundle
+  differs from a fresh build.
+
+### Fixed
+
+- **Install errors from pnpm**: `failed to start: program not found` when pnpm was not on Herdr's
+  PATH, and `os error 183` from a half-written pnpm store, can no longer happen. The README gains
+  a [Troubleshooting](README.md#-troubleshooting) entry for each, and for
+  `plugin_manifest_unavailable`.
+
 ## [0.10.2] — 2026-10-21
 
 ### Fixed

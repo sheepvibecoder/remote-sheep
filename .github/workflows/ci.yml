@@ -1,7 +1,8 @@
 # The gate a release candidate passes on its way from develop to main: format,
-# lint, types, tests with coverage thresholds, and the build. It runs only on
-# `testing`; day-to-day work on develop is checked locally by `pnpm check` and
-# the git hooks. Keep the job named `check`; branch protection targets it.
+# lint, types, tests with coverage thresholds, the build, and the committed agent
+# bundle matching that build. It runs only on `testing`; day-to-day work on
+# develop is checked locally by `pnpm check` and the git hooks. Keep the job
+# named `check`; branch protection targets it.
 
 name: CI
 
@@ -50,3 +51,8 @@ jobs:
 
       - name: build
         run: pnpm build
+
+      # The Herdr plugin runs the committed packages/agent/dist with no build step: fail when it
+      # differs from the build above, so a release never ships a stale bundle.
+      - name: bundle is up to date
+        run: node scripts/check-bundle.mjs --no-build

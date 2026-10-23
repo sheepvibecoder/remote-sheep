@@ -67,13 +67,6 @@ importers:
         version: 3.2.7(@types/node@22.20.5)(jiti@2.6.1)(lightningcss@1.33.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
 
   packages/agent:
-    dependencies:
-      qrcode:
-        specifier: ^1.5.4
-        version: 1.5.4
-      ws:
-        specifier: ^8.18.0
-        version: 8.22.0
     devDependencies:
       '@remote-sheep/protocol':
         specifier: workspace:*
@@ -87,6 +80,12 @@ importers:
       esbuild:
         specifier: ^0.28.0
         version: 0.28.2
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
+      ws:
+        specifier: ^8.18.0
+        version: 8.22.0
 
   packages/app:
     dependencies:

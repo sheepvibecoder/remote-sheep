@@ -225,16 +225,16 @@ home screen; a real certificate removes both.
 - **"plugin requires Herdr 0.9.5 or newer; current Herdr is 0.9.0" after `herdr update`.** The
   server that was running still is the old version. `herdr server stop` (it closes every Herdr
   pane, so save your work first), then start Herdr again and install.
-- **`pnpm install` fails with "os error 183" or "already exists" in the pnpm store.** A previous
-  install left a folder half written. Install again; if it fails the same way, run
-  `pnpm store prune` and install again.
+- **`pnpm install` fails with "os error 183" or "already exists" in the pnpm store.** Only
+  releases before 0.11.0 ran pnpm at install; update the plugin, which now needs only Node. See
+  [Troubleshooting](../README.md#-troubleshooting) in the README.
 - **The phone cannot reach the address.** Windows Firewall blocks Node the first time; allow it on
   private networks. The phone must be on the same network as the computer.
 
 ### Updating
 
 **Settings → Update** shows the version the computer runs. When the agent runs as the Herdr
-plugin, **Update** asks Herdr to fetch and build the newest version
+plugin, **Update** asks Herdr to fetch the newest version, built agent included
 (`herdr plugin update sheepvibecoder.remote-sheep --yes`); the app says **Updating…** meanwhile,
 which can take a few minutes. If there is a new build, the agent restarts into it through the
 plugin's **Restart remote-sheep** action, keeping its data folder, port and relay; the app
@@ -246,7 +246,8 @@ reason.
 Herdr updates only a plugin installed from GitHub (`herdr plugin install`), and needs a Herdr
 that has `herdr plugin update`. A plugin linked with `herdr plugin link`, or an agent started with
 `pnpm start` or `remote-sheep start` outside Herdr, cannot update itself; the app says so. Update
-that copy with `git pull` and `pnpm build`, then `remote-sheep restart` (stop, then start again).
+that copy with `git pull` (it holds the built agent; run `pnpm build` only after changing the
+code), then `remote-sheep restart` (stop, then start again).
 
 ### Settings
 

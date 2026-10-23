@@ -1,1 +1,4 @@
 * text=auto eol=lf
+# The built agent is committed and checked byte for byte against a fresh build (bundle:check):
+# git must store and check it out exactly as written, never converting line endings.
+packages/agent/dist/** -text -eol linguist-generated=true

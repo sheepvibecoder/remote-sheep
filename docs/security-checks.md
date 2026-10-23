@@ -10,14 +10,21 @@ weaknesses there: the file is public.
 
 ## Every release
 
-| #   | Check                  | Passes when                                        |
-| --- | ---------------------- | -------------------------------------------------- |
-| 1   | `pnpm check`           | exit 0                                             |
-| 2   | Dependency audit       | no HIGH or CRITICAL with a fixed version available |
-| 3   | Static analysis        | no new findings in SonarQube or Semgrep            |
-| 4   | Dynamic scan (ZAP)     | 0 FAIL, no new WARN                                |
-| 5   | Phone check            | the app loads and works on a real phone, no errors |
-| 6   | GitHub security alerts | no open Dependabot or code scanning alert          |
+| #   | Check                                  | Passes when                                        |
+| --- | -------------------------------------- | -------------------------------------------------- |
+| 1   | `pnpm check`, then `pnpm bundle:check` | exit 0                                             |
+| 2   | Dependency audit                       | no HIGH or CRITICAL with a fixed version available |
+| 3   | Static analysis                        | no new findings in SonarQube or Semgrep            |
+| 4   | Dynamic scan (ZAP)                     | 0 FAIL, no new WARN                                |
+| 5   | Phone check                            | the app loads and works on a real phone, no errors |
+| 6   | GitHub security alerts                 | no open Dependabot or code scanning alert          |
+
+### 1. Checks and the committed bundle
+
+`pnpm check` is what CI runs. `pnpm bundle:check` builds again and fails when
+`packages/agent/dist` differs from what is committed: the Herdr plugin runs that bundle as it is,
+with no build on the user's computer, so a stale one ships old code. When it fails, commit the
+fresh `packages/agent/dist` and run it again. CI runs the same check after its build.
 
 ### 2. Dependency audit
 
@@ -25,6 +32,10 @@ weaknesses there: the file is public.
 pnpm audit --prod
 docker run --rm -v ${PWD}:/src aquasec/trivy fs --severity HIGH,CRITICAL /src
 ```
+
+The agent bundles `ws` and `qrcode` into `packages/agent/dist`, so they are devDependencies
+that still ship: `pnpm audit --prod` does not list them. Check them with `pnpm audit` (every
+dependency) and treat a finding in either one as a production finding.
 
 Trivy also reports secrets written into files by mistake. To fix a vulnerable dependency, update
 it (`pnpm update <name>`), or add a `pnpm.overrides` entry when it comes in through another

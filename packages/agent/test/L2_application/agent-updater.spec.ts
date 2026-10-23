@@ -68,6 +68,8 @@ describe('AgentUpdater', () => {
     const { updater } = setup(null);
     await expect(updater.runUpdate()).rejects.toThrow(NOT_A_PLUGIN);
     expect(NOT_A_PLUGIN).toContain('herdr plugin update sheepvibecoder.remote-sheep');
+    expect(NOT_A_PLUGIN).toContain('`git pull` in a copy of the code');
+    expect(NOT_A_PLUGIN).toContain('`pnpm build` only if you changed the code');
   });
 
   it('answers at once and updates in the background, however long Herdr takes', async () => {

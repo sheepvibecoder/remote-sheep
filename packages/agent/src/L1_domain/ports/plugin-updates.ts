@@ -1,13 +1,13 @@
 import type { UpdateState } from '@remote-sheep/protocol';
 
-/** What an update of the plugin did: installed a new build, or found nothing new. */
+/** What an update of the plugin did: installed a new version, or found nothing new. */
 export type PluginUpdate = 'updated' | 'current';
 
-/** The plugin this agent was installed as, which can fetch and build a newer version of itself. */
+/** The plugin this agent was installed as, which can install a newer version of itself. */
 export interface PluginUpdates {
-  /** Fetches and builds the newest version; rejects with a message for the person on failure. */
+  /** Fetches and installs the newest version; rejects with a message for the person on failure. */
   update(): Promise<PluginUpdate>;
-  /** Starts the newest build in place of this agent, with the same data; this process then ends. */
+  /** Starts the newest version in place of this agent, with the same data; then this one ends. */
   restart(): Promise<void>;
 }
 

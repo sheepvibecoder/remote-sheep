@@ -72,6 +72,9 @@ describe('HerdrPluginUpdates', () => {
       code: 1,
     });
     await expect(updates.update()).rejects.toThrow(LINKED_PLUGIN);
+    // The checkout holds the built agent: a pull is enough, a build only after changing the code.
+    expect(LINKED_PLUGIN).toContain('run `git pull` in that folder');
+    expect(LINKED_PLUGIN).toContain('`pnpm build` only if you changed the code');
   });
 
   it('explains a Herdr too old to update plugins', async () => {
