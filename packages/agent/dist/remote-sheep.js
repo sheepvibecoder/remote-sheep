@@ -11565,7 +11565,7 @@ function encodeServerMessage(message2) {
 // package.json
 var package_default = {
   name: "remote-sheep",
-  version: "0.11.0",
+  version: "0.11.1",
   license: "SEE LICENSE IN LICENSE",
   private: true,
   description: "Drive the coding agents running in Herdr from your phone, by chat and voice",

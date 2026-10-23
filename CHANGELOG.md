@@ -6,6 +6,18 @@ All notable changes to remote-sheep are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-10-23
+
+### Fixed
+
+- **Slow connections on the local network**: the agent's web server now closes a connection that
+  sends nothing, or its request too slowly, after 10 seconds instead of holding it open.
+
+### Changed
+
+- **Security checks**: releases are also scanned with Snyk (dependencies and code); the accepted
+  findings are listed in [docs/security-checks.md](docs/security-checks.md).
+
 ## [0.11.0] — 2026-10-23
 
 ### Changed
