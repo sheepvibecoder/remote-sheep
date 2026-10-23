@@ -31,23 +31,27 @@
 
 ## 🐑 Why remote-sheep
 
-- **Your agents never wait for you** — a notification the moment one finishes or asks something;
-  answer in seconds and it is back at work while you are in a meeting, on the bus or on the couch.
-- **Run several sessions at once** — see them all, jump to the one that needs you, keep the rest
-  going.
+- **Your agents never wait for you** — a notification the moment one finishes or asks something.
+- **Several sessions at once** — see them all, jump to the one that needs you.
 - **Web and phone in one install** — the same app on the PC's browser and on your phone.
-- **Two steps, no setup** — install the plugin, open a link. No account, no password.
-- **From anywhere, without a VPN** — a free relay in your own Cloudflare account; no Tailscale,
-  no port forwarding.
+- **From anywhere, without a VPN** — an optional free relay in your own Cloudflare account.
 - **End-to-end encrypted** — even the relay cannot read your code or your chats.
-- **Voice, photos and notifications** — built for the moments you are away from the keyboard.
-- **Runs itself** — starts with Herdr, picks a free port, updates from the app.
 
-## 🚀 Get started in three steps
+## ✅ Requirements
 
-You need [Herdr](https://herdr.dev) 0.9.5 or newer, [Node.js](https://nodejs.org) 22+ and
-[pnpm](https://pnpm.io) 11. Just updated Herdr? Restart it first: the server that was already
-running keeps the old version.
+| You need                            | Check it with     | You should see                                     |
+| ----------------------------------- | ----------------- | -------------------------------------------------- |
+| [Node.js](https://nodejs.org) 22+   | `node --version`  | `v22…` or higher                                   |
+| [Herdr](https://herdr.dev) 0.9.5+   | `herdr --version` | `0.9.5` or higher                                  |
+| [Git](https://git-scm.com)          | `git --version`   | any version                                        |
+| A phone on the same Wi-Fi as the PC | —                 | (or [the relay](#-use-it-away-from-home-optional)) |
+
+`node` and `git` must work in the terminal Herdr starts from: Herdr uses Git to download the
+plugin, and Node to run it. You do **not** need pnpm or npm, and nothing is built.
+
+Just updated Herdr? Restart it first. The server that was already running keeps the old version.
+
+## 🚀 Install
 
 **1. Install the plugin**
 
@@ -55,57 +59,64 @@ running keeps the old version.
 herdr plugin install sheepvibecoder/remote-sheep
 ```
 
-Herdr downloads and builds it, which takes a few minutes.
+You will see: Herdr downloads the plugin, shows a preview of it and the commands it will run, and
+asks you to confirm. Confirm. There is no build step, so it ends right after.
+
+Nothing is running yet. That is normal: Herdr starts plugins only when its server starts. Step 2
+starts it for you.
 
 **2. Show the pairing QR**
 
-In Herdr, run the plugin action **Show pairing QR**, or:
+In Herdr, run the plugin action **Show pairing QR**. A pane opens over the screen. It starts
+remote-sheep if needed, then shows a QR code and, below it:
 
-```sh
-herdr plugin action invoke qr --plugin sheepvibecoder.remote-sheep
+```text
+Scan this QR code with the phone, or open a link below in a browser, to pair it.
+It pairs one phone or browser and expires at <date> <time>.
+On this network:
+  http://<this-pc-ip>:3998/#pair=…
+On this PC's browser:
+  http://127.0.0.1:3998/#pair=…
+Enter: a new QR code (the previous one stops working). q or Esc: close.
 ```
 
-The first time, this starts remote-sheep: Herdr starts plugins only when its server starts, so
-nothing runs right after the install. From then on it starts with Herdr. The pane shows the
-address, usually **http://localhost:3998**, and the QR code.
+Your address and time will differ. The port is usually 3998, or the next free one.
 
-> [!TIP]
-> **Nothing on http://localhost:3998?** Start it yourself, then check the port it took:
->
-> ```sh
-> herdr plugin action invoke start --plugin sheepvibecoder.remote-sheep
-> ```
->
-> `invoke` prints no result; see [If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start)
-> to read the port and any error.
+**3. Pair your phone and this PC**
 
-**3. Open it**
+- **Phone:** scan the QR code with the camera and open the link. Each QR pairs one device; press
+  **Enter** in the pane for a new one.
+- **This PC:** open the **On this PC's browser** link.
 
-- **On this PC:** open that address in your browser. It pairs at once — no QR, no password.
-- **On your phone:** in that page, open **Settings → Add a device** and scan the QR code.
+Then press **q** to close the pane. remote-sheep keeps running. From now on it starts by itself
+every time Herdr starts.
 
-<!-- TODO: record install.gif once the repository is public.
-<p align="center">
-  <img src=".github/assets/install.gif" alt="Installing the plugin and pairing a phone" width="640">
-</p>
--->
+**4. Check that it runs (optional)**
 
-That's it. Updates come from the app: **Settings → Update**. Something does not work? See
-[If the plugin does not start](docs/guide.md#if-the-plugin-does-not-start).
+Run the plugin action **remote-sheep status**. Its answer goes to Herdr's plugin log (see
+[how to read it](docs/guide.md#if-the-plugin-does-not-start)). You will find:
+
+```text
+remote-sheep is running: PID 12345, port 3998, log <folder>/agent.log.
+```
+
+Updates come from the app: **Settings → Update**.
 
 ### Plugin actions
 
-Run them from Herdr's plugin actions, or from a terminal with
-`herdr plugin action invoke <action> --plugin sheepvibecoder.remote-sheep`.
+In Herdr's plugin actions, or `herdr plugin action invoke <action> --plugin sheepvibecoder.remote-sheep`
+(which prints nothing; the answer goes to the plugin log).
 
-| Action    | Title in Herdr       | What it does                                                     |
-| --------- | -------------------- | ---------------------------------------------------------------- |
-| `start`   | Start remote-sheep   | Starts the agent in the background (nothing if it already runs). |
-| `stop`    | Stop remote-sheep    | Stops the agent.                                                 |
-| `restart` | Restart remote-sheep | Stops and starts it again, keeping its data, port and relay.     |
-| `status`  | remote-sheep status  | Says whether it runs, its port and its log file.                 |
-| `qr`      | Show pairing QR      | Starts the agent if needed and shows the pairing QR and links.   |
-| `relay`   | Set the relay        | Starts the agent if needed and sets or turns off the relay.      |
+| Action    | Title in Herdr       | What it does                                           | Its answer                                       |
+| --------- | -------------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| `start`   | Start remote-sheep   | Starts it in the background.                           | `remote-sheep started: PID …, port …, log ….`    |
+| `stop`    | Stop remote-sheep    | Stops it.                                              | `remote-sheep stopped (PID …).`                  |
+| `restart` | Restart remote-sheep | Stops and starts it, keeping its data, port and relay. | —                                                |
+| `status`  | remote-sheep status  | Says whether it runs.                                  | `remote-sheep is running: PID …, port …, log ….` |
+| `qr`      | Show pairing QR      | Opens the pairing pane (step 2).                       | —                                                |
+| `relay`   | Set the relay        | Opens a pane to set or turn off the relay.             | —                                                |
+
+If it already runs, `start` answers `remote-sheep already runs: PID …, port …, log ….`
 
 ## 🌍 Use it away from home (optional)
 
@@ -155,13 +166,42 @@ the right address. To pick another one, open **Settings → Port**.
 </details>
 
 <details>
-<summary><b>Commands, if you prefer the terminal</b></summary>
+<summary><b>`failed to start: program not found`</b></summary>
 
-Every action is also a Herdr action: `start`, `stop`, `status`, `restart`, `qr` and `relay`.
+**Why:** you have a release older than 0.11.0. Those ran pnpm during the install, and Herdr could
+not find it.
+
+**What to do:** update the plugin. Since 0.11.0 it needs only Node. Check that `node --version`
+works in the terminal Herdr starts from.
 
 ```sh
-herdr plugin action invoke sheepvibecoder.remote-sheep.status
+herdr plugin update sheepvibecoder.remote-sheep
 ```
+
+</details>
+
+<details>
+<summary><b>pnpm fails with <code>os error 183</code> in the pnpm store</b></summary>
+
+**Why:** also a release older than 0.11.0. An earlier install left the pnpm store half written.
+
+**What to do:** update the plugin as above; it no longer runs pnpm. To clean the store anyway, run
+`pnpm store prune`.
+
+</details>
+
+<details>
+<summary><b><code>plugin_manifest_unavailable</code></b></summary>
+
+**Why:** Herdr knows the plugin but cannot read its `herdr-plugin.toml`. Usually your Herdr is
+older than 0.9.5. Restarting Herdr alone does not fix it.
+
+**What to do:**
+
+1. Run `herdr plugin list --json`. In the remote-sheep entry, `warnings` says
+   `manifest unavailable: <reason>`.
+2. Update Herdr to 0.9.5 or newer, and restart it.
+3. Install the plugin again.
 
 </details>
 
