@@ -14,7 +14,7 @@ weaknesses there: the file is public.
 | --- | -------------------------------------- | -------------------------------------------------- |
 | 1   | `pnpm check`, then `pnpm bundle:check` | exit 0                                             |
 | 2   | Dependency audit                       | no HIGH or CRITICAL with a fixed version available |
-| 3   | Static analysis                        | no new findings in SonarQube or Semgrep            |
+| 3   | Static analysis                        | no new findings in SonarQube, Semgrep or Snyk Code |
 | 4   | Dynamic scan (ZAP)                     | 0 FAIL, no new WARN                                |
 | 5   | Phone check                            | the app loads and works on a real phone, no errors |
 | 6   | GitHub security alerts                 | no open Dependabot or code scanning alert          |
@@ -31,7 +31,10 @@ fresh `packages/agent/dist` and run it again. CI runs the same check after its b
 ```powershell
 pnpm audit --prod
 docker run --rm -v ${PWD}:/src aquasec/trivy fs --severity HIGH,CRITICAL /src
+npx snyk test --all-projects
 ```
+
+Snyk needs a free account: run `npx snyk auth` once before the first scan.
 
 The agent bundles `ws` and `qrcode` into `packages/agent/dist`, so they are devDependencies
 that still ship: `pnpm audit --prod` does not list them. Check them with `pnpm audit` (every
@@ -43,11 +46,27 @@ package.
 
 ### 3. Static analysis
 
-Run the SonarQube scan as usual, then Semgrep:
+Run the SonarQube scan as usual, then Semgrep and Snyk Code:
 
 ```powershell
 docker run --rm -v ${PWD}:/src semgrep/semgrep semgrep scan --config p/typescript --config p/nodejs /src
+npx snyk code test
 ```
+
+Snyk Code uploads the source for one analysis and deletes it after; it must be enabled once in
+the organization's settings on snyk.io. Its findings below were reviewed and accepted; anything
+else is new:
+
+| Finding                                      | Where                                         | Why it stays                                                                                                                                                                                 |
+| -------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cross-site Scripting                         | `lan-transport.ts`, serving a file            | It sends a file of the built app, never request data, with a fixed content type and `nosniff`.                                                                                               |
+| Cleartext transmission                       | `http-control-server.ts`, `control-client.ts` | The control server listens on `127.0.0.1` only; nothing leaves the computer.                                                                                                                 |
+| Cleartext transmission                       | `lan-transport.ts`, the HTTP server           | Plain HTTP only without TLS on the LAN; every frame on it is end-to-end encrypted (see Known limit in `.github/SECURITY.md`).                                                                |
+| Allocation without limits                    | `lan-transport.ts`, serving a file            | It asks for a rate limit before each file read. The server hands out only the app's own small files on the LAN; requests time out after 10 s and upgrades are capped by `MAX_PENDING_LINKS`. |
+| Server error message                         | `http-control-server.ts`, `/relay`            | Only the local CLI, holding the secret, reads it, to tell the person why the relay change failed.                                                                                            |
+| Insufficient postMessage validation          | app `websocket-agent-connection.ts`           | It is a WebSocket message, not a `postMessage`; frames are authenticated by the channel before use.                                                                                          |
+| Path traversal                               | `scripts/check-denylist.mjs`                  | The commit hook passes it the staged file names; it reads only files of the repository.                                                                                                      |
+| Cleartext, hardcoded secret, type validation | `packages/*/test`                             | Tests use local servers and fixed fake keys on purpose.                                                                                                                                      |
 
 ### 4. Dynamic scan (ZAP)
 

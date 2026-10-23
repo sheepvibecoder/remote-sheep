@@ -25,8 +25,8 @@ Please do not open a public issue. Only the latest version gets fixes.
 Every release follows [docs/security-checks.md](../docs/security-checks.md). Last run before
 release, October 2026:
 
-- 🔍 **Static analysis** of the code with SonarQube and Semgrep.
-- 📦 **Dependency audit** with `pnpm audit --prod` and Trivy: no known vulnerabilities.
+- 🔍 **Static analysis** of the code with SonarQube, Semgrep and Snyk Code.
+- 📦 **Dependency audit** with `pnpm audit --prod`, Trivy and Snyk: no known vulnerabilities.
 - 🔑 **Secret scanning** with Trivy and on every commit and pull request; GitHub push protection
   refuses a push that carries a known secret.
 - 🤖 **Dependabot alerts** watch the dependencies for vulnerabilities and malware after release.
