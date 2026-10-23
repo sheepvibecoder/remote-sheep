@@ -59,7 +59,14 @@ if (pane) {
   console.error('usage: plugin.mjs start|stop|restart|status|qr|relay|open-qr|open-relay');
   process.exitCode = 2;
 } else if (!existsSync(agent)) {
-  console.error('remote-sheep is not built: run `pnpm install` and `pnpm build` in ' + root);
+  // The built agent is committed, so a plugin install always has it; only a checkout whose dist/
+  // was deleted, or a broken install, gets here.
+  console.error(
+    'remote-sheep is not built in ' +
+      root +
+      ': update or reinstall the plugin (herdr plugin update sheepvibecoder.remote-sheep), or, ' +
+      'in a git checkout, run `pnpm install` and `pnpm build`.',
+  );
   process.exitCode = 1;
 } else {
   const started = NEEDS_AGENT.has(command) ? runAgent(['start']) : 0;

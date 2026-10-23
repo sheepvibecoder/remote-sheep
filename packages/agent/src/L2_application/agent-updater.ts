@@ -1,10 +1,10 @@
 // The agent's own update, asked for from a paired device (Settings → Update).
 //
-// Only an agent started by the Herdr plugin can update itself: Herdr fetches and builds the new
-// version, then the agent restarts into it. A copy of the code run by hand is someone's checkout,
-// which this never touches; the person is told how to update it instead. One update runs at a
-// time. Herdr takes minutes, longer than a device waits for an answer, so a run is answered at
-// once and the device reads the state until the outcome appears. The restart ends this process
+// Only an agent started by the Herdr plugin can update itself: Herdr fetches the new version,
+// built agent included, then the agent restarts into it. A copy of the code run by hand is
+// someone's checkout, which this never touches; the person is told how to update it instead. One
+// update runs at a time. Herdr takes minutes, longer than a device waits for an answer, so a run
+// is answered at once and the device reads the state until the outcome appears. The restart ends this process
 // and drops the link; a restart that fails is recorded as a failed update.
 
 import type { UpdateState } from '@remote-sheep/protocol';
@@ -12,8 +12,9 @@ import type { PluginUpdates, UpdateRequests } from '../L1_domain/ports/plugin-up
 
 export const NOT_A_PLUGIN =
   'This agent does not run as the Herdr plugin, so it cannot update itself. On the computer, ' +
-  'run `herdr plugin update sheepvibecoder.remote-sheep`, or `git pull` and `pnpm build` in a ' +
-  'copy of the code, then restart the agent.';
+  'run `herdr plugin update sheepvibecoder.remote-sheep`, or `git pull` in a copy of the code ' +
+  '(it holds the built agent; run `pnpm build` only if you changed the code), then restart the ' +
+  'agent.';
 
 export const ALREADY_UPDATING = 'an update is already running on this computer';
 

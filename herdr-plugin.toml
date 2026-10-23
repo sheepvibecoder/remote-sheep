@@ -1,16 +1,11 @@
 id = "sheepvibecoder.remote-sheep"
 name = "remote-sheep"
-version = "0.10.2"
+version = "0.11.0"
 min_herdr_version = "0.9.5"
 description = "Drive the coding agents running in Herdr from your phone, by chat and voice"
 platforms = ["linux", "macos", "windows"]
 
-# Needs Node 22+ and pnpm on PATH. On Windows Herdr finds pnpm.cmd through PATHEXT.
-[[build]]
-command = ["pnpm", "install", "--frozen-lockfile"]
-
-[[build]]
-command = ["pnpm", "build"]
+# No build step: the built agent is committed, so installing the plugin needs only Node 22+.
 
 # Every command is the same Node loader: Herdr runs it with no shell and, on Windows, in a
 # \\?\C:\... folder where `node <relative path>` fails. The loader strips that prefix from
@@ -36,7 +31,7 @@ command = ["node", "-e", 'const r = (process.env.HERDR_PLUGIN_ROOT || process.cw
 
 # Stops the running agent and starts it again from this installation, with the same data, port
 # and relay. After the app's Settings → Update, the agent asks Herdr to run this action: Herdr
-# runs it from the newly built installation, so the new version is the one that starts.
+# runs it from the installation it has just updated, so the new version is the one that starts.
 [[actions]]
 id = "restart"
 title = "Restart remote-sheep"

@@ -1,6 +1,8 @@
 # Dependencies and build output
 node_modules/
 dist/
+# The built agent is committed: the Herdr plugin runs it with no install or build step.
+!packages/agent/dist/
 out-tsc/
 .angular/
 coverage/
