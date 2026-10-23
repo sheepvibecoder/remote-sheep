@@ -30,6 +30,9 @@ The leak check needs the owner's private denylist at `~/.config/sheep-guard/deny
   branch to it and pushing, not with GitHub's merge button, which re-dates commits in your
   timezone
 - 🏛️ Each pull request gets an architecture and a leak review
+- 📦 `packages/agent/dist` is committed, because the Herdr plugin runs it with no build step.
+  Run `pnpm build` and commit it with a change to the agent or the app; `pnpm bundle:check`
+  fails when it is stale, and CI runs the same check
 
 ## Flow
 
